@@ -1,6 +1,6 @@
 #include <libnmq/network/listener.h>
-#include <libnmq/utils/utils.h>
 #include <libnmq/queries.h>
+#include <libnmq/utils/utils.h>
 #include <functional>
 #include <string>
 
@@ -11,14 +11,18 @@ using namespace boost::asio::ip;
 using namespace nmq;
 using namespace nmq::network;
 
-Listener::ClientConnection::ClientConnection(Id id_, socket_ptr sock_,
+Listener::ClientConnection::ClientConnection(Id id_, network::AsyncIOPtr async_io,
                                              std::shared_ptr<Listener> s)
-    : id(id_), sock(sock_), _listener(s) {}
+    : id(id_), _listener(s) {
+  _async_connection = async_io;
+}
 
-Listener::ClientConnection::~ClientConnection() {}
+Listener::ClientConnection::~ClientConnection() {
+}
 
 void Listener::ClientConnection::start() {
   auto self = shared_from_this();
+
   AsyncIO::onDataRecvHandler on_d = [self](const Message_ptr &d, bool &cancel) {
     self->onDataRecv(d, cancel);
   };
@@ -28,8 +32,7 @@ void Listener::ClientConnection::start() {
     self->close();
   };
 
-  _async_connection = std::make_shared<AsyncIO>(on_d, on_n);
-  _async_connection->start(self->_listener->_service, sock);
+  _async_connection->start(on_d, on_n);
 }
 
 void Listener::ClientConnection::close() {
@@ -104,8 +107,10 @@ void Listener::handle_accept(std::shared_ptr<Listener> self, socket_ptr sock,
     std::shared_ptr<ClientConnection> new_client = nullptr;
     {
       std::lock_guard<std::mutex> lg(self->_locker_connections);
+      auto aio = std::make_shared<AsyncIO>(self->_service, sock);
       new_client =
-          std::make_shared<Listener::ClientConnection>((Id)self->_next_id, sock, self);
+          std::make_shared<Listener::ClientConnection>((Id)self->_next_id, aio, self);
+	  
       self->_next_id.fetch_add(1);
     }
 

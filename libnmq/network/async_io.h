@@ -10,6 +10,7 @@
 
 namespace nmq {
 namespace network {
+
 class AsyncIO : public std::enable_shared_from_this<AsyncIO> {
 public:
   /// if method set 'cancel' to true, then read loop stoping.
@@ -18,11 +19,11 @@ public:
   using onNetworkErrorHandler =
       std::function<void(const Message_ptr &d, const boost::system::error_code &err)>;
 
-  EXPORT AsyncIO(onDataRecvHandler onRecv, onNetworkErrorHandler onErr);
+  EXPORT AsyncIO(boost::asio::io_service *service, const socket_ptr &sock);
   EXPORT ~AsyncIO() noexcept(false);
   EXPORT void send(const Message_ptr d);
-  EXPORT void start(boost::asio::io_service *service, const socket_ptr &sock);
-  EXPORT void full_stop(bool waitAllMessages=false); /// stop thread, clean queue
+  EXPORT void start(onDataRecvHandler onRecv, onNetworkErrorHandler onErr);
+  EXPORT void full_stop(bool waitAllMessages = false); /// stop thread, clean queue
 
   int queue_size() const { return _messages_to_send; }
 
@@ -33,7 +34,7 @@ private:
   std::atomic_int _messages_to_send;
   boost::asio::io_service *_service = nullptr;
 
-  socket_weak _sock;
+  socket_ptr _sock;
 
   bool _is_stoped;
   std::atomic_bool _begin_stoping_flag;
@@ -42,5 +43,7 @@ private:
   onDataRecvHandler _on_recv_hadler;
   onNetworkErrorHandler _on_error_handler;
 };
+using AsyncIOPtr = std::shared_ptr<AsyncIO>;
+
 } // namespace network
 } // namespace nmq

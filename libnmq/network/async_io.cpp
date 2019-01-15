@@ -6,47 +6,49 @@ using namespace boost::asio;
 using namespace nmq;
 using namespace nmq::network;
 
-AsyncIO::AsyncIO(onDataRecvHandler onRecv, onNetworkErrorHandler onErr) {
+AsyncIO::AsyncIO(boost::asio::io_service *service, const socket_ptr &sock) {
   _messages_to_send = 0;
   _is_stoped = true;
-  _on_recv_hadler = onRecv;
-  _on_error_handler = onErr;
+  ENSURE(service != nullptr);
+  _service = service;
+  _sock = sock;
 }
 
 AsyncIO::~AsyncIO() noexcept(false) {
   full_stop();
 }
 
-void AsyncIO::start(boost::asio::io_service *service, const socket_ptr &sock) {
+void AsyncIO::start(onDataRecvHandler onRecv, onNetworkErrorHandler onErr) {
   if (!_is_stoped) {
     return;
   }
-  ENSURE(service != nullptr);
-  _service = service;
-  _sock = sock;
+  _on_recv_hadler = onRecv;
+  _on_error_handler = onErr;
   _is_stoped = false;
   _begin_stoping_flag = false;
+  ENSURE(auto spt = _sock.lock());
   readNextAsync();
 }
 
 void AsyncIO::full_stop(bool waitAllMessages) {
   _begin_stoping_flag = true;
   try {
-
-    if (auto spt = _sock.lock()) {
-      if (spt->is_open()) {
+    ENSURE(auto spt = _sock.lock());
+    //if (auto spt = _sock.lock()) 
+	{
+      if (_sock->is_open()) {
         if (waitAllMessages && _messages_to_send.load() != 0) {
           auto self = this->shared_from_this();
           _service->post([self]() { self->full_stop(); });
         } else {
 
           boost::system::error_code ec;
-          spt->shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+          _sock->shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
           if (ec) {
             auto message = ec.message();
             logger_fatal("AsyncIO::full_stop: ", message);
           }
-          spt->close(ec);
+          _sock->close(ec);
           if (ec) {
             auto message = ec.message();
             logger_fatal("AsyncIO::full_stop: ", message);
@@ -69,11 +71,12 @@ void AsyncIO::send(const Message_ptr d) {
   auto ds = d->as_buffer();
   auto send_buffer = std::get<1>(ds);
   auto send_buffer_size = std::get<0>(ds);
-
-  if (auto spt = _sock.lock()) {
+  ENSURE(auto spt = _sock.lock());
+  //if (auto spt = _sock.lock()) 
+  {
     _messages_to_send.fetch_add(1);
     auto buf = buffer(send_buffer, send_buffer_size);
-    async_write(*spt.get(), buf, [self, d](auto err, auto /*read_bytes*/) {
+    async_write(*_sock.get(), buf, [self, d](auto err, auto /*read_bytes*/) {
       if (err) {
         self->_on_error_handler(d, err);
       } else {
@@ -81,14 +84,15 @@ void AsyncIO::send(const Message_ptr d) {
         ENSURE(self->_messages_to_send >= 0);
       }
     });
-  }
+  } 
 }
 
 void AsyncIO::readNextAsync() {
-  if (auto spt = _sock.lock()) {
+  //if (auto spt = _sock.lock()) 
+  {
     auto self = shared_from_this();
 
-    auto on_read_size = [this, self, spt](auto err, auto read_bytes) {
+    auto on_read_size = [this, self](auto err, auto read_bytes) {
 
       if (err) {
         self->_on_error_handler(nullptr, err);
@@ -126,11 +130,11 @@ void AsyncIO::readNextAsync() {
 
         auto buf_ptr = (uint8_t *)(d->data + Message::SIZE_OF_SIZE);
         auto buf = buffer(buf_ptr, data_left);
-        async_read(*spt.get(), buf, on_read_message);
+        async_read(*self->_sock.get(), buf, on_read_message);
       }
     };
 
-    async_read(*spt.get(),
+    async_read(*_sock.get(),
                buffer((void *)&(self->next_message_size), Message::SIZE_OF_SIZE),
                on_read_size);
   }

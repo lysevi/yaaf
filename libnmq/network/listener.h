@@ -19,7 +19,7 @@ public:
 
   class ClientConnection : public std::enable_shared_from_this<ClientConnection> {
   public:
-    ClientConnection(Id id_, socket_ptr sock_, std::shared_ptr<Listener> s);
+    ClientConnection(Id id_, network::AsyncIOPtr async_io, std::shared_ptr<Listener> s);
     ~ClientConnection();
     void start();
     void close();
@@ -30,8 +30,7 @@ public:
 
   private:
     Id id;
-    socket_ptr sock = nullptr;
-    std::shared_ptr<AsyncIO> _async_connection = nullptr;
+    network::AsyncIOPtr _async_connection = nullptr;
     std::shared_ptr<Listener> _listener = nullptr;
   };
   using ClientConnection_Ptr = std::shared_ptr<ClientConnection>;

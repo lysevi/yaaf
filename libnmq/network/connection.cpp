@@ -39,9 +39,11 @@ void Connection::async_connect() {
       break;
     }
   }
+
   if (iter == tcp::resolver::iterator()) {
     THROW_EXCEPTION("hostname not found.");
   }
+
   tcp::endpoint ep = *iter;
   logger_info("client(", _params.login, "): start async connection to ", _params.host,
               ":", _params.port, " - ", ep.address().to_string());
@@ -61,8 +63,9 @@ void Connection::async_connect() {
           self->reconnectOnError(d, err);
         };
 
-        self->_async_connection = std::make_shared<AsyncIO>(on_d, on_n);
-        self->_async_connection->start(self->_service, self->_socket);
+        self->_async_connection =
+            std::make_shared<AsyncIO>(self->_service, self->_socket);
+        self->_async_connection->start(on_d, on_n);
         self->isConnected = true;
         self->onConnect();
       }
