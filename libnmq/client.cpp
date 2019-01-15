@@ -1,10 +1,9 @@
 #include <libnmq/client.h>
 
 using namespace nmq;
-using namespace network;
 
-Client::Client(boost::asio::io_service *service, const AbstractClient::Params &_params)
-    : AbstractClient(service, _params) {}
+Client::Client(boost::asio::io_service *service, const Connection::Params &_params)
+    : Connection(service, _params) {}
 
 Client::~Client() {}
 
@@ -24,23 +23,24 @@ void Client::connectAsync() {
 }
 
 void Client::disconnect() {
-  return AbstractClient::disconnect();
+  return Connection::disconnect();
 }
 
 void Client::onConnect() {
   logger("client(", _params.login, "):: send login.");
   queries::Login lg(this->_params.login);
   _loginConfirmed = false;
-  this->send(lg.toNetworkMessage());
+  network::Message_ptr mptr = lg.toNetworkMessage();
+  this->send(mptr);
 
   logger("client(", _params.login, "):: send login sended.");
 }
 
-void Client::onNewMessage(const NetworkMessage_ptr &d, bool &cancel) {
+void Client::onNewMessage(const network::Message_ptr &d, bool &cancel) {
   auto hdr = d->cast_to_header();
 
   switch (hdr->kind) {
-  case (NetworkMessage::message_kind)MessageKinds::OK: {
+  case MessageKinds::OK : {
     logger("client (", _params.login, "): recv ok");
     auto cs = queries::Ok(d);
 
@@ -57,7 +57,7 @@ void Client::onNewMessage(const NetworkMessage_ptr &d, bool &cancel) {
     break;
   }
 
-  case (NetworkMessage::message_kind)MessageKinds::LOGIN_CONFIRM: {
+  case MessageKinds::LOGIN_CONFIRM: {
     logger_info("client (", _params.login, "): login confirm");
     auto lc = queries::LoginConfirm(d);
     _id = lc.id;
@@ -69,7 +69,7 @@ void Client::onNewMessage(const NetworkMessage_ptr &d, bool &cancel) {
   }
 }
 
-void Client::onNetworkError(const NetworkMessage_ptr &d,
+void Client::onNetworkError(const network::Message_ptr &d,
                             const boost::system::error_code &err) {
   bool isError = err == boost::asio::error::operation_aborted ||
                  err == boost::asio::error::connection_reset ||
@@ -108,7 +108,7 @@ void Client::waitAll() const {
 //  }
 //}
 
-void Client::send(const NetworkMessage_ptr &nd) {
+void Client::send(const network::Message_ptr &nd) {
   if (_async_connection != nullptr) {
     _async_connection->send(nd);
   }

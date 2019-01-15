@@ -2,7 +2,7 @@
 
 #include <libnmq/exports.h>
 #include <libnmq/kinds.h>
-#include <libnmq/network/abstract_client.h>
+#include <libnmq/network/connection.h>
 #include <libnmq/queries.h>
 #include <libnmq/utils/async/locker.h>
 #include <libnmq/utils/utils.h>
@@ -21,10 +21,10 @@ struct AsyncOperationResult {
   }
 };
 
-class Client : public network::AbstractClient, public utils::non_copy {
+class Client : public network::Connection, public utils::non_copy {
 public:
   Client() = delete;
-  EXPORT Client(boost::asio::io_service *service, const AbstractClient::Params &_params);
+  EXPORT Client(boost::asio::io_service *service, const Connection::Params &_params);
   EXPORT ~Client();
 
   EXPORT void connect();
@@ -33,19 +33,19 @@ public:
   EXPORT bool is_connected();
 
   EXPORT void waitAll() const;
-  uint64_t getId() const { return _id;}
+  uint64_t getId() const { return _id; }
 
   EXPORT void onConnect() override;
 
-  EXPORT void onNetworkError(const NetworkMessage_ptr &d,
+  EXPORT void onNetworkError(const network::Message_ptr &d,
                              const boost::system::error_code &err) override;
 
   EXPORT virtual void onMessage(const std::string & /*queueName*/,
                                 const std::vector<uint8_t> & /*d*/){};
 
 private:
-  EXPORT void onNewMessage(const NetworkMessage_ptr &d, bool &cancel) override;
-  void send(const NetworkMessage_ptr &nd);
+  EXPORT void onNewMessage(const network::Message_ptr &d, bool &cancel) override;
+  void send(const network::Message_ptr &nd);
 
   uint64_t getNextId() { return _nextMessageId++; }
 

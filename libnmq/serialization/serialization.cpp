@@ -1,7 +1,7 @@
-#include <libnmq/serialisation.h>
+#include <libnmq/serialization/serialization.h>
 
 namespace nmq {
-namespace serialisation {
+namespace serialization {
 
 // template <> size_t get_size_of<std::string>(const std::string &s) {
 //  return sizeof(uint32_t) + s.length();
@@ -23,5 +23,5 @@ namespace serialisation {
 //	s.resize(len);
 //	std::memcpy(&s[0], buffer.data() + offset + sizeof(uint32_t), size_t(len));
 //}
-} // namespace serialisation
+} // namespace serialization
 } // namespace nmq

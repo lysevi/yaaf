@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace nmq {
-namespace serialisation {
+namespace serialization {
 
 template <class T> struct get_size {
   static size_t size(const T &) { return sizeof(T); }
@@ -140,5 +140,5 @@ public:
     read_args(it, std::forward<T>(t)...);
   }
 };
-} // namespace serialisation
+} // namespace serialization
 } // namespace nmq

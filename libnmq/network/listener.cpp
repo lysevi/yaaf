@@ -1,4 +1,4 @@
-#include <libnmq/network/abstract_server.h>
+#include <libnmq/network/listener.h>
 #include <libnmq/utils/utils.h>
 #include <functional>
 #include <string>
@@ -10,15 +10,15 @@ using namespace boost::asio::ip;
 using namespace nmq;
 using namespace nmq::network;
 
-AbstractServer::ClientConnection::ClientConnection(Id id_, socket_ptr sock_,
-                                                   std::shared_ptr<AbstractServer> s)
-    : id(id_), sock(sock_), _server(s) {}
+Listener::ClientConnection::ClientConnection(Id id_, socket_ptr sock_,
+                                             std::shared_ptr<Listener> s)
+    : id(id_), sock(sock_), _listener(s) {}
 
-AbstractServer::ClientConnection::~ClientConnection() {}
+Listener::ClientConnection::~ClientConnection() {}
 
-void AbstractServer::ClientConnection::start() {
+void Listener::ClientConnection::start() {
   auto self = shared_from_this();
-  AsyncIO::onDataRecvHandler on_d = [self](const NetworkMessage_ptr &d, bool &cancel) {
+  AsyncIO::onDataRecvHandler on_d = [self](const Message_ptr &d, bool &cancel) {
     self->onDataRecv(d, cancel);
   };
 
@@ -31,41 +31,40 @@ void AbstractServer::ClientConnection::start() {
   _async_connection->start(sock);
 }
 
-void AbstractServer::ClientConnection::close() {
+void Listener::ClientConnection::close() {
   if (_async_connection != nullptr) {
     _async_connection->full_stop();
     _async_connection = nullptr;
 
-    this->_server->erase_client_description(this->shared_from_this());
+    this->_listener->erase_client_description(this->shared_from_this());
   }
 }
 
-void AbstractServer::ClientConnection::onNetworkError(
-    const NetworkMessage_ptr &d, const boost::system::error_code &err) {
-  this->_server->onNetworkError(this->shared_from_this(), d, err);
+void Listener::ClientConnection::onNetworkError(const Message_ptr &d,
+                                                const boost::system::error_code &err) {
+  this->_listener->onNetworkError(this->shared_from_this(), d, err);
 }
 
-void AbstractServer::ClientConnection::onDataRecv(const NetworkMessage_ptr &d,
-                                                  bool &cancel) {
-  _server->onNewMessage(this->shared_from_this(), d, cancel);
+void Listener::ClientConnection::onDataRecv(const Message_ptr &d, bool &cancel) {
+  _listener->onNewMessage(this->shared_from_this(), d, cancel);
 }
 
-void AbstractServer::ClientConnection::sendData(const NetworkMessage_ptr &d) {
+void Listener::ClientConnection::sendData(const Message_ptr &d) {
   _async_connection->send(d);
 }
 
 /////////////////////////////////////////////////////////////////
 
-AbstractServer::AbstractServer(boost::asio::io_service *service, AbstractServer::Params p)
+Listener::Listener(boost::asio::io_service *service, Listener::Params p)
     : _service(service), _params(p) {
   _next_id.store(0);
 }
 
-AbstractServer::~AbstractServer() {
-  stopServer();
+Listener::~Listener() {
+  stop();
 }
 
-void AbstractServer::serverStart() {
+void Listener::start() {
   tcp::endpoint ep(tcp::v4(), _params.port);
   auto new_socket = std::make_shared<boost::asio::ip::tcp::socket>(*_service);
   _acc = std::make_shared<boost::asio::ip::tcp::acceptor>(*_service, ep);
@@ -74,12 +73,12 @@ void AbstractServer::serverStart() {
   _is_started = true;
 }
 
-void AbstractServer::start_accept(socket_ptr sock) {
+void Listener::start_accept(socket_ptr sock) {
   _acc->async_accept(*sock,
                      std::bind(&handle_accept, this->shared_from_this(), sock, _1));
 }
 
-void AbstractServer::erase_client_description(const ClientConnection_Ptr client) {
+void Listener::erase_client_description(const ClientConnection_Ptr client) {
   std::lock_guard<std::mutex> lg(_locker_connections);
   auto it = std::find_if(_connections.begin(), _connections.end(),
                          [client](auto c) { return c->get_id() == client->get_id(); });
@@ -88,8 +87,8 @@ void AbstractServer::erase_client_description(const ClientConnection_Ptr client)
   _connections.erase(it);
 }
 
-void AbstractServer::handle_accept(std::shared_ptr<AbstractServer> self, socket_ptr sock,
-                                   const boost::system::error_code &err) {
+void Listener::handle_accept(std::shared_ptr<Listener> self, socket_ptr sock,
+                             const boost::system::error_code &err) {
   if (err) {
     if (err == boost::asio::error::operation_aborted ||
         err == boost::asio::error::connection_reset || err == boost::asio::error::eof) {
@@ -104,8 +103,8 @@ void AbstractServer::handle_accept(std::shared_ptr<AbstractServer> self, socket_
     std::shared_ptr<ClientConnection> new_client = nullptr;
     {
       std::lock_guard<std::mutex> lg(self->_locker_connections);
-      new_client = std::make_shared<AbstractServer::ClientConnection>((Id)self->_next_id,
-                                                                      sock, self);
+      new_client =
+          std::make_shared<Listener::ClientConnection>((Id)self->_next_id, sock, self);
       self->_next_id.fetch_add(1);
     }
 
@@ -121,9 +120,9 @@ void AbstractServer::handle_accept(std::shared_ptr<AbstractServer> self, socket_
   self->start_accept(new_sock);
 }
 
-void AbstractServer::stopServer() {
+void Listener::stop() {
   if (!_is_stoped) {
-    logger("abstract_server::stopServer()");
+    logger("abstract_server::stop()");
     _acc->close();
     _acc = nullptr;
     if (!_connections.empty()) {
@@ -138,11 +137,11 @@ void AbstractServer::stopServer() {
   }
 }
 
-void AbstractServer::sendTo(ClientConnection_Ptr i, NetworkMessage_ptr &d) {
+void Listener::sendTo(ClientConnection_Ptr i, Message_ptr &d) {
   i->sendData(d);
 }
 
-void AbstractServer::sendTo(Id id, NetworkMessage_ptr &d) {
+void Listener::sendTo(Id id, Message_ptr &d) {
   std::lock_guard<std::mutex> lg(this->_locker_connections);
   for (auto c : _connections) {
     if (c->get_id() == id) {

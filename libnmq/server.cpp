@@ -7,15 +7,15 @@
 
 using namespace nmq;
 
-Server::Server(boost::asio::io_service *service, AbstractServer::Params &p)
-    : AbstractServer(service, p) {
+Server::Server(boost::asio::io_service *service, Listener::Params &p)
+    : Listener(service, p) {
   _users = UserBase::create();
   _users->append({"server", ServerID});
 }
 
 Server::~Server() {}
 
-void Server::onNetworkError(ClientConnection_Ptr i, const NetworkMessage_ptr &d,
+void Server::onNetworkError(ClientConnection_Ptr i, const network::Message_ptr &d,
                             const boost::system::error_code &err) {
   bool operation_aborted = err == boost::asio::error::operation_aborted;
   bool eof = err == boost::asio::error::eof;
@@ -25,12 +25,12 @@ void Server::onNetworkError(ClientConnection_Ptr i, const NetworkMessage_ptr &d,
   }
 }
 
-void Server::onNewMessage(ClientConnection_Ptr i, const NetworkMessage_ptr &d,
+void Server::onNewMessage(ClientConnection_Ptr i, const network::Message_ptr &d,
                           bool &cancel) {
   auto hdr = d->cast_to_header();
 
   switch (hdr->kind) {
-  case (NetworkMessage::message_kind)MessageKinds::LOGIN: {
+  case MessageKinds::LOGIN: {
     logger_info("server: #", i->get_id(), " set login");
     queries::Login lg(d);
     _users->setLogin(i->get_id(), lg.login);
@@ -62,7 +62,7 @@ network::ON_NEW_CONNECTION_RESULT Server::onNewConnection(ClientConnection_Ptr i
   return network::ON_NEW_CONNECTION_RESULT::ACCEPT;
 }
 
-void Server::onDisconnect(const AbstractServer::ClientConnection_Ptr &i) {
+void Server::onDisconnect(const Listener::ClientConnection_Ptr &i) {
   _users->erase(i->get_id());
 }
 

@@ -22,25 +22,25 @@ bool server_stop = false;
 std::shared_ptr<Server> server = nullptr;
 boost::asio::io_service *service;
 void server_thread() {
-  network::AbstractServer::Params p;
+  network::Listener::Params p;
   p.port = 4040;
   service = new boost::asio::io_service();
   server = std::make_shared<Server>(service, p);
 
-  server->serverStart();
+  server->start();
   while (!server_stop) {
     service->poll_one();
   }
 
-  server->stopServer();
+  server->stop();
   service->stop();
   EXPECT_TRUE(service->stopped());
   delete service;
   server = nullptr;
 }
 
-void testForReconnection(const size_t clients_count) {
-  network::AbstractClient::Params p("empty", "localhost", 4040);
+void testForConnection(const size_t clients_count) {
+  network::Connection::Params p("empty", "localhost", 4040);
 
   server_stop = false;
   std::thread t(server_thread);
@@ -96,10 +96,10 @@ void testForReconnection(const size_t clients_count) {
 
 TEST_CASE("server.client.1") {
   const size_t connections_count = 1;
-  server_client_test::testForReconnection(connections_count);
+  server_client_test::testForConnection(connections_count);
 }
 
 TEST_CASE("server.client.10") {
   const size_t connections_count = 10;
-  server_client_test::testForReconnection(connections_count);
+  server_client_test::testForConnection(connections_count);
 }

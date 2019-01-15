@@ -1,5 +1,6 @@
 #include <libnmq/network/async_io.h>
 #include <libnmq/utils/exception.h>
+#include <libnmq/utils/utils.h>
 
 using namespace boost::asio;
 using namespace nmq;
@@ -48,11 +49,11 @@ void AsyncIO::full_stop() {
   }
 }
 
-void AsyncIO::send(const NetworkMessage_ptr d) {
+void AsyncIO::send(const Message_ptr d) {
   if (_begin_stoping_flag) {
     return;
   }
-  auto ptr = shared_from_this();
+  auto self = shared_from_this();
 
   auto ds = d->as_buffer();
   auto send_buffer = std::get<1>(ds);
@@ -61,12 +62,12 @@ void AsyncIO::send(const NetworkMessage_ptr d) {
   if (auto spt = _sock.lock()) {
     _messages_to_send.fetch_add(1);
     auto buf = buffer(send_buffer, send_buffer_size);
-    async_write(*spt.get(), buf, [ptr, d](auto err, auto /*read_bytes*/) {
+    async_write(*spt.get(), buf, [self, d](auto err, auto /*read_bytes*/) {
       if (err) {
-        ptr->_on_error_handler(d, err);
+        self->_on_error_handler(d, err);
       } else {
-        ptr->_messages_to_send.fetch_sub(1);
-        assert(ptr->_messages_to_send >= 0);
+        self->_messages_to_send.fetch_sub(1);
+        ENSURE(self->_messages_to_send >= 0);
       }
     });
   }
@@ -74,40 +75,44 @@ void AsyncIO::send(const NetworkMessage_ptr d) {
 
 void AsyncIO::readNextAsync() {
   if (auto spt = _sock.lock()) {
-    auto ptr = shared_from_this();
+    auto self = shared_from_this();
 
-    auto on_read_size = [this, ptr, spt](auto err, auto read_bytes) {
+    auto on_read_size = [this, self, spt](auto err, auto read_bytes) {
 
       if (err) {
-        ptr->_on_error_handler(nullptr, err);
+        self->_on_error_handler(nullptr, err);
       } else {
-        if (read_bytes != NetworkMessage::SIZE_OF_MESSAGE_SIZE) {
-          THROW_EXCEPTION("exception on async readMarker. ",
-                          " - wrong marker size: expected ",
-                          NetworkMessage::SIZE_OF_MESSAGE_SIZE, " readed ", read_bytes);
+        if (read_bytes != Message::SIZE_OF_SIZE) {
+          THROW_EXCEPTION("exception on async readNextAsync::on_read_size. ",
+                          " - wrong size: expected ",
+                          Message::SIZE_OF_SIZE, " readed ", read_bytes);
         }
 
-        auto data_left = ptr->next_message_size - NetworkMessage::SIZE_OF_MESSAGE_SIZE;
-        NetworkMessage_ptr d = std::make_shared<NetworkMessage>(data_left);
+        auto data_left = self->next_message_size - Message::SIZE_OF_SIZE;
+        Message_ptr d = std::make_shared<Message>(data_left);
 
-        auto on_read_message = [ptr, d](auto err, auto /*read_bytes*/) {
+        auto on_read_message = [self, d, data_left](auto err, auto read_bytes) {
           if (err) {
-            ptr->_on_error_handler(d, err);
+            self->_on_error_handler(d, err);
           } else {
+            if (read_bytes != data_left) {
+              THROW_EXCEPTION("exception on async readNextAsync. ",
+                              " - wrong size: expected ", data_left,
+                              " readed ", read_bytes);
+            }
             bool cancel_flag = false;
             try {
-              ptr->_on_recv_hadler(d, cancel_flag);
+              self->_on_recv_hadler(d, cancel_flag);
             } catch (std::exception &ex) {
-              THROW_EXCEPTION("exception on async readData. - ", ex.what());
+              THROW_EXCEPTION("exception on async readNextAsync::on_read_message. - ", ex.what());
             }
-
             if (!cancel_flag) {
-              ptr->readNextAsync();
+              self->readNextAsync();
             }
           }
         };
 
-        auto buf_ptr = (uint8_t *)(d->data + NetworkMessage::SIZE_OF_MESSAGE_SIZE);
+        auto buf_ptr = (uint8_t *)(d->data + Message::SIZE_OF_SIZE);
         auto buf = buffer(buf_ptr, data_left);
         async_read(*spt.get(), buf, on_read_message);
       }
@@ -115,7 +120,7 @@ void AsyncIO::readNextAsync() {
 
     async_read(
         *spt.get(),
-        buffer((void *)&(ptr->next_message_size), NetworkMessage::SIZE_OF_MESSAGE_SIZE),
+        buffer((void *)&(self->next_message_size), Message::SIZE_OF_SIZE),
         on_read_size);
   }
 }

@@ -4,12 +4,14 @@ INCLUDE_DIRECTORIES(${NMQ_INCLUDE_DIR})
 
 FILE(GLOB GLOB_HDRS "*.h")
 FILE(GLOB NET_HDRS "network/*.h")
+FILE(GLOB SRLZ_HDRS "serialization/*.h")
 FILE(GLOB UTILS_HDRS "utils/*.h")
 FILE(GLOB UTILS_ASYNC_HDRS "utils/async/*.h")
 
 
 FILE(GLOB GLOB_SRC "*.cpp")
 FILE(GLOB NET_SRC "network/*.cpp")
+FILE(GLOB SRLZ_SRC "serialization/*.cpp")
 FILE(GLOB UTILS_SRC "utils/*.cpp")
 FILE(GLOB UTILS_ASYNC_SRC "utils/async/*.cpp")
 
@@ -18,10 +20,12 @@ source_group(utils FILES ${UTILS_HDRS} ${UTILS_SRC})
 source_group(utils\\async FILES ${UTILS_ASYNC_HDRS} ${UTILS_ASYNC_SRC})
 source_group(nmq FILES ${GLOB_HDRS} ${GLOB_SRC})
 source_group(nmq\\network FILES ${NET_HDRS} ${NET_SRC})
+source_group(nmq\\serialization  FILES ${SRLZ_HDRS} ${SRLZ_SRC})
 
 SET(SRC ${GLOB_HDRS} ${GLOB_SRC} 
 	${NET_HDRS} ${NET_SRC}
 	${UTILS_HDRS}  ${UTILS_SRC} 
+	${SRLZ_HDRS} ${SRLZ_SRC}
 	${UTILS_ASYNC_HDRS}  ${UTILS_ASYNC_SRC})
 
 SET(NMQ_LIBS nmq ${Boost_LIBRARIES} ${JEMALLOC_LIBS} CACHE STRING "nmq libs.")

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <libnmq/kinds.h>
-#include <libnmq/network_message.h>
-#include <libnmq/serialisation.h>
+#include <libnmq/network/message.h>
+#include <libnmq/serialization/serialization.h>
 #include <libnmq/utils/utils.h>
 #include <cstdint>
 #include <cstring>
@@ -13,17 +13,17 @@ namespace queries {
 struct Ok {
   uint64_t id;
 
-  using Scheme = serialisation::Scheme<uint64_t>;
+  using Scheme = serialization::Scheme<uint64_t>;
 
   Ok(uint64_t id_) { id = id_; }
 
-  Ok(const NetworkMessage_ptr &nd) { Scheme::read(nd->value(), id); }
+  Ok(const network::Message_ptr &nd) { Scheme::read(nd->value(), id); }
 
-  NetworkMessage_ptr toNetworkMessage() const {
+  network::Message_ptr toNetworkMessage() const {
     auto neededSize = Scheme::capacity(id);
 
-    auto nd = std::make_shared<NetworkMessage>(
-        neededSize, (NetworkMessage::message_kind)MessageKinds::OK);
+    auto nd = std::make_shared<network::Message>(
+        neededSize, (network::Message::message_kind_t)MessageKinds::OK);
 
     Scheme::write(nd->value(), id);
     return nd;
@@ -33,17 +33,17 @@ struct Ok {
 struct Login {
   std::string login;
 
-  using Scheme = serialisation::Scheme<std::string>;
+  using Scheme = serialization::Scheme<std::string>;
 
   Login(const std::string &login_) { login = login_; }
 
-  Login(const NetworkMessage_ptr &nd) { Scheme::read(nd->value(), login); }
+  Login(const network::Message_ptr &nd) { Scheme::read(nd->value(), login); }
 
-  NetworkMessage_ptr toNetworkMessage() const {
+  network::Message_ptr toNetworkMessage() const {
     auto neededSize = Scheme::capacity(login);
 
-    auto nd = std::make_shared<NetworkMessage>(
-        neededSize, (NetworkMessage::message_kind)MessageKinds::LOGIN);
+    auto nd = std::make_shared<network::Message>(
+        neededSize, (network::Message::message_kind_t)MessageKinds::LOGIN);
 
     Scheme::write(nd->value(), login);
     return nd;
@@ -53,17 +53,17 @@ struct Login {
 struct LoginConfirm {
   uint64_t id;
 
-  using Scheme = serialisation::Scheme<uint64_t>;
+  using Scheme = serialization::Scheme<uint64_t>;
 
   LoginConfirm(uint64_t id_) { id = id_; }
 
-  LoginConfirm(const NetworkMessage_ptr &nd) { Scheme::read(nd->value(), id); }
+  LoginConfirm(const network::Message_ptr &nd) { Scheme::read(nd->value(), id); }
 
-  NetworkMessage_ptr toNetworkMessage() const {
+  network::Message_ptr toNetworkMessage() const {
     auto neededSize = Scheme::capacity(id);
 
-    auto nd = std::make_shared<NetworkMessage>(
-        neededSize, (NetworkMessage::message_kind)MessageKinds::LOGIN_CONFIRM);
+    auto nd = std::make_shared<network::Message>(
+        neededSize, (network::Message::message_kind_t)MessageKinds::LOGIN_CONFIRM);
 
     Scheme::write(nd->value(), id);
     return nd;

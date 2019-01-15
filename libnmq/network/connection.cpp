@@ -1,23 +1,23 @@
-#include <libnmq/network/abstract_client.h>
+#include <libnmq/network/connection.h>
 
 using namespace nmq;
 using namespace nmq::network;
 
-AbstractClient::AbstractClient(boost::asio::io_service *service, const Params &params)
+Connection::Connection(boost::asio::io_service *service, const Params &params)
     : _service(service), _params(params) {}
 
-AbstractClient::~AbstractClient() {
+Connection::~Connection() {
   disconnect();
 }
 
-void AbstractClient::disconnect() {
+void Connection::disconnect() {
   if (!isStoped) {
     isStoped = true;
     _async_connection->full_stop();
   }
 }
 
-void AbstractClient::reconnectOnError(const NetworkMessage_ptr &d,
+void Connection::reconnectOnError(const Message_ptr &d,
                                       const boost::system::error_code &err) {
   isConnected = false;
   onNetworkError(d, err);
@@ -26,7 +26,7 @@ void AbstractClient::reconnectOnError(const NetworkMessage_ptr &d,
   }
 }
 
-void AbstractClient::async_connect() {
+void Connection::async_connect() {
   using namespace boost::asio::ip;
   tcp::resolver resolver(*_service);
   tcp::resolver::query query(_params.host, std::to_string(_params.port),
@@ -68,6 +68,6 @@ void AbstractClient::async_connect() {
   });
 }
 
-void AbstractClient::dataRecv(const NetworkMessage_ptr &d, bool &cancel) {
+void Connection::dataRecv(const Message_ptr &d, bool &cancel) {
   onNewMessage(d, cancel);
 }

@@ -1,10 +1,10 @@
 #pragma once
 
-#include <libnmq/network_message.h>
+#include <libnmq/network/message.h>
 #include <type_traits>
 
 namespace nmq {
-enum class MessageKinds : NetworkMessage::message_kind {
+enum class MessageKinds: network::Message::message_kind_t {
   OK,
   LOGIN,
   LOGIN_CONFIRM
