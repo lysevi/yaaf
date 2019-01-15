@@ -25,7 +25,8 @@ struct MockServer : public nmq::Server {
     _canswer = canswer;
   }
 
-  bool onNewLogin(const ClientConnection_Ptr i, const queries::Login &lg) override {
+  bool onNewLogin(const network::ListenerClient_Ptr i,
+                  const queries::Login &lg) override {
     if (false == _canswer) {
       is_login_failed = true;
       return false;

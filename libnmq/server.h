@@ -22,14 +22,16 @@ public:
 
   EXPORT void onStartComplete() override;
 
-  EXPORT bool onNewConnection(ClientConnection_Ptr i) override;
-  EXPORT virtual bool onNewLogin(const ClientConnection_Ptr i, const queries::Login &lg);
+  EXPORT bool onNewConnection(network::ListenerClient_Ptr i) override;
+  EXPORT virtual bool onNewLogin(const network::ListenerClient_Ptr i,
+                                 const queries::Login &lg);
 
-  EXPORT void onNetworkError(ClientConnection_Ptr i, const network::Message_ptr &d,
+  EXPORT void onNetworkError(network::ListenerClient_Ptr i,
+                             const network::Message_ptr &d,
                              const boost::system::error_code &err) override;
-  EXPORT void onNewMessage(ClientConnection_Ptr i, const network::Message_ptr &d,
+  EXPORT void onNewMessage(network::ListenerClient_Ptr i, const network::Message_ptr &d,
                            bool &cancel) override;
-  EXPORT void onDisconnect(const Listener::ClientConnection_Ptr &i) override;
+  EXPORT void onDisconnect(const network::ListenerClient_Ptr &i) override;
 
 protected:
   std::mutex _locker;

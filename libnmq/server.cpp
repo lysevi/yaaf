@@ -15,7 +15,7 @@ Server::Server(boost::asio::io_service *service, Listener::Params &p)
 
 Server::~Server() {}
 
-void Server::onNetworkError(ClientConnection_Ptr i, const network::Message_ptr &d,
+void Server::onNetworkError(network::ListenerClient_Ptr i, const network::Message_ptr &d,
                             const boost::system::error_code &err) {
   bool operation_aborted = err == boost::asio::error::operation_aborted;
   bool eof = err == boost::asio::error::eof;
@@ -25,7 +25,7 @@ void Server::onNetworkError(ClientConnection_Ptr i, const network::Message_ptr &
   }
 }
 
-void Server::onNewMessage(ClientConnection_Ptr i, const network::Message_ptr &d,
+void Server::onNewMessage(network::ListenerClient_Ptr i, const network::Message_ptr &d,
                           bool &cancel) {
   auto hdr = d->cast_to_header();
 
@@ -52,7 +52,7 @@ void Server::onNewMessage(ClientConnection_Ptr i, const network::Message_ptr &d,
   }
 }
 
-bool Server::onNewLogin(const ClientConnection_Ptr i, const queries::Login &lg) {
+bool Server::onNewLogin(const network::ListenerClient_Ptr i, const queries::Login &lg) {
   _users->setLogin(i->get_id(), lg.login);
   return true;
 }
@@ -61,7 +61,7 @@ void Server::onStartComplete() {
   logger_info("server started.");
 }
 
-bool Server::onNewConnection(ClientConnection_Ptr i) {
+bool Server::onNewConnection(network::ListenerClient_Ptr i) {
   User cl;
   cl.id = i->get_id();
   cl.login = std::string("not set #") + std::to_string(cl.id);
@@ -69,7 +69,7 @@ bool Server::onNewConnection(ClientConnection_Ptr i) {
   return true;
 }
 
-void Server::onDisconnect(const Listener::ClientConnection_Ptr &i) {
+void Server::onDisconnect(const network::ListenerClient_Ptr &i) {
   _users->erase(i->get_id());
 }
 

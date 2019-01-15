@@ -1,4 +1,5 @@
 #include <libnmq/network/listener.h>
+#include <libnmq/network/listener_client.h>
 #include <libnmq/queries.h>
 #include <libnmq/utils/utils.h>
 #include <functional>
@@ -11,52 +12,6 @@ using namespace boost::asio::ip;
 using namespace nmq;
 using namespace nmq::network;
 
-Listener::ClientConnection::ClientConnection(Id id_, network::AsyncIOPtr async_io,
-                                             std::shared_ptr<Listener> s)
-    : id(id_), _listener(s) {
-  _async_connection = async_io;
-}
-
-Listener::ClientConnection::~ClientConnection() {}
-
-void Listener::ClientConnection::start() {
-  auto self = shared_from_this();
-
-  AsyncIO::onDataRecvHandler on_d = [self](const Message_ptr &d, bool &cancel) {
-    self->onDataRecv(d, cancel);
-  };
-
-  AsyncIO::onNetworkErrorHandler on_n = [self](auto d, auto err) {
-    self->onNetworkError(d, err);
-    self->close();
-  };
-
-  _async_connection->start(on_d, on_n);
-}
-
-void Listener::ClientConnection::close() {
-  if (_async_connection != nullptr) {
-    _async_connection->full_stop();
-    _async_connection = nullptr;
-
-    this->_listener->erase_client_description(this->shared_from_this());
-  }
-}
-
-void Listener::ClientConnection::onNetworkError(const Message_ptr &d,
-                                                const boost::system::error_code &err) {
-  this->_listener->onNetworkError(this->shared_from_this(), d, err);
-}
-
-void Listener::ClientConnection::onDataRecv(const Message_ptr &d, bool &cancel) {
-  _listener->onNewMessage(this->shared_from_this(), d, cancel);
-}
-
-void Listener::ClientConnection::sendData(const Message_ptr &d) {
-  _async_connection->send(d);
-}
-
-/////////////////////////////////////////////////////////////////
 
 Listener::Listener(boost::asio::io_service *service, Listener::Params p)
     : _service(service), _params(p) {
@@ -96,11 +51,11 @@ void Listener::handle_accept(std::shared_ptr<Listener> self, network::AsyncIOPtr
     ENSURE(!self->_is_stoped);
 
     logger_info("server: accept connection.");
-    std::shared_ptr<ClientConnection> new_client = nullptr;
+    std::shared_ptr<ListenerClient> new_client = nullptr;
     {
       std::lock_guard<std::mutex> lg(self->_locker_connections);
       new_client =
-          std::make_shared<Listener::ClientConnection>((Id)self->_next_id, aio, self);
+          std::make_shared<ListenerClient>((Id)self->_next_id, aio, self);
 
       self->_next_id.fetch_add(1);
     }
@@ -127,7 +82,7 @@ void Listener::stop() {
     _acc->close();
     _acc = nullptr;
     if (!_connections.empty()) {
-      std::vector<std::shared_ptr<ClientConnection>> local_copy(_connections.begin(),
+      std::vector<std::shared_ptr<ListenerClient>> local_copy(_connections.begin(),
                                                                 _connections.end());
       for (auto con : local_copy) {
         con->close();
@@ -138,7 +93,7 @@ void Listener::stop() {
   }
 }
 
-void Listener::erase_client_description(const ClientConnection_Ptr client) {
+void Listener::erase_client_description(const ListenerClient_Ptr client) {
   std::lock_guard<std::mutex> lg(_locker_connections);
   auto it = std::find_if(_connections.begin(), _connections.end(),
                          [client](auto c) { return c->get_id() == client->get_id(); });
@@ -147,7 +102,7 @@ void Listener::erase_client_description(const ClientConnection_Ptr client) {
   _connections.erase(it);
 }
 
-void Listener::sendTo(ClientConnection_Ptr i, Message_ptr &d) {
+void Listener::sendTo(ListenerClient_Ptr i, Message_ptr &d) {
   i->sendData(d);
 }
 
@@ -162,7 +117,7 @@ void Listener::sendTo(Id id, Message_ptr &d) {
   THROW_EXCEPTION("server: unknow client #", id);
 }
 
-void Listener::sendOk(ClientConnection_Ptr i, uint64_t messageId) {
+void Listener::sendOk(ListenerClient_Ptr i, uint64_t messageId) {
   auto nd = queries::Ok(messageId).toNetworkMessage();
   this->sendTo(i, nd);
 }

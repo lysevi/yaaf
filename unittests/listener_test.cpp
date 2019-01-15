@@ -24,18 +24,18 @@ struct MockListener : public nmq::network::Listener {
 
   void onStartComplete() override { is_start_complete = true; }
 
-  bool onNewConnection(ClientConnection_Ptr i) override {
+  bool onNewConnection(nmq::network::ListenerClient_Ptr i) override {
     connections.fetch_add(1);
     return true;
   }
 
-  void onNetworkError(ClientConnection_Ptr i, const network::Message_ptr &d,
+  void onNetworkError(nmq::network::ListenerClient_Ptr i, const network::Message_ptr &d,
                       const boost::system::error_code &err) override {}
 
-  void onNewMessage(ClientConnection_Ptr i, const network::Message_ptr &d,
+  void onNewMessage(nmq::network::ListenerClient_Ptr i, const network::Message_ptr &d,
                     bool &cancel) override {}
 
-  void onDisconnect(const Listener::ClientConnection_Ptr &i) override {
+  void onDisconnect(const nmq::network::ListenerClient_Ptr &i) override {
     connections.fetch_sub(1);
   }
 
