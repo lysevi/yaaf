@@ -42,7 +42,7 @@ public:
 protected:
   std::shared_ptr<AsyncIO> _async_connection = nullptr;
   boost::asio::io_service *_service = nullptr;
-  socket_ptr _socket = nullptr;
+  //socket_ptr _socket = nullptr;
   bool isConnected = false;
   bool isStoped = false;
   Params _params;

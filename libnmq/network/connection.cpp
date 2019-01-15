@@ -48,13 +48,13 @@ void Connection::async_connect() {
   logger_info("client(", _params.login, "): start async connection to ", _params.host,
               ":", _params.port, " - ", ep.address().to_string());
 
-  _socket = std::make_shared<boost::asio::ip::tcp::socket>(*_service);
   auto self = this->shared_from_this();
-  _socket->async_connect(ep, [self](auto ec) {
+  self->_async_connection = std::make_shared<AsyncIO>(self->_service);
+  self->_async_connection->socket().async_connect(ep, [self](auto ec) {
     if (ec) {
       self->reconnectOnError(nullptr, ec);
     } else {
-      if (self->_socket->is_open()) {
+      if (self->_async_connection->socket().is_open()) {
         logger_info("client(", self->_params.login, "): connected.");
         AsyncIO::onDataRecvHandler on_d = [self](auto d, auto cancel) {
           self->dataRecv(d, cancel);
@@ -63,8 +63,7 @@ void Connection::async_connect() {
           self->reconnectOnError(d, err);
         };
 
-        self->_async_connection =
-            std::make_shared<AsyncIO>(self->_service, self->_socket);
+        
         self->_async_connection->start(on_d, on_n);
         self->isConnected = true;
         self->onConnect();

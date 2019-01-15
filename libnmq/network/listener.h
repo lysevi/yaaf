@@ -60,9 +60,9 @@ protected:
   void sendOk(ClientConnection_Ptr i, uint64_t messageId);
 
 private:
-  void start_accept(socket_ptr sock);
+  void start_accept(network::AsyncIOPtr aio);
 
-  static void handle_accept(std::shared_ptr<Listener> self, socket_ptr sock,
+  static void handle_accept(std::shared_ptr<Listener> self, network::AsyncIOPtr aio,
                             const boost::system::error_code &err);
   void erase_client_description(const ClientConnection_Ptr client);
 

@@ -1,9 +1,9 @@
 #pragma once
 
 #include <libnmq/network/message.h>
-#include <libnmq/network/socket_ptr.h>
 #include <libnmq/utils/async/locker.h>
 #include <libnmq/utils/exception.h>
+#include <boost/asio.hpp>
 #include <atomic>
 #include <functional>
 #include <memory>
@@ -19,13 +19,14 @@ public:
   using onNetworkErrorHandler =
       std::function<void(const Message_ptr &d, const boost::system::error_code &err)>;
 
-  EXPORT AsyncIO(boost::asio::io_service *service, const socket_ptr &sock);
+  EXPORT AsyncIO(boost::asio::io_service *service);
   EXPORT ~AsyncIO() noexcept(false);
   EXPORT void send(const Message_ptr d);
   EXPORT void start(onDataRecvHandler onRecv, onNetworkErrorHandler onErr);
   EXPORT void full_stop(bool waitAllMessages = false); /// stop thread, clean queue
 
   int queue_size() const { return _messages_to_send; }
+  boost::asio::ip::tcp::socket &socket() { return _sock; }
 
 private:
   void readNextAsync();
@@ -34,7 +35,7 @@ private:
   std::atomic_int _messages_to_send;
   boost::asio::io_service *_service = nullptr;
 
-  socket_ptr _sock;
+  boost::asio::ip::tcp::socket _sock;
 
   bool _is_stoped;
   std::atomic_bool _begin_stoping_flag;

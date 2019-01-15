@@ -17,8 +17,7 @@ Listener::ClientConnection::ClientConnection(Id id_, network::AsyncIOPtr async_i
   _async_connection = async_io;
 }
 
-Listener::ClientConnection::~ClientConnection() {
-}
+Listener::ClientConnection::~ClientConnection() {}
 
 void Listener::ClientConnection::start() {
   auto self = shared_from_this();
@@ -70,32 +69,27 @@ Listener::~Listener() {
 
 void Listener::start() {
   tcp::endpoint ep(tcp::v4(), _params.port);
-  auto new_socket = std::make_shared<boost::asio::ip::tcp::socket>(*_service);
+  auto aio = std::make_shared<network::AsyncIO>(_service);
   _acc = std::make_shared<boost::asio::ip::tcp::acceptor>(*_service, ep);
-  start_accept(new_socket);
+  start_accept(aio);
   onStartComplete();
   _is_started = true;
 }
 
-void Listener::start_accept(socket_ptr sock) {
-  _acc->async_accept(*sock,
-                     std::bind(&handle_accept, this->shared_from_this(), sock, _1));
+void Listener::start_accept(network::AsyncIOPtr aio) {
+  auto self = shared_from_this();
+  _acc->async_accept(aio->socket(),
+                     [self, aio](auto ec) { 
+	  self->handle_accept(self, aio, ec); 
+  });
 }
 
-void Listener::erase_client_description(const ClientConnection_Ptr client) {
-  std::lock_guard<std::mutex> lg(_locker_connections);
-  auto it = std::find_if(_connections.begin(), _connections.end(),
-                         [client](auto c) { return c->get_id() == client->get_id(); });
-  ENSURE(it != _connections.end());
-  onDisconnect(client->shared_from_this());
-  _connections.erase(it);
-}
-
-void Listener::handle_accept(std::shared_ptr<Listener> self, socket_ptr sock,
+void Listener::handle_accept(std::shared_ptr<Listener> self, network::AsyncIOPtr aio,
                              const boost::system::error_code &err) {
   if (err) {
     if (err == boost::asio::error::operation_aborted ||
         err == boost::asio::error::connection_reset || err == boost::asio::error::eof) {
+      aio->full_stop();
       return;
     } else {
       THROW_EXCEPTION("nmq::server: error on accept - ", err.message());
@@ -107,10 +101,9 @@ void Listener::handle_accept(std::shared_ptr<Listener> self, socket_ptr sock,
     std::shared_ptr<ClientConnection> new_client = nullptr;
     {
       std::lock_guard<std::mutex> lg(self->_locker_connections);
-      auto aio = std::make_shared<AsyncIO>(self->_service, sock);
       new_client =
           std::make_shared<Listener::ClientConnection>((Id)self->_next_id, aio, self);
-	  
+
       self->_next_id.fetch_add(1);
     }
 
@@ -122,11 +115,12 @@ void Listener::handle_accept(std::shared_ptr<Listener> self, socket_ptr sock,
       self->_connections.push_back(new_client);
     } else {
       logger_info("server: connection was not accepted.");
-      sock->close();
+      aio->full_stop();
     }
   }
-  socket_ptr new_sock = std::make_shared<boost::asio::ip::tcp::socket>(*self->_service);
-  self->start_accept(new_sock);
+  boost::asio::ip::tcp::socket new_sock(*self->_service);
+  auto newaio = std::make_shared<network::AsyncIO>(self->_service);
+  self->start_accept(newaio);
 }
 
 void Listener::stop() {
@@ -144,6 +138,15 @@ void Listener::stop() {
     }
     _is_stoped = true;
   }
+}
+
+void Listener::erase_client_description(const ClientConnection_Ptr client) {
+  std::lock_guard<std::mutex> lg(_locker_connections);
+  auto it = std::find_if(_connections.begin(), _connections.end(),
+                         [client](auto c) { return c->get_id() == client->get_id(); });
+  ENSURE(it != _connections.end());
+  onDisconnect(client->shared_from_this());
+  _connections.erase(it);
 }
 
 void Listener::sendTo(ClientConnection_Ptr i, Message_ptr &d) {
