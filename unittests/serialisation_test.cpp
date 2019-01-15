@@ -13,7 +13,8 @@ using namespace nmq::queries;
 TEST_CASE("serialization.ok") {
   Ok ok{std::numeric_limits<uint64_t>::max()};
   auto nd = ok.toNetworkMessage();
-  EXPECT_EQ(nd->cast_to_header()->kind, (network::Message::message_kind_t)MessageKinds::OK);
+  EXPECT_EQ(nd->cast_to_header()->kind,
+            (network::Message::message_kind_t)MessageKinds::OK);
 
   auto repacked = Ok(nd);
   EXPECT_EQ(repacked.id, ok.id);

@@ -15,8 +15,7 @@ std::vector<std::string> nmq::utils::strings::tokens(const std::string &str) {
   return tokens;
 }
 
-std::vector<std::string> nmq::utils::strings::split(const std::string &text,
-                                                       char sep) {
+std::vector<std::string> nmq::utils::strings::split(const std::string &text, char sep) {
   std::vector<std::string> tokens;
   std::size_t start = 0, end = 0;
   while ((end = text.find(sep, start)) != std::string::npos) {

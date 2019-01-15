@@ -1,6 +1,6 @@
 #define CATCH_CONFIG_RUNNER
-#include <catch.hpp>
 #include <libnmq/utils/logger.h>
+#include <catch.hpp>
 #include <cstring>
 #include <iostream>
 #include <list>

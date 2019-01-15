@@ -6,7 +6,7 @@ using namespace boost::asio;
 using namespace nmq;
 using namespace nmq::network;
 
-AsyncIO::AsyncIO(boost::asio::io_service *service):_sock(*service) {
+AsyncIO::AsyncIO(boost::asio::io_service *service) : _sock(*service) {
   _messages_to_send = 0;
   _is_stoped = true;
   ENSURE(service != nullptr);
@@ -33,8 +33,8 @@ void AsyncIO::full_stop(bool waitAllMessages) {
   _begin_stoping_flag = true;
   try {
     ENSURE(auto spt = _sock.lock());
-    //if (auto spt = _sock.lock()) 
-	{
+    // if (auto spt = _sock.lock())
+    {
       if (_sock.is_open()) {
         if (waitAllMessages && _messages_to_send.load() != 0) {
           auto self = this->shared_from_this();
@@ -71,7 +71,7 @@ void AsyncIO::send(const Message_ptr d) {
   auto send_buffer = std::get<1>(ds);
   auto send_buffer_size = std::get<0>(ds);
   ENSURE(auto spt = _sock.lock());
-  //if (auto spt = _sock.lock()) 
+  // if (auto spt = _sock.lock())
   {
     _messages_to_send.fetch_add(1);
     auto buf = buffer(send_buffer, send_buffer_size);
@@ -83,16 +83,15 @@ void AsyncIO::send(const Message_ptr d) {
         ENSURE(self->_messages_to_send >= 0);
       }
     });
-  } 
+  }
 }
 
 void AsyncIO::readNextAsync() {
-  //if (auto spt = _sock.lock()) 
+  // if (auto spt = _sock.lock())
   {
     auto self = shared_from_this();
 
     auto on_read_size = [this, self](auto err, auto read_bytes) {
-
       if (err) {
         self->_on_error_handler(nullptr, err);
       } else {
@@ -133,8 +132,7 @@ void AsyncIO::readNextAsync() {
       }
     };
 
-    async_read(_sock,
-               buffer((void *)&(self->next_message_size), Message::SIZE_OF_SIZE),
+    async_read(_sock, buffer((void *)&(self->next_message_size), Message::SIZE_OF_SIZE),
                on_read_size);
   }
 }

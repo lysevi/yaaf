@@ -63,7 +63,6 @@ void Connection::async_connect() {
           self->reconnectOnError(d, err);
         };
 
-        
         self->_async_connection->start(on_d, on_n);
         self->isConnected = true;
         self->onConnect();

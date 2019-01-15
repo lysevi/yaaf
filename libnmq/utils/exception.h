@@ -19,7 +19,7 @@
 
 #ifdef DEBUG
 #define THROW_EXCEPTION(...)                                                             \
-  nmq::utils::Exception::create_and_log(CODE_POS, __VA_ARGS__);                       \
+  nmq::utils::Exception::create_and_log(CODE_POS, __VA_ARGS__);                          \
   std::exit(1);
 #else
 #define THROW_EXCEPTION(...)                                                             \
@@ -96,5 +96,5 @@ protected:
 private:
   std::string _msg;
 };
-}
-}
+} // namespace utils
+} // namespace nmq

@@ -4,7 +4,7 @@
 #include <type_traits>
 
 namespace nmq {
-enum class MessageKinds: network::Message::message_kind_t {
+enum class MessageKinds : network::Message::message_kind_t {
   OK,
   LOGIN,
   LOGIN_CONFIRM,

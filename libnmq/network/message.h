@@ -1,13 +1,13 @@
 #pragma once
 
 #include <libnmq/exports.h>
-#include <tuple>
-#include <memory>
 #include <cstdint>
 #include <cstring>
+#include <memory>
+#include <tuple>
 
 namespace nmq {
-namespace network{
+namespace network {
 #pragma pack(push, 1)
 
 struct Message {
@@ -18,7 +18,7 @@ struct Message {
     message_kind_t kind;
   };
 
-  //static const size_t MAX_MESSAGE_SIZE = 1024 * 1024 * 4;
+  // static const size_t MAX_MESSAGE_SIZE = 1024 * 1024 * 4;
   static const size_t SIZE_OF_SIZE = sizeof(message_size_t);
   static const size_t SIZE_OF_KIND = sizeof(message_kind_t);
   // static const size_t MAX_BUFFER_SIZE = MAX_MESSAGE_SIZE - sizeof(message_header);
@@ -36,8 +36,7 @@ struct Message {
     *size = realSize;
   }
 
-  Message(size_t sz, const message_kind_t &kind_)
-      : Message(sz + SIZE_OF_KIND) {
+  Message(size_t sz, const message_kind_t &kind_) : Message(sz + SIZE_OF_KIND) {
     cast_to_header()->kind = kind_;
   }
 
@@ -62,5 +61,5 @@ struct Message {
 #pragma pack(pop)
 
 using Message_ptr = std::shared_ptr<Message>;
-}
-}
+} // namespace network
+} // namespace nmq

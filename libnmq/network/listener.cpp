@@ -79,9 +79,7 @@ void Listener::start() {
 void Listener::start_accept(network::AsyncIOPtr aio) {
   auto self = shared_from_this();
   _acc->async_accept(aio->socket(),
-                     [self, aio](auto ec) { 
-	  self->handle_accept(self, aio, ec); 
-  });
+                     [self, aio](auto ec) { self->handle_accept(self, aio, ec); });
 }
 
 void Listener::handle_accept(std::shared_ptr<Listener> self, network::AsyncIOPtr aio,

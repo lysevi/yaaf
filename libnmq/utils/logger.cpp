@@ -43,9 +43,9 @@ void LogManager::message(LOG_MESSAGE_KIND kind, const std::string &msg) {
 }
 
 void ConsoleLogger::message(LOG_MESSAGE_KIND kind, const std::string &msg) {
-	if (LogManager::verbose == Verbose::Quiet) {
-		return;
-	}
+  if (LogManager::verbose == Verbose::Quiet) {
+    return;
+  }
   switch (kind) {
   case LOG_MESSAGE_KIND::FATAL:
     std::cerr << "[err] " << msg << std::endl;
@@ -54,9 +54,9 @@ void ConsoleLogger::message(LOG_MESSAGE_KIND kind, const std::string &msg) {
     std::cout << "[inf] " << msg << std::endl;
     break;
   case LOG_MESSAGE_KIND::MESSAGE:
-	  if (LogManager::verbose == Verbose::Debug) {
-		  std::cout << "[dbg] " << msg << std::endl;
-	  }
+    if (LogManager::verbose == Verbose::Debug) {
+      std::cout << "[dbg] " << msg << std::endl;
+    }
     break;
   }
 }

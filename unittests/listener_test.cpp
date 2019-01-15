@@ -20,13 +20,11 @@ namespace listener_test {
 
 struct MockListener : public nmq::network::Listener {
   MockListener(boost::asio::io_service *service, network::Listener::Params &p)
-      : nmq::network::Listener(service, p) {
-  }
+      : nmq::network::Listener(service, p) {}
 
   void onStartComplete() override { is_start_complete = true; }
 
-  bool 
-  onNewConnection(ClientConnection_Ptr i) override {
+  bool onNewConnection(ClientConnection_Ptr i) override {
     connections.fetch_add(1);
     return true;
   }
@@ -131,13 +129,12 @@ void testForConnection(const size_t clients_count) {
 }
 } // namespace listener_test
 
- TEST_CASE("listener.client.1") {
+TEST_CASE("listener.client.1") {
   const size_t connections_count = 1;
   listener_test::testForConnection(connections_count);
 }
 
- TEST_CASE("listener.client.10") {
+TEST_CASE("listener.client.10") {
   const size_t connections_count = 10;
   listener_test::testForConnection(connections_count);
 }
-

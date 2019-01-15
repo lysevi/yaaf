@@ -27,15 +27,11 @@ public:
   EXPORT void message(LOG_MESSAGE_KIND kind, const std::string &msg) override;
 };
 
-enum class Verbose {
-	Verbose,
-	Debug,
-	Quiet
-};
+enum class Verbose { Verbose, Debug, Quiet };
 
 class LogManager {
 public:
-	EXPORT static Verbose verbose;
+  EXPORT static Verbose verbose;
   LogManager(ILogger_ptr &logger);
 
   EXPORT static void start(ILogger_ptr &logger);
@@ -55,7 +51,7 @@ private:
   utils::async::locker _msg_locker;
   ILogger_ptr _logger;
 };
-}
+} // namespace utils
 
 template <typename... T> void logger(T &&... args) {
   nmq::utils::LogManager::instance()->variadic_message(
@@ -63,12 +59,12 @@ template <typename... T> void logger(T &&... args) {
 }
 
 template <typename... T> void logger_info(T &&... args) {
-  nmq::utils::LogManager::instance()->variadic_message(
-      nmq::utils::LOG_MESSAGE_KIND::INFO, args...);
+  nmq::utils::LogManager::instance()->variadic_message(nmq::utils::LOG_MESSAGE_KIND::INFO,
+                                                       args...);
 }
 
 template <typename... T> void logger_fatal(T &&... args) {
   nmq::utils::LogManager::instance()->variadic_message(
       nmq::utils::LOG_MESSAGE_KIND::FATAL, args...);
 }
-}
+} // namespace nmq

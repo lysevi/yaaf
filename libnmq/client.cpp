@@ -40,7 +40,7 @@ void Client::onNewMessage(const network::Message_ptr &d, bool &cancel) {
   auto hdr = d->cast_to_header();
 
   switch (hdr->kind) {
-  case MessageKinds::OK : {
+  case MessageKinds::OK: {
     logger("client (", _params.login, "): recv ok");
     auto cs = queries::Ok(d);
 
@@ -119,5 +119,3 @@ void Client::send(const network::Message_ptr &nd) {
     _async_connection->send(nd);
   }
 }
-
-

@@ -27,6 +27,6 @@ public:
 };
 
 using Locker_ptr = std::shared_ptr<nmq::utils::async::locker>;
-}
-}
-}
+} // namespace async
+} // namespace utils
+} // namespace nmq
