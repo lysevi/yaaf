@@ -1,8 +1,8 @@
 #pragma once
 
 #include <libnmq/exports.h>
-#include <libnmq/network/listener.h>
 #include <libnmq/network/async_io.h>
+#include <libnmq/network/listener.h>
 #include <libnmq/queries.h>
 #include <libnmq/users.h>
 #include <libnmq/utils/utils.h>
@@ -14,8 +14,7 @@
 
 namespace nmq {
 
-class Server : public network::Listener,
-               public utils::non_copy {
+class Server : public network::Listener, public utils::non_copy {
 public:
   EXPORT Server(boost::asio::io_service *service, network::Listener::Params &p);
   EXPORT virtual ~Server();
@@ -25,8 +24,11 @@ public:
   EXPORT std::vector<User> users() const;
 
   EXPORT void onStartComplete() override;
+
   EXPORT network::ON_NEW_CONNECTION_RESULT
   onNewConnection(ClientConnection_Ptr i) override;
+
+  EXPORT virtual bool onNewLogin(const ClientConnection_Ptr i, const queries::Login &lg);
 
   EXPORT void onNetworkError(ClientConnection_Ptr i, const network::Message_ptr &d,
                              const boost::system::error_code &err) override;
@@ -35,10 +37,8 @@ public:
   EXPORT void onDisconnect(const Listener::ClientConnection_Ptr &i) override;
 
 protected:
-  void sendOk(ClientConnection_Ptr i, uint64_t messageId);
 protected:
   std::mutex _locker;
-  uint64_t _nextMessageId = 0;
   UserBase_Ptr _users;
 };
 } // namespace nmq

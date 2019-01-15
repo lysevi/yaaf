@@ -64,6 +64,12 @@ void Client::onNewMessage(const network::Message_ptr &d, bool &cancel) {
     _loginConfirmed = true;
     break;
   }
+  case MessageKinds::LOGIN_FAILED: {
+    logger_info("client (", _params.login, "): login failed");
+    this->_loginConfirmed = false;
+    this->disconnect();
+    break;
+  }
   default:
     THROW_EXCEPTION("client (", _params.login, "):unknow message kind: ", hdr->kind);
   }

@@ -33,11 +33,18 @@ void Server::onNewMessage(ClientConnection_Ptr i, const network::Message_ptr &d,
   case MessageKinds::LOGIN: {
     logger_info("server: #", i->get_id(), " set login");
     queries::Login lg(d);
-    _users->setLogin(i->get_id(), lg.login);
 
-    queries::LoginConfirm lc(i->get_id());
-    auto nd = lc.toNetworkMessage();
-    sendTo(i, nd);
+    network::Message_ptr nd = nullptr;
+    if (onNewLogin(i, lg)) {
+      queries::LoginConfirm lc(i->get_id());
+      nd = lc.toNetworkMessage();
+      sendTo(i, nd);
+    } else {
+      queries::LoginFailed lc(i->get_id());
+      nd = lc.toNetworkMessage();
+      sendTo(i, nd);
+    }
+
     break;
   }
   default:
@@ -45,9 +52,9 @@ void Server::onNewMessage(ClientConnection_Ptr i, const network::Message_ptr &d,
   }
 }
 
-void Server::sendOk(ClientConnection_Ptr i, uint64_t messageId) {
-  auto nd = queries::Ok(messageId).toNetworkMessage();
-  this->sendTo(i, nd);
+bool Server::onNewLogin(const ClientConnection_Ptr i, const queries::Login &lg) {
+  _users->setLogin(i->get_id(), lg.login);
+  return true;
 }
 
 void Server::onStartComplete() {

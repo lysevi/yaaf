@@ -7,6 +7,7 @@ namespace nmq {
 enum class MessageKinds: network::Message::message_kind_t {
   OK,
   LOGIN,
-  LOGIN_CONFIRM
+  LOGIN_CONFIRM,
+  LOGIN_FAILED
 };
 } // namespace nmq

@@ -18,7 +18,7 @@ void Connection::disconnect() {
 }
 
 void Connection::reconnectOnError(const Message_ptr &d,
-                                      const boost::system::error_code &err) {
+                                  const boost::system::error_code &err) {
   isConnected = false;
   onNetworkError(d, err);
   if (!isStoped && _params.auto_reconnection) {
@@ -52,18 +52,20 @@ void Connection::async_connect() {
     if (ec) {
       self->reconnectOnError(nullptr, ec);
     } else {
-      logger_info("client(", self->_params.login, "): connected.");
-      AsyncIO::onDataRecvHandler on_d = [self](auto d, auto cancel) {
-        self->dataRecv(d, cancel);
-      };
-      AsyncIO::onNetworkErrorHandler on_n = [self](auto d, auto err) {
-        self->reconnectOnError(d, err);
-      };
+      if (self->_socket->is_open()) {
+        logger_info("client(", self->_params.login, "): connected.");
+        AsyncIO::onDataRecvHandler on_d = [self](auto d, auto cancel) {
+          self->dataRecv(d, cancel);
+        };
+        AsyncIO::onNetworkErrorHandler on_n = [self](auto d, auto err) {
+          self->reconnectOnError(d, err);
+        };
 
-      self->_async_connection = std::make_shared<AsyncIO>(on_d, on_n);
-      self->_async_connection->start(self->_socket);
-      self->isConnected = true;
-      self->onConnect();
+        self->_async_connection = std::make_shared<AsyncIO>(on_d, on_n);
+        self->_async_connection->start(self->_service, self->_socket);
+        self->isConnected = true;
+        self->onConnect();
+      }
     }
   });
 }

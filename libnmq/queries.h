@@ -69,5 +69,25 @@ struct LoginConfirm {
     return nd;
   }
 };
+
+struct LoginFailed {
+  uint64_t id;
+
+  using Scheme = serialization::Scheme<uint64_t>;
+
+  LoginFailed(uint64_t id_) { id = id_; }
+
+  LoginFailed(const network::Message_ptr &nd) { Scheme::read(nd->value(), id); }
+
+  network::Message_ptr toNetworkMessage() const {
+    auto neededSize = Scheme::capacity(id);
+
+    auto nd = std::make_shared<network::Message>(
+        neededSize, (network::Message::message_kind_t)MessageKinds::LOGIN_FAILED);
+
+    Scheme::write(nd->value(), id);
+    return nd;
+  }
+};
 } // namespace queries
 } // namespace nmq

@@ -1,5 +1,6 @@
 #include <libnmq/network/listener.h>
 #include <libnmq/utils/utils.h>
+#include <libnmq/queries.h>
 #include <functional>
 #include <string>
 
@@ -28,7 +29,7 @@ void Listener::ClientConnection::start() {
   };
 
   _async_connection = std::make_shared<AsyncIO>(on_d, on_n);
-  _async_connection->start(sock);
+  _async_connection->start(self->_listener->_service, sock);
 }
 
 void Listener::ClientConnection::close() {
@@ -114,6 +115,9 @@ void Listener::handle_accept(std::shared_ptr<Listener> self, socket_ptr sock,
       new_client->start();
       logger_info("server: client connection started.");
       self->_connections.push_back(new_client);
+    } else {
+      logger_info("server: connection was not accepted.");
+      sock->close();
     }
   }
   socket_ptr new_sock = std::make_shared<boost::asio::ip::tcp::socket>(*self->_service);
@@ -150,4 +154,9 @@ void Listener::sendTo(Id id, Message_ptr &d) {
     }
   }
   THROW_EXCEPTION("server: unknow client #", id);
+}
+
+void Listener::sendOk(ClientConnection_Ptr i, uint64_t messageId) {
+  auto nd = queries::Ok(messageId).toNetworkMessage();
+  this->sendTo(i, nd);
 }

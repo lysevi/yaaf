@@ -21,8 +21,8 @@ public:
   EXPORT AsyncIO(onDataRecvHandler onRecv, onNetworkErrorHandler onErr);
   EXPORT ~AsyncIO() noexcept(false);
   EXPORT void send(const Message_ptr d);
-  EXPORT void start(const socket_ptr &sock);
-  EXPORT void full_stop(); /// stop thread, clean queue
+  EXPORT void start(boost::asio::io_service *service, const socket_ptr &sock);
+  EXPORT void full_stop(bool waitAllMessages=false); /// stop thread, clean queue
 
   int queue_size() const { return _messages_to_send; }
 
@@ -31,6 +31,8 @@ private:
 
 private:
   std::atomic_int _messages_to_send;
+  boost::asio::io_service *_service = nullptr;
+
   socket_weak _sock;
 
   bool _is_stoped;
