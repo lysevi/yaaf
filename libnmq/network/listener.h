@@ -9,8 +9,6 @@
 namespace nmq {
 namespace network {
 
-enum class ON_NEW_CONNECTION_RESULT { ACCEPT, DISCONNECT };
-
 class Listener : public std::enable_shared_from_this<Listener> {
 public:
   struct Params {
@@ -53,7 +51,10 @@ public:
                               const boost::system::error_code &err) = 0;
   virtual void onNewMessage(ClientConnection_Ptr i, const network::Message_ptr &d,
                             bool &cancel) = 0;
-  virtual ON_NEW_CONNECTION_RESULT onNewConnection(ClientConnection_Ptr i) = 0;
+  /**
+  result - true for accept, false for failed.
+  */
+  virtual bool onNewConnection(ClientConnection_Ptr i) = 0;
   virtual void onDisconnect(const ClientConnection_Ptr &i) = 0;
 
 protected:

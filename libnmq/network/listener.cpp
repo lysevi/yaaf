@@ -107,7 +107,7 @@ void Listener::handle_accept(std::shared_ptr<Listener> self, network::AsyncIOPtr
       self->_next_id.fetch_add(1);
     }
 
-    if (self->onNewConnection(new_client) == ON_NEW_CONNECTION_RESULT::ACCEPT) {
+    if (true == self->onNewConnection(new_client)) {
       logger_info("server: connection was accepted.");
       std::lock_guard<std::mutex> lg(self->_locker_connections);
       new_client->start();

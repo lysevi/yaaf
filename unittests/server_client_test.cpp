@@ -20,14 +20,13 @@ namespace server_client_test {
 
 struct MockServer : public nmq::Server {
 
-  MockServer(nmq::network::ON_NEW_CONNECTION_RESULT canswer,
-             boost::asio::io_service *service, network::Listener::Params &p)
+  MockServer(bool canswer, boost::asio::io_service *service, network::Listener::Params &p)
       : nmq::Server(service, p) {
     _canswer = canswer;
   }
 
   bool onNewLogin(const ClientConnection_Ptr i, const queries::Login &lg) override {
-    if (nmq::network::ON_NEW_CONNECTION_RESULT::DISCONNECT == _canswer) {
+    if (false == _canswer) {
       is_login_failed = true;
       return false;
     }
@@ -35,13 +34,13 @@ struct MockServer : public nmq::Server {
   }
 
   bool is_login_failed = false;
-  nmq::network::ON_NEW_CONNECTION_RESULT _canswer;
+  bool _canswer;
 };
 
 bool server_stop = false;
 std::shared_ptr<MockServer> server = nullptr;
 boost::asio::io_service *service;
-void server_thread(nmq::network::ON_NEW_CONNECTION_RESULT canswer) {
+void server_thread(bool canswer) {
   network::Listener::Params p;
   p.port = 4040;
   service = new boost::asio::io_service();
@@ -59,8 +58,7 @@ void server_thread(nmq::network::ON_NEW_CONNECTION_RESULT canswer) {
   server = nullptr;
 }
 
-void testForReConnection(nmq::network::ON_NEW_CONNECTION_RESULT canswer,
-                         const size_t clients_count) {
+void testForReConnection(bool canswer, const size_t clients_count) {
   network::Connection::Params p("empty", "localhost", 4040);
 
   server_stop = false;
@@ -73,14 +71,14 @@ void testForReConnection(nmq::network::ON_NEW_CONNECTION_RESULT canswer,
   std::vector<std::shared_ptr<Client>> clients(clients_count);
   for (size_t i = 0; i < clients_count; i++) {
     p.login = "client_" + std::to_string(i);
-    if (nmq::network::ON_NEW_CONNECTION_RESULT::DISCONNECT == canswer) {
+    if (false == canswer) {
       p.auto_reconnection = false;
     }
     clients[i] = std::make_shared<Client>(service, p);
     clients[i]->connectAsync();
   }
 
-  if (nmq::network::ON_NEW_CONNECTION_RESULT::DISCONNECT == canswer) {
+  if (false == canswer) {
     std::this_thread::sleep_for(std::chrono::milliseconds(500));
     while (!server->is_login_failed) {
       logger("server.client.testForReconnection. !is_login_failed");
@@ -130,18 +128,15 @@ void testForReConnection(nmq::network::ON_NEW_CONNECTION_RESULT canswer,
 
 TEST_CASE("server.client.1") {
   const size_t connections_count = 1;
-  server_client_test::testForReConnection(nmq::network::ON_NEW_CONNECTION_RESULT::ACCEPT,
-                                          connections_count);
+  server_client_test::testForReConnection(true, connections_count);
 }
 
 TEST_CASE("server.client.10") {
   const size_t connections_count = 10;
-  server_client_test::testForReConnection(nmq::network::ON_NEW_CONNECTION_RESULT::ACCEPT,
-                                          connections_count);
+  server_client_test::testForReConnection(true, connections_count);
 }
 
 TEST_CASE("server.client.1.FailedLogin") {
   const size_t connections_count = 1;
-  server_client_test::testForReConnection(
-      nmq::network::ON_NEW_CONNECTION_RESULT::DISCONNECT, connections_count);
+  server_client_test::testForReConnection(false, connections_count);
 }

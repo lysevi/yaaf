@@ -61,12 +61,12 @@ void Server::onStartComplete() {
   logger_info("server started.");
 }
 
-network::ON_NEW_CONNECTION_RESULT Server::onNewConnection(ClientConnection_Ptr i) {
+bool Server::onNewConnection(ClientConnection_Ptr i) {
   User cl;
   cl.id = i->get_id();
-  cl.login = "not set";
+  cl.login = std::string("not set #") + std::to_string(cl.id);
   _users->append(cl);
-  return network::ON_NEW_CONNECTION_RESULT::ACCEPT;
+  return true;
 }
 
 void Server::onDisconnect(const Listener::ClientConnection_Ptr &i) {

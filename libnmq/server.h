@@ -18,16 +18,11 @@ class Server : public network::Listener, public utils::non_copy {
 public:
   EXPORT Server(boost::asio::io_service *service, network::Listener::Params &p);
   EXPORT virtual ~Server();
-  /*EXPORT void start();
-  EXPORT void stop();
-  EXPORT bool is_started();*/
   EXPORT std::vector<User> users() const;
 
   EXPORT void onStartComplete() override;
 
-  EXPORT network::ON_NEW_CONNECTION_RESULT
-  onNewConnection(ClientConnection_Ptr i) override;
-
+  EXPORT bool onNewConnection(ClientConnection_Ptr i) override;
   EXPORT virtual bool onNewLogin(const ClientConnection_Ptr i, const queries::Login &lg);
 
   EXPORT void onNetworkError(ClientConnection_Ptr i, const network::Message_ptr &d,
@@ -36,7 +31,6 @@ public:
                            bool &cancel) override;
   EXPORT void onDisconnect(const Listener::ClientConnection_Ptr &i) override;
 
-protected:
 protected:
   std::mutex _locker;
   UserBase_Ptr _users;

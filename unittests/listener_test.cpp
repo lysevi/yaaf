@@ -25,10 +25,10 @@ struct MockListener : public nmq::network::Listener {
 
   void onStartComplete() override { is_start_complete = true; }
 
-  nmq::network::ON_NEW_CONNECTION_RESULT
+  bool 
   onNewConnection(ClientConnection_Ptr i) override {
     connections.fetch_add(1);
-    return nmq::network::ON_NEW_CONNECTION_RESULT::ACCEPT;
+    return true;
   }
 
   void onNetworkError(ClientConnection_Ptr i, const network::Message_ptr &d,
