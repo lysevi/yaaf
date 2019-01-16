@@ -1,7 +1,7 @@
 #include <boost/asio.hpp>
 #include <libnmq/network/listener.h>
 #include <libnmq/network/listener_client.h>
-#include <libnmq/queries.h>
+#include <libnmq/network/queries.h>
 #include <libnmq/utils/utils.h>
 #include <functional>
 #include <string>
@@ -24,20 +24,20 @@ Listener::~Listener() {
 
 void Listener::start() {
   tcp::endpoint ep(tcp::v4(), _params.port);
-  auto aio = std::make_shared<network::async_io>(_service);
+  auto aio = std::make_shared<network::AsyncIO>(_service);
   _acc = std::make_shared<boost::asio::ip::tcp::acceptor>(*_service, ep);
-  start_accept(aio);
+  startAsyncAccept(aio);
   onStartComplete();
   _is_started = true;
 }
 
-void Listener::start_accept(network::AsyncIOPtr aio) {
+void Listener::startAsyncAccept(network::AsyncIOPtr aio) {
   auto self = shared_from_this();
   _acc->async_accept(aio->socket(),
-                     [self, aio](auto ec) { self->handle_accept(self, aio, ec); });
+                     [self, aio](auto ec) { self->OnAcceptHandler(self, aio, ec); });
 }
 
-void Listener::handle_accept(std::shared_ptr<Listener> self, network::AsyncIOPtr aio,
+void Listener::OnAcceptHandler(std::shared_ptr<Listener> self, network::AsyncIOPtr aio,
                              const boost::system::error_code &err) {
   if (self->_begin_stoping) {
     return;
@@ -45,7 +45,7 @@ void Listener::handle_accept(std::shared_ptr<Listener> self, network::AsyncIOPtr
   if (err) {
     if (err == boost::asio::error::operation_aborted ||
         err == boost::asio::error::connection_reset || err == boost::asio::error::eof) {
-      aio->full_stop();
+      aio->fullStop();
       return;
     } else {
       THROW_EXCEPTION("nmq::server: error on accept - ", err.message());
@@ -70,12 +70,12 @@ void Listener::handle_accept(std::shared_ptr<Listener> self, network::AsyncIOPtr
       self->_connections.push_back(new_client);
     } else {
       logger_info("server: connection was not accepted.");
-      aio->full_stop();
+      aio->fullStop();
     }
   }
   boost::asio::ip::tcp::socket new_sock(*self->_service);
-  auto newaio = std::make_shared<network::async_io>(self->_service);
-  self->start_accept(newaio);
+  auto newaio = std::make_shared<network::AsyncIO>(self->_service);
+  self->startAsyncAccept(newaio);
 }
 
 void Listener::stop() {
@@ -96,7 +96,7 @@ void Listener::stop() {
   }
 }
 
-void Listener::erase_client_description(const ListenerClient_Ptr client) {
+void Listener::eraseClientDescription(const ListenerClientPtr client) {
   std::lock_guard<std::mutex> lg(_locker_connections);
   auto it = std::find_if(_connections.begin(), _connections.end(),
                          [client](auto c) { return c->get_id() == client->get_id(); });
@@ -105,11 +105,11 @@ void Listener::erase_client_description(const ListenerClient_Ptr client) {
   _connections.erase(it);
 }
 
-void Listener::sendTo(ListenerClient_Ptr i, message_ptr &d) {
+void Listener::sendTo(ListenerClientPtr i, MessagePtr &d) {
   i->sendData(d);
 }
 
-void Listener::sendTo(Id id, message_ptr &d) {
+void Listener::sendTo(Id id, MessagePtr &d) {
   std::lock_guard<std::mutex> lg(this->_locker_connections);
   for (auto c : _connections) {
     if (c->get_id() == id) {
@@ -120,7 +120,7 @@ void Listener::sendTo(Id id, message_ptr &d) {
   THROW_EXCEPTION("server: unknow client #", id);
 }
 
-void Listener::sendOk(ListenerClient_Ptr i, uint64_t messageId) {
-  auto nd = queries::Ok(messageId).toNetworkMessage();
+void Listener::sendOk(ListenerClientPtr i, uint64_t messageId) {
+  auto nd = queries::Ok(messageId).getMessage();
   this->sendTo(i, nd);
 }

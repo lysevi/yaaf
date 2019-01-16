@@ -27,19 +27,19 @@ struct MockListener : public nmq::network::Listener {
 
   void onStartComplete() override { is_start_complete = true; }
 
-  bool onNewConnection(nmq::network::ListenerClient_Ptr) override {
+  bool onNewConnection(nmq::network::ListenerClientPtr) override {
     connections.fetch_add(1);
     return true;
   }
 
-  void onNetworkError(nmq::network::ListenerClient_Ptr i,
-                      const network::message_ptr & /*d*/,
+  void onNetworkError(nmq::network::ListenerClientPtr i,
+                      const network::MessagePtr & /*d*/,
                       const boost::system::error_code & /*err*/) override {}
 
-  void onNewMessage(nmq::network::ListenerClient_Ptr i,
-                    const network::message_ptr & /*d*/, bool & /*cancel*/) override {}
+  void onNewMessage(nmq::network::ListenerClientPtr i,
+                    const network::MessagePtr & /*d*/, bool & /*cancel*/) override {}
 
-  void onDisconnect(const nmq::network::ListenerClient_Ptr & /*i*/) override {
+  void onDisconnect(const nmq::network::ListenerClientPtr & /*i*/) override {
     connections.fetch_sub(1);
   }
 
@@ -52,13 +52,13 @@ struct MockConnection : public nmq::network::Connection {
       : nmq::network::Connection(service, _parms) {}
 
   void onConnect() override { mock_is_connected = true; };
-  void onNewMessage(const nmq::network::message_ptr &, bool &) override {}
-  void onNetworkError(const nmq::network::message_ptr &,
+  void onNewMessage(const nmq::network::MessagePtr &, bool &) override {}
+  void onNetworkError(const nmq::network::MessagePtr &,
                       const boost::system::error_code &err) override {
     bool isError = err == boost::asio::error::operation_aborted ||
                    err == boost::asio::error::connection_reset ||
                    err == boost::asio::error::eof;
-    if (isError && !isStoped) {
+    if (isError && !_isStoped) {
       auto msg = err.message();
       logger_fatal(msg);
       EXPECT_FALSE(true);
@@ -96,7 +96,7 @@ void testForConnection(const size_t clients_count) {
 
   server_stop = false;
   std::thread t(server_thread);
-  while (server == nullptr || !server->is_started()) {
+  while (server == nullptr || !server->isStarted()) {
     logger("listener.client.testForConnection. !server->is_started serverIsNull? ",
            server == nullptr);
   }
@@ -105,7 +105,7 @@ void testForConnection(const size_t clients_count) {
   for (size_t i = 0; i < clients_count; i++) {
     p.login = "client_" + std::to_string(i);
     clients[i] = std::make_shared<MockConnection>(service, p);
-    clients[i]->async_connect();
+    clients[i]->startAsyncConnection();
   }
 
   for (auto &c : clients) {
@@ -120,7 +120,7 @@ void testForConnection(const size_t clients_count) {
 
   for (auto &c : clients) {
     c->disconnect();
-    while (c->is_connected()) {
+    while (c->isConnected()) {
       logger("listener.client.testForConnection. client is still connected");
     }
   }

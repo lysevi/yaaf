@@ -1,8 +1,8 @@
-#include <libnmq/queries.h>
+#include <libnmq/network/queries.h>
 #include <benchmark/benchmark.h>
 
 using namespace nmq;
-using namespace nmq::queries;
+using namespace nmq::network::queries;
 
 class Serialisation : public benchmark::Fixture {
   virtual void SetUp(const ::benchmark::State &) {}
@@ -14,21 +14,21 @@ public:
 
 BENCHMARK_DEFINE_F(Serialisation, Ok)(benchmark::State &state) {
   while (state.KeepRunning()) {
-    benchmark::DoNotOptimize(Ok(uint64_t(1)).toNetworkMessage());
+    benchmark::DoNotOptimize(Ok(uint64_t(1)).getMessage());
   }
 }
 BENCHMARK_REGISTER_F(Serialisation, Ok);
 
 BENCHMARK_DEFINE_F(Serialisation, Login)(benchmark::State &state) {
   while (state.KeepRunning()) {
-    benchmark::DoNotOptimize(Login("login").toNetworkMessage());
+    benchmark::DoNotOptimize(Login("login").getMessage());
   }
 }
 BENCHMARK_REGISTER_F(Serialisation, Login);
 
 BENCHMARK_DEFINE_F(Serialisation, LoginConfirm)(benchmark::State &state) {
   while (state.KeepRunning()) {
-    benchmark::DoNotOptimize(LoginConfirm(uint64_t(1)).toNetworkMessage());
+    benchmark::DoNotOptimize(LoginConfirm(uint64_t(1)).getMessage());
   }
 }
 BENCHMARK_REGISTER_F(Serialisation, LoginConfirm);

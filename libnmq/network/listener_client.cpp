@@ -23,11 +23,11 @@ ListenerClient::~ListenerClient() {}
 void ListenerClient::start() {
   auto self = shared_from_this();
 
-  async_io::data_handler_t on_d = [self](const message_ptr &d, bool &cancel) {
+  AsyncIO::data_handler_t on_d = [self](const MessagePtr &d, bool &cancel) {
     self->onDataRecv(d, cancel);
   };
 
-  async_io::error_handler_t on_n = [self](auto d, auto err) {
+  AsyncIO::error_handler_t on_n = [self](auto d, auto err) {
     self->onNetworkError(d, err);
     self->close();
   };
@@ -37,21 +37,21 @@ void ListenerClient::start() {
 
 void ListenerClient::close() {
   if (_async_connection != nullptr) {
-    _async_connection->full_stop();
+    _async_connection->fullStop();
 	_async_connection=nullptr;
-    this->_listener->erase_client_description(this->shared_from_this());
+    this->_listener->eraseClientDescription(this->shared_from_this());
   }
 }
 
-void ListenerClient::onNetworkError(const message_ptr &d,
+void ListenerClient::onNetworkError(const MessagePtr &d,
                                     const boost::system::error_code &err) {
   this->_listener->onNetworkError(this->shared_from_this(), d, err);
 }
 
-void ListenerClient::onDataRecv(const message_ptr &d, bool &cancel) {
+void ListenerClient::onDataRecv(const MessagePtr &d, bool &cancel) {
   _listener->onNewMessage(this->shared_from_this(), d, cancel);
 }
 
-void ListenerClient::sendData(const message_ptr &d) {
+void ListenerClient::sendData(const MessagePtr &d) {
   _async_connection->send(d);
 }

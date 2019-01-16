@@ -10,11 +10,11 @@ namespace nmq {
 namespace network {
 #pragma pack(push, 1)
 
-struct message {
+struct Message {
   using size_t = uint32_t;
   using kind_t = uint16_t;
 
-  struct header {
+  struct Header {
     kind_t kind;
   };
 
@@ -26,9 +26,9 @@ struct message {
   size_t *size;
   uint8_t *data;
 
-  message(const message &) = delete;
+  Message(const Message &) = delete;
 
-  message(size_t sz) {
+  Message(size_t sz) {
     auto realSize = static_cast<size_t>(sz + SIZE_OF_SIZE);
     data = new uint8_t[realSize * 2];
     memset(data, 0, realSize);
@@ -36,30 +36,28 @@ struct message {
     *size = realSize;
   }
 
-  message(size_t sz, const kind_t &kind_) : message(sz + SIZE_OF_KIND) {
-    cast_to_header()->kind = kind_;
+  Message(size_t sz, const kind_t &kind_) : Message(sz + SIZE_OF_KIND) {
+    header()->kind = kind_;
   }
 
-  ~message() {
+  ~Message() {
     delete[] data;
     data = nullptr;
   }
 
   uint8_t *value() { return (data + sizeof(size_t) + sizeof(kind_t)); }
 
-  std::tuple<size_t, uint8_t *> as_buffer() {
+  std::tuple<size_t, uint8_t *> asBuffer() {
     uint8_t *v = reinterpret_cast<uint8_t *>(data);
     auto buf_size = *size;
     return std::tie(buf_size, v);
   }
 
-  header *cast_to_header() {
-    return reinterpret_cast<header *>(this->data + SIZE_OF_SIZE);
-  }
+  Header *header() { return reinterpret_cast<Header *>(this->data + SIZE_OF_SIZE); }
 };
 
 #pragma pack(pop)
 
-using message_ptr = std::shared_ptr<message>;
+using MessagePtr = std::shared_ptr<Message>;
 } // namespace network
 } // namespace nmq

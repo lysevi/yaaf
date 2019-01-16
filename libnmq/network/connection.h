@@ -25,26 +25,25 @@ public:
   EXPORT Connection(boost::asio::io_service *service, const Params &_parms);
   EXPORT virtual ~Connection();
   EXPORT void disconnect();
-  EXPORT void async_connect();
-  EXPORT void reconnectOnError(const message_ptr &d,
+  EXPORT void startAsyncConnection();
+  EXPORT void reconnectOnError(const MessagePtr &d,
                                const boost::system::error_code &err);
-  EXPORT void dataRecv(const message_ptr &d, bool &cancel);
-  EXPORT void send_async(const message_ptr &d);
+  EXPORT void onDataReceive(const MessagePtr &d, bool &cancel);
+  EXPORT void sendAsync(const MessagePtr &d);
 
   virtual void onConnect() = 0;
-  virtual void onNewMessage(const message_ptr &d, bool &cancel) = 0;
-  virtual void onNetworkError(const message_ptr &d,
+  virtual void onNewMessage(const MessagePtr &d, bool &cancel) = 0;
+  virtual void onNetworkError(const MessagePtr &d,
                               const boost::system::error_code &err) = 0;
 
-  EXPORT bool is_connected() const { return isConnected; }
-  EXPORT bool is_stoped() const { return isStoped; }
+  EXPORT bool isConnected() const { return _isConnected; }
+  EXPORT bool isStoped() const { return _isStoped; }
   
 protected:
-  std::shared_ptr<async_io> _async_connection = nullptr;
+  std::shared_ptr<AsyncIO> _async_io = nullptr;
   boost::asio::io_service *_service = nullptr;
-  // socket_ptr _socket = nullptr;
-  bool isConnected = false;
-  bool isStoped = false;
+    bool _isConnected = false;
+  bool _isStoped = false;
   Params _params;
 };
 

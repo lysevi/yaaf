@@ -43,42 +43,42 @@ template <> struct ObjectScheme<MockMessage> {
 } // namespace nmq
 using MockTrasport = nmq::network::transport<MockMessage>;
 
-struct MockTransportListener : public MockTrasport::listener_type {
+struct MockTransportListener : public MockTrasport::Listener {
   MockTransportListener(MockTrasport::params &p)
-      : MockTrasport::listener_type(p.service, p) {}
+      : MockTrasport::Listener(p.service, p) {}
 
   void onStartComplete() override { is_started_flag = true; }
 
-  void onError(const MockTrasport::io_chanel_type::sender_type &,
-               const MockTrasport::io_chanel_type::error_description &er) override {
+  void onError(const MockTrasport::io_chanel_type::Sender &,
+               const MockTrasport::io_chanel_type::ErrorCode &er) override {
     is_started_flag = false;
     /* auto msg = er.ec.message();
      THROW_EXCEPTION(msg);*/
   };
-  void onMessage(const MockTrasport::io_chanel_type::sender_type &s, const MockMessage &d,
+  void onMessage(const MockTrasport::io_chanel_type::Sender &s, const MockMessage &d,
                  bool &) override {
     _q.insert(std::make_pair(d.id, d.msg));
     MockMessage answer;
     answer.id = d.id;
     answer.msg = d.msg + " " + d.msg;
-    this->send_async(s.id, answer);
+    this->sendAsync(s.id, answer);
   }
 
   /**
   result - true for accept, false for failed.
   */
-  bool onClient(const MockTrasport::io_chanel_type::sender_type &) override {
+  bool onClient(const MockTrasport::io_chanel_type::Sender &) override {
     return true;
   }
-  void onClientDisconnect(const MockTrasport::io_chanel_type::sender_type &) override {}
+  void onClientDisconnect(const MockTrasport::io_chanel_type::Sender &) override {}
 
   bool is_started_flag = false;
   std::map<uint64_t, std::string> _q;
 };
 
-struct MockTransportClient : public MockTrasport::connection_type {
+struct MockTransportClient : public MockTrasport::Connection {
   MockTransportClient(const MockTrasport::params &p, const std::string &login)
-      : MockTrasport::connection_type(p.service, login, p) {}
+      : MockTrasport::Connection(p.service, login, p) {}
 
   void onConnected() override { is_started_flag = true; }
 
@@ -86,10 +86,10 @@ struct MockTransportClient : public MockTrasport::connection_type {
     MockMessage m;
     m.id = msg_id++;
     m.msg = "msg_" + std::to_string(m.id);
-    this->send_async(m);
+    this->sendAsync(m);
   }
 
-  void onError(const MockTrasport::io_chanel_type::error_description &er) override {
+  void onError(const MockTrasport::io_chanel_type::ErrorCode &er) override {
     is_started_flag = false;
   };
   void onMessage(const MockMessage &d, bool &) override {

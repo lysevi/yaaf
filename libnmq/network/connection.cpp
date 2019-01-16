@@ -13,22 +13,22 @@ Connection::~Connection() {
 }
 
 void Connection::disconnect() {
-  if (!isStoped) {
-    isStoped = true;
-    _async_connection->full_stop();
+  if (!_isStoped) {
+    _isStoped = true;
+    _async_io->fullStop();
   }
 }
 
-void Connection::reconnectOnError(const message_ptr &d,
+void Connection::reconnectOnError(const MessagePtr &d,
                                   const boost::system::error_code &err) {
-  isConnected = false;
+  _isConnected = false;
   onNetworkError(d, err);
-  if (!isStoped && _params.auto_reconnection) {
-    this->async_connect();
+  if (!_isStoped && _params.auto_reconnection) {
+    this->startAsyncConnection();
   }
 }
 
-void Connection::async_connect() {
+void Connection::startAsyncConnection() {
   using namespace boost::asio::ip;
   tcp::resolver resolver(*_service);
   tcp::resolver::query query(_params.host, std::to_string(_params.port),
@@ -51,34 +51,34 @@ void Connection::async_connect() {
               ":", _params.port, " - ", ep.address().to_string());
 
   auto self = this->shared_from_this();
-  self->_async_connection = std::make_shared<async_io>(self->_service);
-  self->_async_connection->socket().async_connect(ep, [self](auto ec) {
+  self->_async_io = std::make_shared<AsyncIO>(self->_service);
+  self->_async_io->socket().async_connect(ep, [self](auto ec) {
     if (ec) {
       self->reconnectOnError(nullptr, ec);
     } else {
-      if (self->_async_connection->socket().is_open()) {
+      if (self->_async_io->socket().is_open()) {
         logger_info("client(", self->_params.login, "): connected.");
-        async_io::data_handler_t on_d = [self](auto d, auto cancel) {
-          self->dataRecv(d, cancel);
+        AsyncIO::data_handler_t on_d = [self](auto d, auto cancel) {
+          self->onDataReceive(d, cancel);
         };
-        async_io::error_handler_t on_n = [self](auto d, auto err) {
+        AsyncIO::error_handler_t on_n = [self](auto d, auto err) {
           self->reconnectOnError(d, err);
         };
 
-        self->_async_connection->start(on_d, on_n);
-        self->isConnected = true;
+        self->_async_io->start(on_d, on_n);
+        self->_isConnected = true;
         self->onConnect();
       }
     }
   });
 }
 
-void Connection::dataRecv(const message_ptr &d, bool &cancel) {
+void Connection::onDataReceive(const MessagePtr &d, bool &cancel) {
   onNewMessage(d, cancel);
 }
 
-void Connection::send_async(const message_ptr &d) {
-  if (_async_connection) {
-    _async_connection->send(d);
+void Connection::sendAsync(const MessagePtr &d) {
+  if (_async_io) {
+    _async_io->send(d);
   }
 }

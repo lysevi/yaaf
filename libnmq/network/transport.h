@@ -2,7 +2,7 @@
 
 #include <libnmq/network/connection.h>
 #include <libnmq/network/listener.h>
-#include <libnmq/queries.h>
+#include <libnmq/network/queries.h>
 #include <libnmq/serialization/serialization.h>
 
 #include <functional>
@@ -10,52 +10,52 @@
 namespace nmq {
 namespace network {
 
-template <typename T> struct base_io_chanel {
-  struct sender_type {
-    sender_type(base_io_chanel<T> &bc, nmq::Id id_) : chanel(bc) { id = id_; }
-    base_io_chanel<T> &chanel;
+template <typename T> struct BaseIOChanel {
+  struct Sender {
+    Sender(BaseIOChanel<T> &bc, nmq::Id id_) : chanel(bc) { id = id_; }
+    BaseIOChanel<T> &chanel;
     nmq::Id id;
   };
 
-  struct error_description {
+  struct ErrorCode {
     const boost::system::error_code &ec;
   };
 
-  struct listener_type : public base_io_chanel {
+  struct IOListener : public BaseIOChanel {
 
     virtual void onStartComplete() = 0;
-    virtual void onError(const sender_type &i, const error_description &err) = 0;
-    virtual void onMessage(const sender_type &i, const T &d, bool &cancel) = 0;
+    virtual void onError(const Sender &i, const ErrorCode &err) = 0;
+    virtual void onMessage(const Sender &i, const T &d, bool &cancel) = 0;
     /**
     result - true for accept, false for failed.
     */
-    virtual bool onClient(const sender_type &i) = 0;
-    virtual void onClientDisconnect(const sender_type &i) = 0;
-    virtual void send_async(nmq::Id client, const T &message) = 0;
+    virtual bool onClient(const Sender &i) = 0;
+    virtual void onClientDisconnect(const Sender &i) = 0;
+    virtual void sendAsync(nmq::Id client, const T &message) = 0;
   };
 
-  struct connection_type : public base_io_chanel {
+  struct IOConnection : public BaseIOChanel {
     virtual void onConnected() = 0;
-    virtual void onError(const error_description &err) = 0;
+    virtual void onError(const ErrorCode &err) = 0;
     virtual void onMessage(const T &d, bool &cancel) = 0;
-    virtual void send_async(const T &message) = 0;
+    virtual void sendAsync(const T &message) = 0;
   };
 
-  base_io_chanel() { _next_message_id = 0; }
+  BaseIOChanel() { _next_message_id = 0; }
 
   virtual void start() = 0;
   virtual void stop() = 0;
 
-  uint64_t get_next_message_id() { return _next_message_id.fetch_add(1); }
+  uint64_t getNextMessageId() { return _next_message_id.fetch_add(1); }
 
   std::atomic_uint64_t _next_message_id;
 };
 
 template <typename T> struct transport {
-  using value_type = T;
-  using io_chanel_type = typename base_io_chanel<value_type>;
-  using sender_type = typename io_chanel_type::sender_type;
-  using ObjectScheme = serialization::ObjectScheme<value_type>;
+  using Value = T;
+  using io_chanel_type = typename BaseIOChanel<Value>;
+  using Sender = typename io_chanel_type::Sender;
+  using ObjectScheme = serialization::ObjectScheme<Value>;
 
   struct params {
     boost::asio::io_service *service;
@@ -63,41 +63,40 @@ template <typename T> struct transport {
     unsigned short port;
   };
 
-  struct listener_type : public io_chanel_type::listener_type,
-                         public nmq::network::Listener {
+  struct Listener : public io_chanel_type::IOListener, public nmq::network::Listener {
 
-    listener_type() = delete;
-    listener_type(const listener_type &) = delete;
-    listener_type &operator=(const listener_type &) = delete;
+    Listener() = delete;
+    Listener(const Listener &) = delete;
+    Listener &operator=(const Listener &) = delete;
 
-    listener_type(boost::asio::io_service *service, const params &p)
+    Listener(boost::asio::io_service *service, const params &p)
         : nmq::network::Listener(service, nmq::network::Listener::Params{p.port}) {
       _next_message_id = 0;
     }
 
     void onStartComplete() override {}
-    bool onNewConnection(nmq::network::ListenerClient_Ptr i) override {
-      return onClient(sender_type{*this, i->get_id()});
+    bool onNewConnection(nmq::network::ListenerClientPtr i) override {
+      return onClient(Sender{*this, i->get_id()});
     }
 
-    void onDisconnect(const nmq::network::ListenerClient_Ptr &i) override {
-      onClientDisconnect(sender_type{*this, i->get_id()});
+    void onDisconnect(const nmq::network::ListenerClientPtr &i) override {
+      onClientDisconnect(Sender{*this, i->get_id()});
     }
-    void onNetworkError(nmq::network::ListenerClient_Ptr i, const network::message_ptr &,
+    void onNetworkError(nmq::network::ListenerClientPtr i, const network::MessagePtr &,
                         const boost::system::error_code &err) override {
-      onError(sender_type{*this, i->get_id()}, error_description{err});
+      onError(Sender{*this, i->get_id()}, ErrorCode{err});
     }
 
-    void onNewMessage(nmq::network::ListenerClient_Ptr i, const network::message_ptr &d,
+    void onNewMessage(nmq::network::ListenerClientPtr i, const network::MessagePtr &d,
                       bool &cancel) override {
 
       queries::Message<T> msg(d);
-      onMessage(sender_type{*this, i->get_id()}, msg.msg, cancel);
+      onMessage(Sender{*this, i->get_id()}, msg.msg, cancel);
     }
 
-    void send_async(nmq::Id client, const T &message) override {
-      nmq::queries::Message<T> msg(get_next_message_id(), message);
-      auto nd = msg.toNetworkMessage();
+    void sendAsync(nmq::Id client, const T &message) override {
+      queries::Message<T> msg(getNextMessageId(), message);
+      auto nd = msg.getMessage();
       sendTo(client, nd);
     }
 
@@ -106,36 +105,36 @@ template <typename T> struct transport {
     void stop() override { nmq::network::Listener::stop(); }
   };
 
-  struct connection_type : public io_chanel_type::connection_type,
-                           public nmq::network::Connection {
-    connection_type() = delete;
-    connection_type(const connection_type &) = delete;
-    connection_type &operator=(const connection_type &) = delete;
+  struct Connection : public io_chanel_type::IOConnection,
+                      public nmq::network::Connection {
+    Connection() = delete;
+    Connection(const Connection &) = delete;
+    Connection &operator=(const Connection &) = delete;
 
-    connection_type(boost::asio::io_service *service, const std::string &login,
-                    const transport::params &transport_params)
+    Connection(boost::asio::io_service *service, const std::string &login,
+               const transport::params &transport_params)
         : nmq::network::Connection(
               service, nmq::network::Connection::Params(login, transport_params.host,
                                                         transport_params.port)) {}
 
     void onConnect() override { this->onConnected(); };
-    void onNewMessage(const nmq::network::message_ptr &d, bool &cancel) override {
+    void onNewMessage(const nmq::network::MessagePtr &d, bool &cancel) override {
       queries::Message<T> msg(d);
       onMessage(msg.msg, cancel);
     }
 
-    void onNetworkError(const nmq::network::message_ptr &,
+    void onNetworkError(const nmq::network::MessagePtr &,
                         const boost::system::error_code &err) override {
-      onError(error_description{err});
+      onError(ErrorCode{err});
     }
 
-    void send_async(const T &message) override {
-      nmq::queries::Message<T> msg(get_next_message_id(), message);
-      auto nd = msg.toNetworkMessage();
-      nmq::network::Connection::send_async(nd);
+    void sendAsync(const T &message) override {
+      queries::Message<T> msg(getNextMessageId(), message);
+      auto nd = msg.getMessage();
+      nmq::network::Connection::sendAsync(nd);
     }
 
-    void start() override { nmq::network::Connection::async_connect(); }
+    void start() override { nmq::network::Connection::startAsyncConnection(); }
 
     void stop() override { nmq::network::Connection::disconnect(); }
   };
