@@ -44,8 +44,7 @@ template <> struct ObjectScheme<MockMessage> {
 using MockTrasport = nmq::network::transport<MockMessage>;
 
 struct MockTransportListener : public MockTrasport::Listener {
-  MockTransportListener(MockTrasport::params &p)
-      : MockTrasport::Listener(p.service, p) {}
+  MockTransportListener(MockTrasport::params &p) : MockTrasport::Listener(p.service, p) {}
 
   void onStartComplete() override { is_started_flag = true; }
 
@@ -61,15 +60,16 @@ struct MockTransportListener : public MockTrasport::Listener {
     MockMessage answer;
     answer.id = d.id;
     answer.msg = d.msg + " " + d.msg;
+    if (this->isStopingBegin()) {
+      return;
+    }
     this->sendAsync(s.id, answer);
   }
 
   /**
   result - true for accept, false for failed.
   */
-  bool onClient(const MockTrasport::io_chanel_type::Sender &) override {
-    return true;
-  }
+  bool onClient(const MockTrasport::io_chanel_type::Sender &) override { return true; }
   void onClientDisconnect(const MockTrasport::io_chanel_type::Sender &) override {}
 
   bool is_started_flag = false;

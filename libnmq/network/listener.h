@@ -20,7 +20,8 @@ public:
   EXPORT virtual ~Listener();
   EXPORT void start();
   EXPORT void stop();
-
+  
+  EXPORT bool isStopingBegin() const { return _begin_stoping; }
   EXPORT bool isStarted() const { return _is_started; }
   EXPORT bool isStoped() const { return _is_stoped; }
 
