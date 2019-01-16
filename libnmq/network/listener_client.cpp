@@ -1,7 +1,7 @@
-#include <boost/asio.hpp>
 #include <libnmq/network/listener.h>
 #include <libnmq/network/listener_client.h>
 #include <libnmq/utils/utils.h>
+#include <boost/asio.hpp>
 #include <functional>
 #include <string>
 
@@ -13,7 +13,7 @@ using namespace nmq;
 using namespace nmq::network;
 
 ListenerClient::ListenerClient(Id id_, network::AsyncIOPtr async_io,
-                                   std::shared_ptr<Listener> s)
+                               std::shared_ptr<Listener> s)
     : id(id_), _listener(s) {
   _async_connection = async_io;
 }
@@ -38,14 +38,13 @@ void ListenerClient::start() {
 void ListenerClient::close() {
   if (_async_connection != nullptr) {
     _async_connection->full_stop();
-    _async_connection = nullptr;
-
+	_async_connection=nullptr;
     this->_listener->erase_client_description(this->shared_from_this());
   }
 }
 
 void ListenerClient::onNetworkError(const message_ptr &d,
-                                      const boost::system::error_code &err) {
+                                    const boost::system::error_code &err) {
   this->_listener->onNetworkError(this->shared_from_this(), d, err);
 }
 

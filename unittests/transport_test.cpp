@@ -50,7 +50,11 @@ struct MockTransportListener : public MockTrasport::listener_type {
   void onStartComplete() override { is_started_flag = true; }
 
   void onError(const MockTrasport::io_chanel_type::sender_type &,
-               const MockTrasport::io_chanel_type::error_description &er) override{};
+               const MockTrasport::io_chanel_type::error_description &er) override {
+    is_started_flag = false;
+    /* auto msg = er.ec.message();
+     THROW_EXCEPTION(msg);*/
+  };
   void onMessage(const MockTrasport::io_chanel_type::sender_type &s, const MockMessage &d,
                  bool &) override {
     _q.insert(std::make_pair(d.id, d.msg));

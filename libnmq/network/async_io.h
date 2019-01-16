@@ -4,20 +4,11 @@
 #include <libnmq/utils/async/locker.h>
 #include <libnmq/utils/exception.h>
 
+#include <boost/asio.hpp>
+
 #include <atomic>
 #include <functional>
 #include <memory>
-
-namespace boost {
-namespace system {
-class error_code;
-} // namespace system
-
-namespace asio {
-class io_service;
-}
-
-} // namespace boost
 
 namespace nmq {
 namespace network {

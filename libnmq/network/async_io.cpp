@@ -1,7 +1,7 @@
-#include <boost/asio.hpp>
 #include <libnmq/network/async_io.h>
 #include <libnmq/utils/exception.h>
 #include <libnmq/utils/utils.h>
+
 
 using namespace boost::asio;
 using namespace nmq;
@@ -54,6 +54,7 @@ void async_io::full_stop(bool waitAllMessages) {
             logger_fatal("AsyncIO::full_stop: ", message);
           }
           _service = nullptr;
+          _is_stoped = true;
         }
       }
     }
