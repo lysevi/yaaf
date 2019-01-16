@@ -1,7 +1,8 @@
-#include <libnmq/queries.h>
+#include <boost/asio.hpp>
+
 #include <libnmq/server.h>
 #include <libnmq/users.h>
-
+#include <libnmq/queries.h>
 #include <functional>
 #include <string>
 
@@ -15,7 +16,7 @@ Server::Server(boost::asio::io_service *service, Listener::Params &p)
 
 Server::~Server() {}
 
-void Server::onNetworkError(network::ListenerClient_Ptr i, const network::Message_ptr &d,
+void Server::onNetworkError(network::ListenerClient_Ptr i, const network::message_ptr &/*d*/,
                             const boost::system::error_code &err) {
   bool operation_aborted = err == boost::asio::error::operation_aborted;
   bool eof = err == boost::asio::error::eof;
@@ -25,8 +26,8 @@ void Server::onNetworkError(network::ListenerClient_Ptr i, const network::Messag
   }
 }
 
-void Server::onNewMessage(network::ListenerClient_Ptr i, const network::Message_ptr &d,
-                          bool &cancel) {
+void Server::onNewMessage(network::ListenerClient_Ptr i, const network::message_ptr &d,
+                          bool &/*cancel*/) {
   auto hdr = d->cast_to_header();
 
   switch (hdr->kind) {
@@ -34,7 +35,7 @@ void Server::onNewMessage(network::ListenerClient_Ptr i, const network::Message_
     logger_info("server: #", i->get_id(), " set login");
     queries::Login lg(d);
 
-    network::Message_ptr nd = nullptr;
+    network::message_ptr nd = nullptr;
     if (onNewLogin(i, lg)) {
       queries::LoginConfirm lc(i->get_id());
       nd = lc.toNetworkMessage();

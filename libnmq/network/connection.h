@@ -2,7 +2,6 @@
 
 #include <libnmq/exports.h>
 #include <libnmq/network/async_io.h>
-#include <boost/asio.hpp>
 
 namespace nmq {
 namespace network {
@@ -27,20 +26,21 @@ public:
   EXPORT virtual ~Connection();
   EXPORT void disconnect();
   EXPORT void async_connect();
-  EXPORT void reconnectOnError(const Message_ptr &d,
+  EXPORT void reconnectOnError(const message_ptr &d,
                                const boost::system::error_code &err);
-  EXPORT void dataRecv(const Message_ptr &d, bool &cancel);
+  EXPORT void dataRecv(const message_ptr &d, bool &cancel);
+  EXPORT void send_async(const message_ptr &d);
 
   virtual void onConnect() = 0;
-  virtual void onNewMessage(const Message_ptr &d, bool &cancel) = 0;
-  virtual void onNetworkError(const Message_ptr &d,
+  virtual void onNewMessage(const message_ptr &d, bool &cancel) = 0;
+  virtual void onNetworkError(const message_ptr &d,
                               const boost::system::error_code &err) = 0;
 
   EXPORT bool is_connected() const { return isConnected; }
   EXPORT bool is_stoped() const { return isStoped; }
-
+  
 protected:
-  std::shared_ptr<AsyncIO> _async_connection = nullptr;
+  std::shared_ptr<async_io> _async_connection = nullptr;
   boost::asio::io_service *_service = nullptr;
   // socket_ptr _socket = nullptr;
   bool isConnected = false;

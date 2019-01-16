@@ -1,7 +1,6 @@
 #pragma once
 
 #include <libnmq/exports.h>
-#include <libnmq/network/async_io.h>
 #include <libnmq/network/listener.h>
 #include <libnmq/queries.h>
 #include <libnmq/users.h>
@@ -27,9 +26,9 @@ public:
                                  const queries::Login &lg);
 
   EXPORT void onNetworkError(network::ListenerClient_Ptr i,
-                             const network::Message_ptr &d,
+                             const network::message_ptr &d,
                              const boost::system::error_code &err) override;
-  EXPORT void onNewMessage(network::ListenerClient_Ptr i, const network::Message_ptr &d,
+  EXPORT void onNewMessage(network::ListenerClient_Ptr i, const network::message_ptr &d,
                            bool &cancel) override;
   EXPORT void onDisconnect(const network::ListenerClient_Ptr &i) override;
 

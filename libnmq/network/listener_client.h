@@ -16,9 +16,9 @@ public:
   ~ListenerClient();
   EXPORT void start();
   EXPORT void close();
-  EXPORT void onNetworkError(const Message_ptr &d, const boost::system::error_code &err);
-  EXPORT void onDataRecv(const Message_ptr &d, bool &cancel);
-  EXPORT void sendData(const Message_ptr &d);
+  EXPORT void onNetworkError(const message_ptr &d, const boost::system::error_code &err);
+  EXPORT void onDataRecv(const message_ptr &d, bool &cancel);
+  EXPORT void sendData(const message_ptr &d);
   EXPORT Id get_id() const { return id; }
 
 private:

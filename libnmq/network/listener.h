@@ -24,17 +24,17 @@ public:
   EXPORT bool is_started() const { return _is_started; }
   EXPORT bool is_stoped() const { return _is_stoped; }
 
-  EXPORT void sendTo(ListenerClient_Ptr i, network::Message_ptr &d);
-  EXPORT void sendTo(Id id, network::Message_ptr &d);
+  EXPORT void sendTo(ListenerClient_Ptr i, network::message_ptr &d);
+  EXPORT void sendTo(Id id, network::message_ptr &d);
 
   EXPORT boost::asio::io_service *service() const { return _service; }
 
   EXPORT void erase_client_description(const ListenerClient_Ptr client);
 
   virtual void onStartComplete() = 0;
-  virtual void onNetworkError(ListenerClient_Ptr i, const network::Message_ptr &d,
+  virtual void onNetworkError(ListenerClient_Ptr i, const network::message_ptr &d,
                               const boost::system::error_code &err) = 0;
-  virtual void onNewMessage(ListenerClient_Ptr i, const network::Message_ptr &d,
+  virtual void onNewMessage(ListenerClient_Ptr i, const network::message_ptr &d,
                             bool &cancel) = 0;
   /**
   result - true for accept, false for failed.
@@ -60,6 +60,7 @@ protected:
   std::mutex _locker_connections;
   std::list<ListenerClient_Ptr> _connections;
   Params _params;
+  bool _begin_stoping=false;
   bool _is_stoped = false;
 };
 } // namespace network

@@ -6,7 +6,6 @@
 #include <libnmq/queries.h>
 #include <libnmq/utils/async/locker.h>
 #include <libnmq/utils/utils.h>
-#include <boost/asio.hpp>
 #include <cstring>
 #include <shared_mutex>
 
@@ -37,15 +36,14 @@ public:
 
   EXPORT void onConnect() override;
 
-  EXPORT void onNetworkError(const network::Message_ptr &d,
+  EXPORT void onNetworkError(const network::message_ptr &d,
                              const boost::system::error_code &err) override;
 
   EXPORT virtual void onMessage(const std::string & /*queueName*/,
                                 const std::vector<uint8_t> & /*d*/){};
 
 private:
-  EXPORT void onNewMessage(const network::Message_ptr &d, bool &cancel) override;
-  void send(const network::Message_ptr &nd);
+  EXPORT void onNewMessage(const network::message_ptr &d, bool &cancel) override;
 
   uint64_t getNextId() { return _nextMessageId++; }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <libnmq/exports.h>
+#include <libnmq/utils/utils.h>
 #include <cstddef>
 #include <cstring>
 #include <string>
@@ -140,5 +141,17 @@ public:
     read_args(it, std::forward<T>(t)...);
   }
 };
+
+template <typename T> struct ObjectScheme {
+  static size_t capacity(const T &t) {
+
+    NOT_IMPLEMENTED;
+    return 0;
+  }
+  template <class Iterator> static void pack(Iterator it, const T t) { NOT_IMPLEMENTED; }
+  template <class Iterator> static T unpack(Iterator ii) { NOT_IMPLEMENTED; }
+  static T empty() { return T(); }
+};
+
 } // namespace serialization
 } // namespace nmq

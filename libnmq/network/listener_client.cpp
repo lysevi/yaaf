@@ -1,3 +1,4 @@
+#include <boost/asio.hpp>
 #include <libnmq/network/listener.h>
 #include <libnmq/network/listener_client.h>
 #include <libnmq/utils/utils.h>
@@ -22,11 +23,11 @@ ListenerClient::~ListenerClient() {}
 void ListenerClient::start() {
   auto self = shared_from_this();
 
-  AsyncIO::onDataRecvHandler on_d = [self](const Message_ptr &d, bool &cancel) {
+  async_io::data_handler_t on_d = [self](const message_ptr &d, bool &cancel) {
     self->onDataRecv(d, cancel);
   };
 
-  AsyncIO::onNetworkErrorHandler on_n = [self](auto d, auto err) {
+  async_io::error_handler_t on_n = [self](auto d, auto err) {
     self->onNetworkError(d, err);
     self->close();
   };
@@ -43,15 +44,15 @@ void ListenerClient::close() {
   }
 }
 
-void ListenerClient::onNetworkError(const Message_ptr &d,
+void ListenerClient::onNetworkError(const message_ptr &d,
                                       const boost::system::error_code &err) {
   this->_listener->onNetworkError(this->shared_from_this(), d, err);
 }
 
-void ListenerClient::onDataRecv(const Message_ptr &d, bool &cancel) {
+void ListenerClient::onDataRecv(const message_ptr &d, bool &cancel) {
   _listener->onNewMessage(this->shared_from_this(), d, cancel);
 }
 
-void ListenerClient::sendData(const Message_ptr &d) {
+void ListenerClient::sendData(const message_ptr &d) {
   _async_connection->send(d);
 }

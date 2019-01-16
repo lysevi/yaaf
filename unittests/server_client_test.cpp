@@ -1,10 +1,12 @@
 #include "helpers.h"
+
+#include <boost/asio.hpp>
+
 #include <libnmq/client.h>
 #include <libnmq/server.h>
 #include <libnmq/utils/logger.h>
 #include <catch.hpp>
 
-#include <boost/asio.hpp>
 
 #include <functional>
 #include <string>

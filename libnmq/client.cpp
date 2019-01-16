@@ -1,3 +1,4 @@
+#include <boost/asio.hpp>
 #include <libnmq/client.h>
 
 using namespace nmq;
@@ -30,13 +31,13 @@ void Client::onConnect() {
   logger("client(", _params.login, "):: send login.");
   queries::Login lg(this->_params.login);
   _loginConfirmed = false;
-  network::Message_ptr mptr = lg.toNetworkMessage();
-  this->send(mptr);
+  network::message_ptr mptr = lg.toNetworkMessage();
+  this->send_async(mptr);
 
   logger("client(", _params.login, "):: send login sended.");
 }
 
-void Client::onNewMessage(const network::Message_ptr &d, bool &cancel) {
+void Client::onNewMessage(const network::message_ptr &d, bool & /*cancel*/) {
   auto hdr = d->cast_to_header();
 
   switch (hdr->kind) {
@@ -75,7 +76,7 @@ void Client::onNewMessage(const network::Message_ptr &d, bool &cancel) {
   }
 }
 
-void Client::onNetworkError(const network::Message_ptr &d,
+void Client::onNetworkError(const network::message_ptr & /*d*/,
                             const boost::system::error_code &err) {
   bool isError = err == boost::asio::error::operation_aborted ||
                  err == boost::asio::error::connection_reset ||
@@ -113,9 +114,3 @@ void Client::waitAll() const {
 //    qr.locker->lock();
 //  }
 //}
-
-void Client::send(const network::Message_ptr &nd) {
-  if (_async_connection != nullptr) {
-    _async_connection->send(nd);
-  }
-}

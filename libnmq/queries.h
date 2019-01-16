@@ -17,13 +17,14 @@ struct Ok {
 
   Ok(uint64_t id_) { id = id_; }
 
-  Ok(const network::Message_ptr &nd) { Scheme::read(nd->value(), id); }
+  Ok(const network::message_ptr &nd) { Scheme::read(nd->value(), id); }
 
-  network::Message_ptr toNetworkMessage() const {
-    auto neededSize = Scheme::capacity(id);
+  network::message_ptr toNetworkMessage() const {
+    network::message::size_t neededSize =
+        static_cast<network::message::size_t>(Scheme::capacity(id));
 
-    auto nd = std::make_shared<network::Message>(
-        neededSize, (network::Message::message_kind_t)MessageKinds::OK);
+    auto nd = std::make_shared<network::message>(
+        neededSize, (network::message::kind_t)MessageKinds::OK);
 
     Scheme::write(nd->value(), id);
     return nd;
@@ -37,13 +38,14 @@ struct Login {
 
   Login(const std::string &login_) { login = login_; }
 
-  Login(const network::Message_ptr &nd) { Scheme::read(nd->value(), login); }
+  Login(const network::message_ptr &nd) { Scheme::read(nd->value(), login); }
 
-  network::Message_ptr toNetworkMessage() const {
-    auto neededSize = Scheme::capacity(login);
+  network::message_ptr toNetworkMessage() const {
+    network::message::size_t neededSize =
+        static_cast<network::message::size_t>(Scheme::capacity(login));
 
-    auto nd = std::make_shared<network::Message>(
-        neededSize, (network::Message::message_kind_t)MessageKinds::LOGIN);
+    auto nd = std::make_shared<network::message>(
+        neededSize, (network::message::kind_t)MessageKinds::LOGIN);
 
     Scheme::write(nd->value(), login);
     return nd;
@@ -57,13 +59,14 @@ struct LoginConfirm {
 
   LoginConfirm(uint64_t id_) { id = id_; }
 
-  LoginConfirm(const network::Message_ptr &nd) { Scheme::read(nd->value(), id); }
+  LoginConfirm(const network::message_ptr &nd) { Scheme::read(nd->value(), id); }
 
-  network::Message_ptr toNetworkMessage() const {
-    auto neededSize = Scheme::capacity(id);
+  network::message_ptr toNetworkMessage() const {
+    network::message::size_t neededSize =
+        static_cast<network::message::size_t>(Scheme::capacity(id));
 
-    auto nd = std::make_shared<network::Message>(
-        neededSize, (network::Message::message_kind_t)MessageKinds::LOGIN_CONFIRM);
+    auto nd = std::make_shared<network::message>(
+        neededSize, (network::message::kind_t)MessageKinds::LOGIN_CONFIRM);
 
     Scheme::write(nd->value(), id);
     return nd;
@@ -77,15 +80,46 @@ struct LoginFailed {
 
   LoginFailed(uint64_t id_) { id = id_; }
 
-  LoginFailed(const network::Message_ptr &nd) { Scheme::read(nd->value(), id); }
+  LoginFailed(const network::message_ptr &nd) { Scheme::read(nd->value(), id); }
 
-  network::Message_ptr toNetworkMessage() const {
-    auto neededSize = Scheme::capacity(id);
+  network::message_ptr toNetworkMessage() const {
+    network::message::size_t neededSize =
+        static_cast<network::message::size_t>(Scheme::capacity(id));
 
-    auto nd = std::make_shared<network::Message>(
-        neededSize, (network::Message::message_kind_t)MessageKinds::LOGIN_FAILED);
+    auto nd = std::make_shared<network::message>(
+        neededSize, (network::message::kind_t)MessageKinds::LOGIN_FAILED);
 
     Scheme::write(nd->value(), id);
+    return nd;
+  }
+};
+
+template <typename T> struct Message {
+  uint64_t id;
+  T msg;
+  using Scheme = serialization::Scheme<uint64_t>;
+
+  Message(uint64_t id_, const T &msg_) {
+    id = id_;
+    msg = msg_;
+  }
+
+  Message(const network::message_ptr &nd) {
+    auto iterator = nd->value();
+    Scheme::read(iterator, id);
+    msg = serialization::ObjectScheme<T>::unpack(iterator + Scheme::capacity(id));
+  }
+
+  network::message_ptr toNetworkMessage() const {
+    auto self_size = Scheme::capacity(id);
+    network::message::size_t neededSize = static_cast<network::message::size_t>(
+        self_size + serialization::ObjectScheme<T>::capacity(msg));
+
+    auto nd = std::make_shared<network::message>(
+        neededSize, (network::message::kind_t)MessageKinds::MSG);
+
+    Scheme::write(nd->value(), id);
+    serialization::ObjectScheme<T>::pack(nd->value() + self_size, msg);
     return nd;
   }
 };

@@ -1,3 +1,5 @@
+#include <boost/asio.hpp>
+
 #include <libnmq/network/connection.h>
 
 using namespace nmq;
@@ -17,7 +19,7 @@ void Connection::disconnect() {
   }
 }
 
-void Connection::reconnectOnError(const Message_ptr &d,
+void Connection::reconnectOnError(const message_ptr &d,
                                   const boost::system::error_code &err) {
   isConnected = false;
   onNetworkError(d, err);
@@ -49,17 +51,17 @@ void Connection::async_connect() {
               ":", _params.port, " - ", ep.address().to_string());
 
   auto self = this->shared_from_this();
-  self->_async_connection = std::make_shared<AsyncIO>(self->_service);
+  self->_async_connection = std::make_shared<async_io>(self->_service);
   self->_async_connection->socket().async_connect(ep, [self](auto ec) {
     if (ec) {
       self->reconnectOnError(nullptr, ec);
     } else {
       if (self->_async_connection->socket().is_open()) {
         logger_info("client(", self->_params.login, "): connected.");
-        AsyncIO::onDataRecvHandler on_d = [self](auto d, auto cancel) {
+        async_io::data_handler_t on_d = [self](auto d, auto cancel) {
           self->dataRecv(d, cancel);
         };
-        AsyncIO::onNetworkErrorHandler on_n = [self](auto d, auto err) {
+        async_io::error_handler_t on_n = [self](auto d, auto err) {
           self->reconnectOnError(d, err);
         };
 
@@ -71,6 +73,12 @@ void Connection::async_connect() {
   });
 }
 
-void Connection::dataRecv(const Message_ptr &d, bool &cancel) {
+void Connection::dataRecv(const message_ptr &d, bool &cancel) {
   onNewMessage(d, cancel);
+}
+
+void Connection::send_async(const message_ptr &d) {
+  if (_async_connection) {
+    _async_connection->send(d);
+  }
 }

@@ -1,3 +1,4 @@
+#include <boost/asio.hpp>
 #include <libnmq/network/listener.h>
 #include <libnmq/network/listener_client.h>
 #include <libnmq/queries.h>
@@ -12,7 +13,6 @@ using namespace boost::asio::ip;
 using namespace nmq;
 using namespace nmq::network;
 
-
 Listener::Listener(boost::asio::io_service *service, Listener::Params p)
     : _service(service), _params(p) {
   _next_id.store(0);
@@ -24,7 +24,7 @@ Listener::~Listener() {
 
 void Listener::start() {
   tcp::endpoint ep(tcp::v4(), _params.port);
-  auto aio = std::make_shared<network::AsyncIO>(_service);
+  auto aio = std::make_shared<network::async_io>(_service);
   _acc = std::make_shared<boost::asio::ip::tcp::acceptor>(*_service, ep);
   start_accept(aio);
   onStartComplete();
@@ -39,6 +39,9 @@ void Listener::start_accept(network::AsyncIOPtr aio) {
 
 void Listener::handle_accept(std::shared_ptr<Listener> self, network::AsyncIOPtr aio,
                              const boost::system::error_code &err) {
+  if (self->_begin_stoping) {
+    return;
+  }
   if (err) {
     if (err == boost::asio::error::operation_aborted ||
         err == boost::asio::error::connection_reset || err == boost::asio::error::eof) {
@@ -54,8 +57,7 @@ void Listener::handle_accept(std::shared_ptr<Listener> self, network::AsyncIOPtr
     std::shared_ptr<ListenerClient> new_client = nullptr;
     {
       std::lock_guard<std::mutex> lg(self->_locker_connections);
-      new_client =
-          std::make_shared<ListenerClient>((Id)self->_next_id, aio, self);
+      new_client = std::make_shared<ListenerClient>((Id)self->_next_id, aio, self);
 
       self->_next_id.fetch_add(1);
     }
@@ -72,18 +74,19 @@ void Listener::handle_accept(std::shared_ptr<Listener> self, network::AsyncIOPtr
     }
   }
   boost::asio::ip::tcp::socket new_sock(*self->_service);
-  auto newaio = std::make_shared<network::AsyncIO>(self->_service);
+  auto newaio = std::make_shared<network::async_io>(self->_service);
   self->start_accept(newaio);
 }
 
 void Listener::stop() {
+  _begin_stoping = true;
   if (!_is_stoped) {
-    logger("abstract_server::stop()");
+    logger("Listener::stop()");
     _acc->close();
     _acc = nullptr;
     if (!_connections.empty()) {
       std::vector<std::shared_ptr<ListenerClient>> local_copy(_connections.begin(),
-                                                                _connections.end());
+                                                              _connections.end());
       for (auto con : local_copy) {
         con->close();
       }
@@ -102,11 +105,11 @@ void Listener::erase_client_description(const ListenerClient_Ptr client) {
   _connections.erase(it);
 }
 
-void Listener::sendTo(ListenerClient_Ptr i, Message_ptr &d) {
+void Listener::sendTo(ListenerClient_Ptr i, message_ptr &d) {
   i->sendData(d);
 }
 
-void Listener::sendTo(Id id, Message_ptr &d) {
+void Listener::sendTo(Id id, message_ptr &d) {
   std::lock_guard<std::mutex> lg(this->_locker_connections);
   for (auto c : _connections) {
     if (c->get_id() == id) {

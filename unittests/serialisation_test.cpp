@@ -13,8 +13,7 @@ using namespace nmq::queries;
 TEST_CASE("serialization.ok") {
   Ok ok{std::numeric_limits<uint64_t>::max()};
   auto nd = ok.toNetworkMessage();
-  EXPECT_EQ(nd->cast_to_header()->kind,
-            (network::Message::message_kind_t)MessageKinds::OK);
+  EXPECT_EQ(nd->cast_to_header()->kind, (network::message::kind_t)MessageKinds::OK);
 
   auto repacked = Ok(nd);
   EXPECT_EQ(repacked.id, ok.id);
@@ -23,8 +22,7 @@ TEST_CASE("serialization.ok") {
 TEST_CASE("serialization.login") {
   Login lg{"login"};
   auto nd = lg.toNetworkMessage();
-  EXPECT_EQ(nd->cast_to_header()->kind,
-            (network::Message::message_kind_t)MessageKinds::LOGIN);
+  EXPECT_EQ(nd->cast_to_header()->kind, (network::message::kind_t)MessageKinds::LOGIN);
 
   auto repacked = Login(nd);
   EXPECT_EQ(repacked.login, lg.login);
@@ -34,7 +32,7 @@ TEST_CASE("serialization.login_confirm") {
   LoginConfirm lg{uint64_t(1)};
   auto nd = lg.toNetworkMessage();
   EXPECT_EQ(nd->cast_to_header()->kind,
-            (network::Message::message_kind_t)MessageKinds::LOGIN_CONFIRM);
+            (network::message::kind_t)MessageKinds::LOGIN_CONFIRM);
 
   auto repacked = LoginConfirm(nd);
   EXPECT_EQ(repacked.id, lg.id);
@@ -75,4 +73,60 @@ TEST_CASE("serialization.scheme") {
   serialization::Scheme<int, std::string>::read(it, unpacked1, unpackedS);
   EXPECT_EQ(unpacked1, 11);
   EXPECT_EQ(unpackedS, str);
+}
+
+struct SchemeTestObject {
+  uint64_t id;
+  std::string login;
+};
+
+namespace nmq {
+namespace serialization {
+template <> struct ObjectScheme<SchemeTestObject> {
+  using Scheme = nmq::serialization::Scheme<uint64_t, std::string>;
+
+  static size_t capacity(const SchemeTestObject &t) {
+    return Scheme::capacity(t.id, t.login);
+  }
+  template <class Iterator> static void pack(Iterator it, const SchemeTestObject t) {
+    return Scheme::write(it, t.id, t.login);
+  }
+  template <class Iterator> static SchemeTestObject unpack(Iterator ii) {
+    SchemeTestObject t{};
+    Scheme::read(ii, t.id, t.login);
+    return t;
+  }
+};
+} // namespace serialization
+} // namespace nmq
+
+TEST_CASE("serialization.objectscheme") {
+  SchemeTestObject ok{std::numeric_limits<uint64_t>::max(), std::string("test_login")};
+
+  network::message::size_t neededSize = static_cast<network::message::size_t>(
+      nmq::serialization::ObjectScheme<SchemeTestObject>::capacity(ok));
+
+  auto nd = std::make_shared<network::message>(
+      neededSize, (network::message::kind_t)MessageKinds::LOGIN);
+
+  nmq::serialization::ObjectScheme<SchemeTestObject>::pack(nd->value(), ok);
+
+  auto repacked = nmq::serialization::ObjectScheme<SchemeTestObject>::unpack(nd->value());
+  EXPECT_EQ(repacked.id, ok.id);
+  EXPECT_EQ(repacked.login, ok.login);
+}
+
+TEST_CASE("serialization.message") {
+  SchemeTestObject msg_inner{std::numeric_limits<uint64_t>::max(),
+                             std::string("test_login")};
+
+  queries::Message<SchemeTestObject> lg{uint64_t(1), msg_inner};
+  auto nd = lg.toNetworkMessage();
+  EXPECT_EQ(nd->cast_to_header()->kind, (network::message::kind_t)MessageKinds::MSG);
+
+  auto repacked = queries::Message<SchemeTestObject>(nd);
+  EXPECT_EQ(repacked.id, lg.id);
+
+  EXPECT_EQ(repacked.msg.id, msg_inner.id);
+  EXPECT_EQ(repacked.msg.login, msg_inner.login);
 }
