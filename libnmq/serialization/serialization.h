@@ -88,7 +88,7 @@ template <typename Iterator, class T> struct Reader<Iterator, std::vector<T>> {
   }
 };
 
-template <class... T> class Scheme {
+template <class... T> class BinaryReaderWriter {
   template <typename Head>
   static void calculateSize(size_t &result, const Head &&head) {
     result += getSize<Head>::size(head);

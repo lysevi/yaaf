@@ -40,15 +40,15 @@ TEST_CASE("serialization.login_confirm") {
 }
 
 TEST_CASE("serialization.size_of_args") {
-  EXPECT_EQ(serialization::Scheme<int>::capacity(int(1)), sizeof(int));
-  auto sz = serialization::Scheme<int, int>::capacity(int(1), int(1));
+  EXPECT_EQ(serialization::BinaryReaderWriter<int>::capacity(int(1)), sizeof(int));
+  auto sz = serialization::BinaryReaderWriter<int, int>::capacity(int(1), int(1));
   EXPECT_EQ(sz, sizeof(int) * 2);
 
-  sz = serialization::Scheme<int, int, double>::capacity(int(1), int(1), double(1.0));
+  sz = serialization::BinaryReaderWriter<int, int, double>::capacity(int(1), int(1), double(1.0));
   EXPECT_EQ(sz, sizeof(int) * 2 + sizeof(double));
 
   std::string str = "hello world";
-  sz = serialization::Scheme<std::string>::capacity(std::move(str));
+  sz = serialization::BinaryReaderWriter<std::string>::capacity(std::move(str));
   EXPECT_EQ(sz, sizeof(uint32_t) + str.size());
 }
 
@@ -56,22 +56,22 @@ TEST_CASE("serialization.scheme") {
   std::vector<int8_t> buffer(1024);
 
   auto it = buffer.begin();
-  serialization::Scheme<int, int>::write(it, 1, 2);
+  serialization::BinaryReaderWriter<int, int>::write(it, 1, 2);
 
   it = buffer.begin();
   int unpacked1, unpacked2;
 
-  serialization::Scheme<int, int>::read(it, unpacked1, unpacked2);
+  serialization::BinaryReaderWriter<int, int>::read(it, unpacked1, unpacked2);
   EXPECT_EQ(unpacked1, 1);
   EXPECT_EQ(unpacked2, 2);
 
   it = buffer.begin();
   std::string str = "hello world";
-  serialization::Scheme<int, std::string>::write(it, 11, std::move(str));
+  serialization::BinaryReaderWriter<int, std::string>::write(it, 11, std::move(str));
 
   it = buffer.begin();
   std::string unpackedS;
-  serialization::Scheme<int, std::string>::read(it, unpacked1, unpackedS);
+  serialization::BinaryReaderWriter<int, std::string>::read(it, unpacked1, unpackedS);
   EXPECT_EQ(unpacked1, 11);
   EXPECT_EQ(unpackedS, str);
 }
@@ -84,7 +84,7 @@ struct SchemeTestObject {
 namespace nmq {
 namespace serialization {
 template <> struct ObjectScheme<SchemeTestObject> {
-  using Scheme = nmq::serialization::Scheme<uint64_t, std::string>;
+  using Scheme = nmq::serialization::BinaryReaderWriter<uint64_t, std::string>;
 
   static size_t capacity(const SchemeTestObject &t) {
     return Scheme::capacity(t.id, t.login);

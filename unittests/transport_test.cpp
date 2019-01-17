@@ -33,31 +33,31 @@ struct MockResultMessage {
 namespace nmq {
 namespace serialization {
 template <> struct ObjectScheme<MockMessage> {
-  using Scheme = nmq::serialization::Scheme<uint64_t, std::string>;
+  using BinaryRW = nmq::serialization::BinaryReaderWriter<uint64_t, std::string>;
 
-  static size_t capacity(const MockMessage &t) { return Scheme::capacity(t.id, t.msg); }
+  static size_t capacity(const MockMessage &t) { return BinaryRW::capacity(t.id, t.msg); }
   template <class Iterator> static void pack(Iterator it, const MockMessage t) {
-    return Scheme::write(it, t.id, t.msg);
+    return BinaryRW::write(it, t.id, t.msg);
   }
   template <class Iterator> static MockMessage unpack(Iterator ii) {
     MockMessage t{};
-    Scheme::read(ii, t.id, t.msg);
+    BinaryRW::read(ii, t.id, t.msg);
     return t;
   }
 };
 
 template <> struct ObjectScheme<MockResultMessage> {
-  using Scheme = nmq::serialization::Scheme<uint64_t, size_t, std::string>;
+  using BinaryRW = nmq::serialization::BinaryReaderWriter<uint64_t, size_t, std::string>;
 
   static size_t capacity(const MockResultMessage &t) {
-    return Scheme::capacity(t.id, t.length, t.msg);
+    return BinaryRW::capacity(t.id, t.length, t.msg);
   }
   template <class Iterator> static void pack(Iterator it, const MockResultMessage t) {
-    return Scheme::write(it, t.id, t.length, t.msg);
+    return BinaryRW::write(it, t.id, t.length, t.msg);
   }
   template <class Iterator> static MockResultMessage unpack(Iterator ii) {
     MockResultMessage t{};
-    Scheme::read(ii, t.id, t.length, t.msg);
+    BinaryRW::read(ii, t.id, t.length, t.msg);
     return t;
   }
 };
@@ -72,7 +72,7 @@ struct MockTransportListener : public MockTrasport::Listener {
   void onStartComplete() override { is_started_flag = true; }
 
   void onError(const MockTrasport::io_chanel_type::Sender &,
-               const MockTrasport::io_chanel_type::ErrorCode &er) override {
+               const MockTrasport::io_chanel_type::ErrorCode &/*err*/) override {
     is_started_flag = false;
   };
   void onMessage(const MockTrasport::io_chanel_type::Sender &s, const MockMessage &d,
@@ -114,7 +114,7 @@ struct MockTransportClient : public MockTrasport::Connection {
     this->sendAsync(m);
   }
 
-  void onError(const MockTrasport::io_chanel_type::ErrorCode &er) override {
+  void onError(const MockTrasport::io_chanel_type::ErrorCode &/*er*/) override {
     is_started_flag = false;
   };
   void onMessage(const MockResultMessage &d, bool &) override {
