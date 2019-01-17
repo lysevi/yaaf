@@ -31,31 +31,29 @@ void AsyncIO::start(data_handler_t onRecv, error_handler_t onErr) {
 void AsyncIO::fullStop(bool waitAllMessages) {
   _begin_stoping_flag = true;
   try {
-    // if (auto spt = _sock.lock())
-    {
-      if (_sock.is_open()) {
-        if (waitAllMessages && _messages_to_send.load() != 0) {
-          auto self = this->shared_from_this();
-          _service->post([self]() { self->fullStop(); });
-        } else {
 
-          boost::system::error_code ec;
-          _sock.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+    if (_sock.is_open()) {
+      if (waitAllMessages && _messages_to_send.load() != 0) {
+        auto self = this->shared_from_this();
+        _service->post([self]() { self->fullStop(); });
+      } else {
+
+        boost::system::error_code ec;
+        _sock.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
+        if (ec) {
+          auto message = ec.message();
+          logger_fatal("AsyncIO::full_stop: _sock.shutdown() => code=", ec.value(),
+                       " msg:", message);
+        } else {
+          _sock.close(ec);
           if (ec) {
             auto message = ec.message();
-            logger_fatal("AsyncIO::full_stop: _sock.shutdown() => code=", ec.value(),
+            logger_fatal("AsyncIO::full_stop: _sock.close(ec)  => code=", ec.value(),
                          " msg:", message);
-          } else {
-            _sock.close(ec);
-            if (ec) {
-              auto message = ec.message();
-              logger_fatal("AsyncIO::full_stop: _sock.close(ec)  => code=", ec.value(),
-                           " msg:", message);
-            }
           }
-          _service = nullptr;
-          _is_stoped = true;
         }
+        _service = nullptr;
+        _is_stoped = true;
       }
     }
 
@@ -72,67 +70,67 @@ void AsyncIO::send(const MessagePtr d) {
   auto ds = d->asBuffer();
   auto send_buffer = std::get<1>(ds);
   auto send_buffer_size = std::get<0>(ds);
-  // if (auto spt = _sock.lock())
-  {
-    _messages_to_send.fetch_add(1);
-    auto buf = buffer(send_buffer, send_buffer_size);
-    async_write(_sock, buf, [self, d](auto err, auto /*read_bytes*/) {
-      if (err) {
-        self->_on_error_handler(d, err);
-      } else {
-        self->_messages_to_send.fetch_sub(1);
-      }
-    });
-  }
+
+  _messages_to_send.fetch_add(1);
+  auto buf = buffer(send_buffer, send_buffer_size);
+
+  auto on_write = [self, d](auto err, auto /*read_bytes*/) {
+    if (err) {
+      self->_on_error_handler(d, err);
+    }
+    self->_messages_to_send.fetch_sub(1);
+  };
+
+  async_write(_sock, buf, on_write);
 }
 
 void AsyncIO::readNextAsync() {
-  // if (auto spt = _sock.lock())
-  {
-    auto self = shared_from_this();
+  using utils::strings::args_to_string;
 
-    auto on_read_size = [this, self](auto err, auto read_bytes) {
-      if (err) {
-        self->_on_error_handler(nullptr, err);
-      } else {
-        if (read_bytes != Message::SIZE_OF_SIZE) {
-          THROW_EXCEPTION("exception on async readNextAsync::on_read_size. ",
-                          " - wrong size: expected ", Message::SIZE_OF_SIZE, " readed ",
-                          read_bytes);
-        }
+  auto self = shared_from_this();
 
-        auto data_left = self->next_message_size - Message::SIZE_OF_SIZE;
-        MessagePtr d = std::make_shared<Message>(data_left);
-
-        auto on_read_message = [self, d, data_left](auto err, auto read_bytes) {
-          if (err) {
-            self->_on_error_handler(d, err);
-          } else {
-            if (read_bytes != data_left) {
-              THROW_EXCEPTION("exception on async readNextAsync. ",
-                              " - wrong size: expected ", data_left, " readed ",
-                              read_bytes);
-            }
-            bool cancel_flag = false;
-            try {
-              self->_on_recv_hadler(d, cancel_flag);
-            } catch (std::exception &ex) {
-              THROW_EXCEPTION("exception on async readNextAsync::on_read_message. - ",
-                              ex.what());
-            }
-            if (!cancel_flag) {
-              self->readNextAsync();
-            }
-          }
-        };
-
-        auto buf_ptr = (uint8_t *)(d->data + Message::SIZE_OF_SIZE);
-        auto buf = buffer(buf_ptr, data_left);
-        async_read(self->_sock, buf, on_read_message);
+  auto on_read_message = [self](auto err, auto read_bytes, auto data_left, MessagePtr d) {
+    if (err) {
+      self->_on_error_handler(d, err);
+    } else {
+      ENSURE_MSG(read_bytes == data_left,
+                 args_to_string("exception on readNextAsync::async on_read_message ",
+                                " - wrong size: expected ", data_left, " readed ",
+                                read_bytes))
+      bool cancel_flag = false;
+      try {
+        self->_on_recv_hadler(d, cancel_flag);
+      } catch (std::exception &ex) {
+        THROW_EXCEPTION("exception on async readNextAsync::on_read_message. - ",
+                        ex.what());
       }
-    };
+      if (!cancel_flag) {
+        self->readNextAsync();
+      }
+    }
+  };
 
-    async_read(_sock, buffer((void *)&(self->next_message_size), Message::SIZE_OF_SIZE),
-               on_read_size);
-  }
+  auto on_read_size = [this, self, on_read_message](auto err, auto read_bytes) {
+    if (err) {
+      self->_on_error_handler(nullptr, err);
+    } else {
+      ENSURE_MSG(read_bytes == Message::SIZE_OF_SIZE,
+                 args_to_string("exception on async readNextAsync::on_read_size. ",
+                                " - wrong size: expected ", Message::SIZE_OF_SIZE,
+                                " readed ", read_bytes));
+
+      auto data_left = self->next_message_size - Message::SIZE_OF_SIZE;
+      MessagePtr d = std::make_shared<Message>(data_left);
+
+      auto buf_ptr = (uint8_t *)(d->data + Message::SIZE_OF_SIZE);
+      auto buf = buffer(buf_ptr, data_left);
+      auto callback = [self, on_read_message, data_left, d](auto err, auto read_bytes) {
+        on_read_message(err, read_bytes, data_left, d);
+
+      };
+      async_read(self->_sock, buf, callback);
+    };
+  };
+  auto buf = buffer(static_cast<void *>(&self->next_message_size), Message::SIZE_OF_SIZE);
+  async_read(_sock, buf, on_read_size);
 }
