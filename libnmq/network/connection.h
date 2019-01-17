@@ -2,9 +2,33 @@
 
 #include <libnmq/exports.h>
 #include <libnmq/network/async_io.h>
+#include <libnmq/types.h>
+
+#include <unordered_map>
 
 namespace nmq {
 namespace network {
+
+class Connection;
+class IConnectionConsumer {
+public:
+  EXPORT virtual ~IConnectionConsumer();
+  virtual void onConnect() = 0;
+  virtual void onNewMessage(const MessagePtr &d, bool &cancel) = 0;
+  virtual void onNetworkError(const MessagePtr &d,
+                              const boost::system::error_code &err) = 0;
+
+  EXPORT bool isConnected() const;
+  EXPORT bool isStoped() const;
+
+  EXPORT void addConnection(std::shared_ptr<Connection> c, Id id);
+  EXPORT bool isConnectionExists() const { return _connection != nullptr; }
+
+private:
+  std::shared_ptr<Connection> _connection;
+  Id _id;
+};
+using IConnectionConsumerPtr = std::shared_ptr<IConnectionConsumer>;
 
 class Connection : public std::enable_shared_from_this<Connection> {
 public:
@@ -26,25 +50,25 @@ public:
   EXPORT virtual ~Connection();
   EXPORT void disconnect();
   EXPORT void startAsyncConnection();
-  EXPORT void reconnectOnError(const MessagePtr &d,
-                               const boost::system::error_code &err);
+  EXPORT void reconnectOnError(const MessagePtr &d, const boost::system::error_code &err);
   EXPORT void onDataReceive(const MessagePtr &d, bool &cancel);
   EXPORT void sendAsync(const MessagePtr &d);
-
-  virtual void onConnect() = 0;
-  virtual void onNewMessage(const MessagePtr &d, bool &cancel) = 0;
-  virtual void onNetworkError(const MessagePtr &d,
-                              const boost::system::error_code &err) = 0;
-
   EXPORT bool isConnected() const { return _isConnected; }
   EXPORT bool isStoped() const { return _isStoped; }
-  
+
+  EXPORT void addConsumer(const IConnectionConsumerPtr &c);
+  EXPORT void eraseConsumer(Id id);
+
 protected:
   std::shared_ptr<AsyncIO> _async_io = nullptr;
   boost::asio::io_service *_service = nullptr;
-    bool _isConnected = false;
+  bool _isConnected = false;
   bool _isStoped = false;
   Params _params;
+
+  std::mutex _locker_consumers;
+  std::atomic_int _next_consumer_id;
+  std::unordered_map<Id, IConnectionConsumerPtr> _consumers;
 };
 
 } // namespace network

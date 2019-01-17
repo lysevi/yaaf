@@ -72,10 +72,10 @@ struct MockTransportListener : public MockTrasport::Listener {
   void onStartComplete() override { is_started_flag = true; }
 
   void onError(const MockTrasport::io_chanel_type::Sender &,
-               const MockTrasport::io_chanel_type::ErrorCode &/*err*/) override {
+               const MockTrasport::io_chanel_type::ErrorCode & /*err*/) override {
     is_started_flag = false;
   };
-  void onMessage(const MockTrasport::io_chanel_type::Sender &s, const MockMessage &d,
+  void onMessage(const MockTrasport::io_chanel_type::Sender &s, const MockMessage d,
                  bool &) override {
     _q.insert(std::make_pair(d.id, d.msg));
 
@@ -114,10 +114,10 @@ struct MockTransportClient : public MockTrasport::Connection {
     this->sendAsync(m);
   }
 
-  void onError(const MockTrasport::io_chanel_type::ErrorCode &/*er*/) override {
+  void onError(const MockTrasport::io_chanel_type::ErrorCode & /*er*/) override {
     is_started_flag = false;
   };
-  void onMessage(const MockResultMessage &d, bool &) override {
+  void onMessage(const MockResultMessage d, bool &) override {
     _q.insert(std::make_pair(d.id, d.length));
     sendQuery();
   }

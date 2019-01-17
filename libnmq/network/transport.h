@@ -21,80 +21,104 @@ template <typename Arg, typename Result> struct Transport {
     unsigned short port;
   };
 
-  struct Listener : public io_chanel_type::IOListener, public nmq::network::Listener {
-
+  class Listener : public io_chanel_type::IOListener,
+                   public network::IListenerConsumer,
+                   public std::enable_shared_from_this<Transport::Listener> {
+  public:
     Listener() = delete;
     Listener(const Listener &) = delete;
     Listener &operator=(const Listener &) = delete;
 
-    Listener(boost::asio::io_service *service, const Transport::Params &p)
-        : nmq::network::Listener(service, nmq::network::Listener::Params{p.port}) {
+    Listener(boost::asio::io_service *service, const Transport::Params &p) {
       _next_message_id = 0;
+      _lstnr =
+          std::make_shared<network::Listener>(service, network::Listener::Params{p.port});
     }
 
     void onStartComplete() override {}
-    bool onNewConnection(nmq::network::ListenerClientPtr i) override {
+
+    bool onNewConnection(network::ListenerClientPtr i) override {
       return onClient(Sender{*this, i->get_id()});
     }
 
-    void onDisconnect(const nmq::network::ListenerClientPtr &i) override {
+    void onDisconnect(const network::ListenerClientPtr &i) override {
       onClientDisconnect(Sender{*this, i->get_id()});
     }
-    void onNetworkError(nmq::network::ListenerClientPtr i, const network::MessagePtr &,
+    void onNetworkError(network::ListenerClientPtr i, const network::MessagePtr &,
                         const boost::system::error_code &err) override {
       onError(Sender{*this, i->get_id()}, ErrorCode{err});
     }
 
-    void onNewMessage(nmq::network::ListenerClientPtr i, const network::MessagePtr &d,
+    void onNewMessage(network::ListenerClientPtr i, const network::MessagePtr &d,
                       bool &cancel) override {
 
       queries::Message<Arg> msg(d);
       onMessage(Sender{*this, i->get_id()}, msg.msg, cancel);
     }
 
-    void sendAsync(nmq::Id client, const Result &message) override {
+    void sendAsync(Id client, const Result message) override {
       queries::Message<Result> msg(getNextMessageId(), message);
       auto nd = msg.getMessage();
       sendTo(client, nd);
     }
 
-    void start() override { nmq::network::Listener::start(); }
+    void start() override {
+      if (!isListenerExists()) {
+        _lstnr->addConsumer(shared_from_this());
+      }
+      _lstnr->start();
+    }
 
-    void stop() override { nmq::network::Listener::stop(); }
+    void stop() override { _lstnr->stop(); }
+
+  private:
+    std::shared_ptr<network::Listener> _lstnr;
   };
 
-  struct Connection : public io_chanel_type::IOConnection,
-                      public nmq::network::Connection {
+  class Connection : public io_chanel_type::IOConnection,
+                     public network::IConnectionConsumer,
+                     public std::enable_shared_from_this<Connection> {
+  public:
     Connection() = delete;
     Connection(const Connection &) = delete;
     Connection &operator=(const Connection &) = delete;
 
     Connection(boost::asio::io_service *service, const std::string &login,
-               const Transport::Params &transport_Params)
-        : nmq::network::Connection(
-              service, nmq::network::Connection::Params(login, transport_Params.host,
-                                                        transport_Params.port)) {}
+               const Transport::Params &transport_Params) {
+
+      _connection = std::make_shared<network::Connection>(
+          service, network::Connection::Params(login, transport_Params.host,
+                                               transport_Params.port));
+    }
 
     void onConnect() override { this->onConnected(); };
-    void onNewMessage(const nmq::network::MessagePtr &d, bool &cancel) override {
+    void onNewMessage(const network::MessagePtr &d, bool &cancel) override {
       queries::Message<Result> msg(d);
       onMessage(msg.msg, cancel);
     }
 
-    void onNetworkError(const nmq::network::MessagePtr &,
+    void onNetworkError(const network::MessagePtr &,
                         const boost::system::error_code &err) override {
       onError(ErrorCode{err});
     }
 
-    void sendAsync(const Arg &message) override {
+    void sendAsync(const Arg message) override {
       queries::Message<Arg> msg(getNextMessageId(), message);
       auto nd = msg.getMessage();
-      nmq::network::Connection::sendAsync(nd);
+      _connection->sendAsync(nd);
     }
 
-    void start() override { nmq::network::Connection::startAsyncConnection(); }
+    void start() override {
+      if (!isConnectionExists()) {
+        _connection->addConsumer(shared_from_this());
+      }
+      _connection->startAsyncConnection();
+    }
 
-    void stop() override { nmq::network::Connection::disconnect(); }
+    void stop() override { _connection->disconnect(); }
+
+  private:
+    std::shared_ptr<network::Connection> _connection;
   };
 };
 } // namespace network

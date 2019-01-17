@@ -89,8 +89,7 @@ template <typename Iterator, class T> struct Reader<Iterator, std::vector<T>> {
 };
 
 template <class... T> class BinaryReaderWriter {
-  template <typename Head>
-  static void calculateSize(size_t &result, const Head &&head) {
+  template <typename Head> static void calculateSize(size_t &result, const Head &&head) {
     result += getSize<Head>::size(head);
   }
 
@@ -143,14 +142,19 @@ public:
 };
 
 template <typename T> struct ObjectScheme {
-  static size_t capacity(const T &t) {
-
-    NOT_IMPLEMENTED;
-    return 0;
+  static size_t capacity(const T &t) { return BinaryReaderWriter<T>::capacity(t); }
+  template <class Iterator> static void pack(Iterator it, const T t) {
+    return BinaryReaderWriter<T>::write(it, t);
   }
-  template <class Iterator> static void pack(Iterator it, const T t) { NOT_IMPLEMENTED; }
-  template <class Iterator> static T unpack(Iterator ii) { NOT_IMPLEMENTED; }
-  static T empty() { return T(); }
+  template <class Iterator> static T unpack(Iterator ii) {
+    T result=empty();
+    BinaryReaderWriter<T>::read(it, t);
+    return result;
+  }
+  static T empty() {
+    static_cast(std::is_default_constructible<T>::value, "T is default_constructible");
+    return T{};
+  }
 };
 
 } // namespace serialization

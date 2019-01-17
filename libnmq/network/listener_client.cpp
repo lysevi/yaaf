@@ -38,7 +38,7 @@ void ListenerClient::start() {
 void ListenerClient::close() {
   if (_async_connection != nullptr) {
     _async_connection->fullStop();
-	_async_connection=nullptr;
+    _async_connection = nullptr;
     this->_listener->eraseClientDescription(this->shared_from_this());
   }
 }

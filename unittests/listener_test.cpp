@@ -21,9 +21,8 @@ using namespace nmq::utils;
 
 namespace listener_test {
 
-struct MockListener : public nmq::network::Listener {
-  MockListener(boost::asio::io_service *service, network::Listener::Params &p)
-      : nmq::network::Listener(service, p) {}
+struct MockListener : public nmq::network::IListenerConsumer {
+  MockListener() {}
 
   void onStartComplete() override { is_start_complete = true; }
 
@@ -36,8 +35,8 @@ struct MockListener : public nmq::network::Listener {
                       const network::MessagePtr & /*d*/,
                       const boost::system::error_code & /*err*/) override {}
 
-  void onNewMessage(nmq::network::ListenerClientPtr i,
-                    const network::MessagePtr & /*d*/, bool & /*cancel*/) override {}
+  void onNewMessage(nmq::network::ListenerClientPtr i, const network::MessagePtr & /*d*/,
+                    bool & /*cancel*/) override {}
 
   void onDisconnect(const nmq::network::ListenerClientPtr & /*i*/) override {
     connections.fetch_sub(1);
@@ -47,9 +46,8 @@ struct MockListener : public nmq::network::Listener {
   std::atomic_int16_t connections = 0;
 };
 
-struct MockConnection : public nmq::network::Connection {
-  MockConnection(boost::asio::io_service *service, const Params &_parms)
-      : nmq::network::Connection(service, _parms) {}
+struct MockConnection : public nmq::network::IConnectionConsumer {
+  MockConnection() {}
 
   void onConnect() override { mock_is_connected = true; };
   void onNewMessage(const nmq::network::MessagePtr &, bool &) override {}
@@ -58,7 +56,7 @@ struct MockConnection : public nmq::network::Connection {
     bool isError = err == boost::asio::error::operation_aborted ||
                    err == boost::asio::error::connection_reset ||
                    err == boost::asio::error::eof;
-    if (isError && !_isStoped) {
+    if (isError && !isStoped()) {
       auto msg = err.message();
       logger_fatal(msg);
       EXPECT_FALSE(true);
@@ -70,14 +68,18 @@ struct MockConnection : public nmq::network::Connection {
 };
 
 bool server_stop = false;
-std::shared_ptr<MockListener> server = nullptr;
+std::shared_ptr<nmq::network::Listener> server = nullptr;
+std::shared_ptr<MockListener> lstnr = nullptr;
 boost::asio::io_service *service;
 
 void server_thread() {
   network::Listener::Params p;
   p.port = 4040;
   service = new boost::asio::io_service();
-  server = std::make_shared<MockListener>(service, p);
+
+  server = std::make_shared<nmq::network::Listener>(service, p);
+  lstnr = std::make_shared<MockListener>();
+  server->addConsumer(lstnr);
 
   server->start();
   while (!server_stop) {
@@ -101,20 +103,23 @@ void testForConnection(const size_t clients_count) {
            server == nullptr);
   }
 
-  std::vector<std::shared_ptr<MockConnection>> clients(clients_count);
+  std::vector<std::shared_ptr<network::Connection>> clients(clients_count);
+  std::vector<std::shared_ptr<MockConnection>> consumers(clients_count);
   for (size_t i = 0; i < clients_count; i++) {
     p.login = "client_" + std::to_string(i);
-    clients[i] = std::make_shared<MockConnection>(service, p);
+    clients[i] = std::make_shared<network::Connection>(service, p);
+    consumers[i] = std::make_shared<MockConnection>();
+    clients[i]->addConsumer(consumers[i]);
     clients[i]->startAsyncConnection();
   }
 
-  for (auto &c : clients) {
+  for (auto &c : consumers) {
     while (!c->mock_is_connected) {
       logger("listener.client.testForConnection. client not connected");
     }
   }
 
-  while (!server->is_start_complete && server->connections != clients_count) {
+  while (!lstnr->is_start_complete && lstnr->connections != clients_count) {
     logger("listener.client.testForConnection. not all clients was loggined");
   }
 

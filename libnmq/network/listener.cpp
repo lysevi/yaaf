@@ -1,8 +1,8 @@
-#include <boost/asio.hpp>
 #include <libnmq/network/listener.h>
 #include <libnmq/network/listener_client.h>
 #include <libnmq/network/queries.h>
 #include <libnmq/utils/utils.h>
+#include <boost/asio.hpp>
 #include <functional>
 #include <string>
 
@@ -13,9 +13,33 @@ using namespace boost::asio::ip;
 using namespace nmq;
 using namespace nmq::network;
 
+IListenerConsumer ::~IListenerConsumer() {
+  _lstnr->eraseConsumer(_id);
+}
+
+void IListenerConsumer::setListener(const std::shared_ptr<Listener> &lstnr, nmq::Id id) {
+  _lstnr = lstnr;
+  _id = id;
+}
+
+bool IListenerConsumer::isStopingBegin() const {
+  return _lstnr->isStopingBegin();
+}
+bool IListenerConsumer::isStoped() const {
+  return _lstnr->isStoped();
+}
+bool IListenerConsumer::isStopingBeginisStopingBegin() const {
+  return _lstnr->isStoped();
+}
+
+void IListenerConsumer::sendTo(Id id, network::MessagePtr &d) {
+  _lstnr->sendTo(id, d);
+}
+
 Listener::Listener(boost::asio::io_service *service, Listener::Params p)
     : _service(service), _params(p) {
   _next_id.store(0);
+  _cnext_consumer_id.store(0);
 }
 
 Listener::~Listener() {
@@ -27,7 +51,12 @@ void Listener::start() {
   auto aio = std::make_shared<network::AsyncIO>(_service);
   _acc = std::make_shared<boost::asio::ip::tcp::acceptor>(*_service, ep);
   startAsyncAccept(aio);
-  onStartComplete();
+  {
+    std::lock_guard<std::mutex> lg(_locker_consumers);
+    for (auto c : _consumers) {
+      c.second->onStartComplete();
+    }
+  }
   _is_started = true;
 }
 
@@ -38,7 +67,7 @@ void Listener::startAsyncAccept(network::AsyncIOPtr aio) {
 }
 
 void Listener::OnAcceptHandler(std::shared_ptr<Listener> self, network::AsyncIOPtr aio,
-                             const boost::system::error_code &err) {
+                               const boost::system::error_code &err) {
   if (self->_begin_stoping) {
     return;
   }
@@ -61,8 +90,17 @@ void Listener::OnAcceptHandler(std::shared_ptr<Listener> self, network::AsyncIOP
 
       self->_next_id.fetch_add(1);
     }
-
-    if (true == self->onNewConnection(new_client)) {
+    bool connectionAccepted = false;
+    {
+      std::lock_guard<std::mutex> lg(self->_locker_consumers);
+      for (auto c : self->_consumers) {
+        if (c.second->onNewConnection(new_client)) {
+          connectionAccepted = true;
+          break;
+        }
+      }
+    }
+    if (true == connectionAccepted) {
       logger_info("server: connection was accepted.");
       std::lock_guard<std::mutex> lg(self->_locker_connections);
       new_client->start();
@@ -101,7 +139,12 @@ void Listener::eraseClientDescription(const ListenerClientPtr client) {
   auto it = std::find_if(_connections.begin(), _connections.end(),
                          [client](auto c) { return c->get_id() == client->get_id(); });
   ENSURE(it != _connections.end());
-  onDisconnect(client->shared_from_this());
+  {
+    std::lock_guard<std::mutex> consumersLockG(_locker_consumers);
+    for (auto c : _consumers) {
+      c.second->onDisconnect(client->shared_from_this());
+    }
+  }
   _connections.erase(it);
 }
 
@@ -123,4 +166,34 @@ void Listener::sendTo(Id id, MessagePtr &d) {
 void Listener::sendOk(ListenerClientPtr i, uint64_t messageId) {
   auto nd = queries::Ok(messageId).getMessage();
   this->sendTo(i, nd);
+}
+
+void Listener::addConsumer(const IListenerConsumerPtr &c) {
+  std::lock_guard<std::mutex> lg(_locker_consumers);
+  auto id = _cnext_consumer_id.fetch_add(1);
+  _consumers[id] = c;
+  c->setListener(shared_from_this(), id);
+}
+
+void Listener::eraseConsumer(Id id) {
+  std::lock_guard<std::mutex> lg(_locker_consumers);
+  _consumers.erase(id);
+}
+
+void Listener::onNetworkError(ListenerClientPtr i, const network::MessagePtr &d,
+                              const boost::system::error_code &err) {
+  std::lock_guard<std::mutex> lg(_locker_consumers);
+  for (auto c : _consumers) {
+    c.second->onNetworkError(i, d, err);
+  }
+}
+
+void Listener::onNewMessage(ListenerClientPtr i, const network::MessagePtr &d,
+                            bool &cancel) {
+  std::lock_guard<std::mutex> lg(_locker_consumers);
+  for (auto c : _consumers) {
+    bool cncl = false;
+    c.second->onNewMessage(i, d, cncl);
+    cancel = cancel & cncl;
+  }
 }
