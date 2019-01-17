@@ -10,10 +10,10 @@
 namespace nmq {
 namespace network {
 
-template <typename T> struct BaseIOChanel {
+template <typename Arg, typename Result> struct BaseIOChanel {
   struct Sender {
-    Sender(BaseIOChanel<T> &bc, nmq::Id id_) : chanel(bc) { id = id_; }
-    BaseIOChanel<T> &chanel;
+    Sender(BaseIOChanel<Arg, Result> &bc, nmq::Id id_) : chanel(bc) { id = id_; }
+    BaseIOChanel<Arg, Result> &chanel;
     nmq::Id id;
   };
 
@@ -25,20 +25,20 @@ template <typename T> struct BaseIOChanel {
 
     virtual void onStartComplete() = 0;
     virtual void onError(const Sender &i, const ErrorCode &err) = 0;
-    virtual void onMessage(const Sender &i, const T &d, bool &cancel) = 0;
+    virtual void onMessage(const Sender &i, const Arg &d, bool &cancel) = 0;
     /**
     result - true for accept, false for failed.
     */
     virtual bool onClient(const Sender &i) = 0;
     virtual void onClientDisconnect(const Sender &i) = 0;
-    virtual void sendAsync(nmq::Id client, const T &message) = 0;
+    virtual void sendAsync(nmq::Id client, const Result &message) = 0;
   };
 
   struct IOConnection : public BaseIOChanel {
     virtual void onConnected() = 0;
     virtual void onError(const ErrorCode &err) = 0;
-    virtual void onMessage(const T &d, bool &cancel) = 0;
-    virtual void sendAsync(const T &message) = 0;
+    virtual void onMessage(const Result &d, bool &cancel) = 0;
+    virtual void sendAsync(const Arg &message) = 0;
   };
 
   BaseIOChanel() { _next_message_id = 0; }
@@ -51,11 +51,11 @@ template <typename T> struct BaseIOChanel {
   std::atomic_uint64_t _next_message_id;
 };
 
-template <typename T> struct transport {
-  using Value = T;
-  using io_chanel_type = typename BaseIOChanel<Value>;
+template <typename Arg, typename Result> struct Transport {
+  using io_chanel_type = typename BaseIOChanel<Arg, Result>;
   using Sender = typename io_chanel_type::Sender;
-  using ObjectScheme = serialization::ObjectScheme<Value>;
+  using ArgScheme = serialization::ObjectScheme<Arg>;
+  using ResultScheme = serialization::ObjectScheme<Arg>;
 
   struct params {
     boost::asio::io_service *service;
@@ -90,12 +90,12 @@ template <typename T> struct transport {
     void onNewMessage(nmq::network::ListenerClientPtr i, const network::MessagePtr &d,
                       bool &cancel) override {
 
-      queries::Message<T> msg(d);
+      queries::Message<Arg> msg(d);
       onMessage(Sender{*this, i->get_id()}, msg.msg, cancel);
     }
 
-    void sendAsync(nmq::Id client, const T &message) override {
-      queries::Message<T> msg(getNextMessageId(), message);
+    void sendAsync(nmq::Id client, const Result &message) override {
+      queries::Message<Result> msg(getNextMessageId(), message);
       auto nd = msg.getMessage();
       sendTo(client, nd);
     }
@@ -112,14 +112,14 @@ template <typename T> struct transport {
     Connection &operator=(const Connection &) = delete;
 
     Connection(boost::asio::io_service *service, const std::string &login,
-               const transport::params &transport_params)
+               const Transport::params &transport_params)
         : nmq::network::Connection(
               service, nmq::network::Connection::Params(login, transport_params.host,
                                                         transport_params.port)) {}
 
     void onConnect() override { this->onConnected(); };
     void onNewMessage(const nmq::network::MessagePtr &d, bool &cancel) override {
-      queries::Message<T> msg(d);
+      queries::Message<Result> msg(d);
       onMessage(msg.msg, cancel);
     }
 
@@ -128,8 +128,8 @@ template <typename T> struct transport {
       onError(ErrorCode{err});
     }
 
-    void sendAsync(const T &message) override {
-      queries::Message<T> msg(getNextMessageId(), message);
+    void sendAsync(const Arg &message) override {
+      queries::Message<Arg> msg(getNextMessageId(), message);
       auto nd = msg.getMessage();
       nmq::network::Connection::sendAsync(nd);
     }

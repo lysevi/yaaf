@@ -24,6 +24,12 @@ struct MockMessage {
   std::string msg;
 };
 
+struct MockResultMessage {
+  uint64_t id;
+  size_t length;
+  std::string msg;
+};
+
 namespace nmq {
 namespace serialization {
 template <> struct ObjectScheme<MockMessage> {
@@ -39,9 +45,26 @@ template <> struct ObjectScheme<MockMessage> {
     return t;
   }
 };
+
+template <> struct ObjectScheme<MockResultMessage> {
+  using Scheme = nmq::serialization::Scheme<uint64_t, size_t, std::string>;
+
+  static size_t capacity(const MockResultMessage &t) {
+    return Scheme::capacity(t.id, t.length, t.msg);
+  }
+  template <class Iterator> static void pack(Iterator it, const MockResultMessage t) {
+    return Scheme::write(it, t.id, t.length, t.msg);
+  }
+  template <class Iterator> static MockResultMessage unpack(Iterator ii) {
+    MockResultMessage t{};
+    Scheme::read(ii, t.id, t.length, t.msg);
+    return t;
+  }
+};
 } // namespace serialization
 } // namespace nmq
-using MockTrasport = nmq::network::transport<MockMessage>;
+
+using MockTrasport = nmq::network::Transport<MockMessage, MockResultMessage>;
 
 struct MockTransportListener : public MockTrasport::Listener {
   MockTransportListener(MockTrasport::params &p) : MockTrasport::Listener(p.service, p) {}
@@ -51,18 +74,20 @@ struct MockTransportListener : public MockTrasport::Listener {
   void onError(const MockTrasport::io_chanel_type::Sender &,
                const MockTrasport::io_chanel_type::ErrorCode &er) override {
     is_started_flag = false;
-    /* auto msg = er.ec.message();
-     THROW_EXCEPTION(msg);*/
   };
   void onMessage(const MockTrasport::io_chanel_type::Sender &s, const MockMessage &d,
                  bool &) override {
     _q.insert(std::make_pair(d.id, d.msg));
-    MockMessage answer;
+
+    MockResultMessage answer;
     answer.id = d.id;
     answer.msg = d.msg + " " + d.msg;
+    answer.length = answer.msg.size();
+
     if (this->isStopingBegin()) {
       return;
     }
+
     this->sendAsync(s.id, answer);
   }
 
@@ -92,14 +117,14 @@ struct MockTransportClient : public MockTrasport::Connection {
   void onError(const MockTrasport::io_chanel_type::ErrorCode &er) override {
     is_started_flag = false;
   };
-  void onMessage(const MockMessage &d, bool &) override {
-    _q.insert(std::make_pair(d.id, d.msg));
+  void onMessage(const MockResultMessage &d, bool &) override {
+    _q.insert(std::make_pair(d.id, d.length));
     sendQuery();
   }
 
   uint64_t msg_id = 1;
   bool is_started_flag = false;
-  std::map<uint64_t, std::string> _q;
+  std::map<uint64_t, size_t> _q;
 };
 
 TEST_CASE("transport.network") {
