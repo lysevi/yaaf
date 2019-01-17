@@ -2,7 +2,6 @@
 #include <libnmq/utils/exception.h>
 #include <libnmq/utils/utils.h>
 
-
 using namespace boost::asio;
 using namespace nmq;
 using namespace nmq::network;
@@ -26,14 +25,12 @@ void AsyncIO::start(data_handler_t onRecv, error_handler_t onErr) {
   _on_error_handler = onErr;
   _is_stoped = false;
   _begin_stoping_flag = false;
-  ENSURE(auto spt = _sock.lock());
   readNextAsync();
 }
 
 void AsyncIO::fullStop(bool waitAllMessages) {
   _begin_stoping_flag = true;
   try {
-    ENSURE(auto spt = _sock.lock());
     // if (auto spt = _sock.lock())
     {
       if (_sock.is_open()) {
@@ -46,12 +43,15 @@ void AsyncIO::fullStop(bool waitAllMessages) {
           _sock.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
           if (ec) {
             auto message = ec.message();
-            logger_fatal("AsyncIO::full_stop: ", message);
-          }
-          _sock.close(ec);
-          if (ec) {
-            auto message = ec.message();
-            logger_fatal("AsyncIO::full_stop: ", message);
+            logger_fatal("AsyncIO::full_stop: _sock.shutdown() => code=", ec.value(),
+                         " msg:", message);
+          } else {
+            _sock.close(ec);
+            if (ec) {
+              auto message = ec.message();
+              logger_fatal("AsyncIO::full_stop: _sock.close(ec)  => code=", ec.value(),
+                           " msg:", message);
+            }
           }
           _service = nullptr;
           _is_stoped = true;
@@ -72,7 +72,6 @@ void AsyncIO::send(const MessagePtr d) {
   auto ds = d->asBuffer();
   auto send_buffer = std::get<1>(ds);
   auto send_buffer_size = std::get<0>(ds);
-  ENSURE(auto spt = _sock.lock());
   // if (auto spt = _sock.lock())
   {
     _messages_to_send.fetch_add(1);
@@ -82,7 +81,6 @@ void AsyncIO::send(const MessagePtr d) {
         self->_on_error_handler(d, err);
       } else {
         self->_messages_to_send.fetch_sub(1);
-        ENSURE(self->_messages_to_send >= 0);
       }
     });
   }
