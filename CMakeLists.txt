@@ -2,6 +2,10 @@ cmake_minimum_required (VERSION 3.1)
 set(PROJECT "nmq")
 project (${PROJECT} VERSION 0.0.1)
 
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
 IF(NOT CMAKE_BUILD_TYPE)
         message(STATUS "CMAKE_BUILD_TYPE is not set, set to default = RELWITHDEBINFO")
         SET(CMAKE_BUILD_TYPE "RELWITHDEBINFO")
@@ -74,6 +78,8 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 if(NMQ_ENABLE_TESTS)
    include_directories(extern/Catch2/single_include/catch2/)
 endif(NMQ_ENABLE_TESTS)
+
+#########
 
 SET(NMQ_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE STRING "nmq include dir.")
 
