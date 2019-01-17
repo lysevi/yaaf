@@ -53,23 +53,23 @@ TEST_CASE("serialization.size_of_args") {
 }
 
 TEST_CASE("serialization.scheme") {
-  std::vector<int8_t> buffer(1024);
+  std::vector<uint8_t> buffer(1024);
 
-  auto it = buffer.begin();
+  auto it = buffer.data();
   serialization::BinaryReaderWriter<int, int>::write(it, 1, 2);
 
-  it = buffer.begin();
+  it = buffer.data();
   int unpacked1, unpacked2;
 
   serialization::BinaryReaderWriter<int, int>::read(it, unpacked1, unpacked2);
   EXPECT_EQ(unpacked1, 1);
   EXPECT_EQ(unpacked2, 2);
 
-  it = buffer.begin();
+  it = buffer.data();
   std::string str = "hello world";
   serialization::BinaryReaderWriter<int, std::string>::write(it, 11, std::move(str));
 
-  it = buffer.begin();
+  it = buffer.data();
   std::string unpackedS;
   serialization::BinaryReaderWriter<int, std::string>::read(it, unpacked1, unpackedS);
   EXPECT_EQ(unpacked1, 11);
