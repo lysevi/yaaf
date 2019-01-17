@@ -67,7 +67,7 @@ template <> struct ObjectScheme<MockResultMessage> {
 using MockTrasport = nmq::network::Transport<MockMessage, MockResultMessage>;
 
 struct MockTransportListener : public MockTrasport::Listener {
-  MockTransportListener(MockTrasport::params &p) : MockTrasport::Listener(p.service, p) {}
+  MockTransportListener(MockTrasport::Params &p) : MockTrasport::Listener(p.service, p) {}
 
   void onStartComplete() override { is_started_flag = true; }
 
@@ -102,7 +102,7 @@ struct MockTransportListener : public MockTrasport::Listener {
 };
 
 struct MockTransportClient : public MockTrasport::Connection {
-  MockTransportClient(const MockTrasport::params &p, const std::string &login)
+  MockTransportClient(const MockTrasport::Params &p, const std::string &login)
       : MockTrasport::Connection(p.service, login, p) {}
 
   void onConnected() override { is_started_flag = true; }
@@ -130,7 +130,7 @@ struct MockTransportClient : public MockTrasport::Connection {
 TEST_CASE("transport.network") {
 
   boost::asio::io_service transport_service;
-  MockTrasport::params p;
+  MockTrasport::Params p;
   p.service = &transport_service;
   p.host = "localhost";
   p.port = 4040;
