@@ -36,7 +36,7 @@ private:
   Id _id;
 };
 
-using IListenerConsumerPtr = IListenerConsumer*;
+using IListenerConsumerPtr = IListenerConsumer *;
 
 class Listener : public std::enable_shared_from_this<Listener> {
 public:

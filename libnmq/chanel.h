@@ -36,14 +36,14 @@ template <typename Arg, typename Result> struct BaseIOChanel {
       }
     };
 
-    Id addListener( IOListener *l) {
+    Id addListener(IOListener *l) {
       std::lock_guard<std::mutex> lg(_chanels_locker);
       auto id = _id.fetch_add(1);
       _listeners[id] = l;
       return id;
     }
 
-    Id addConnection( IOConnection *c) {
+    Id addConnection(IOConnection *c) {
       std::lock_guard<std::mutex> lg(_chanels_locker);
       auto id = _id.fetch_add(1);
       _connections[id] = c;
@@ -70,7 +70,7 @@ template <typename Arg, typename Result> struct BaseIOChanel {
 
   class IOListener : public BaseIOChanel {
   public:
-    IOListener(IOManager* manager) : _manager(manager) {}
+    IOListener(IOManager *manager) : _manager(manager) {}
     virtual ~IOListener() { _manager->rmListener(_id); }
     virtual void onStartComplete() = 0;
     virtual void onError(const Sender &i, const ErrorCode &err) = 0;
@@ -88,7 +88,7 @@ template <typename Arg, typename Result> struct BaseIOChanel {
 
   private:
     Id _id;
-    IOManager* _manager;
+    IOManager *_manager;
   };
 
   class IOConnection : public BaseIOChanel {

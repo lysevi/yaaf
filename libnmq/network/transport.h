@@ -16,9 +16,7 @@ template <typename Arg, typename Result> struct Transport {
   using ResultScheme = serialization::ObjectScheme<Arg>;
 
   struct Params {
-    Params() {
-      threads_count = 1;
-    }
+    Params() { threads_count = 1; }
     std::shared_ptr<boost::asio::io_service> service;
     unsigned int threads_count;
     std::string host;
@@ -30,7 +28,7 @@ template <typename Arg, typename Result> struct Transport {
     Manager(const Params &p) : _params(p) {
       ENSURE(_params.threads_count > 0);
       _threads.resize(p.threads_count);
-	  _params.service=std::make_shared<boost::asio::io_service>();
+      _params.service = std::make_shared<boost::asio::io_service>();
     }
 
     boost::asio::io_service *service() { return _params.service.get(); }
@@ -50,11 +48,10 @@ template <typename Arg, typename Result> struct Transport {
     void stop() override {
       io_chanel_type::IOManager::stop();
       _params.service->stop();
-	  _stop = true;
+      _stop = true;
       for (auto &&t : _threads) {
         t.join();
       }
-	  
     }
 
   private:
@@ -69,8 +66,7 @@ template <typename Arg, typename Result> struct Transport {
     Listener(const Listener &) = delete;
     Listener &operator=(const Listener &) = delete;
 
-    Listener(Manager *manager,
-             const Transport::Params &transport_params)
+    Listener(Manager *manager, const Transport::Params &transport_params)
         : io_chanel_type::IOListener(manager) {
       _next_message_id = 0;
       _lstnr = std::make_shared<network::Listener>(
@@ -126,14 +122,13 @@ template <typename Arg, typename Result> struct Transport {
     Connection(const Connection &) = delete;
     Connection &operator=(const Connection &) = delete;
 
-    Connection(Manager*manager, const std::string &login,
+    Connection(Manager *manager, const std::string &login,
                const Transport::Params &transport_Params)
         : io_chanel_type::IOConnection(manager) {
 
       _connection = std::make_shared<network::Connection>(
-          manager->service(),
-          network::Connection::Params(login, transport_Params.host,
-                                      transport_Params.port));
+          manager->service(), network::Connection::Params(login, transport_Params.host,
+                                                          transport_Params.port));
     }
 
     void onConnect() override { this->onConnected(); };

@@ -32,8 +32,7 @@ TEST_CASE("serialization.login") {
 TEST_CASE("serialization.login_confirm") {
   LoginConfirm lg{uint64_t(1)};
   auto nd = lg.getMessage();
-  EXPECT_EQ(nd->header()->kind,
-            (network::Message::kind_t)MessageKinds::LOGIN_CONFIRM);
+  EXPECT_EQ(nd->header()->kind, (network::Message::kind_t)MessageKinds::LOGIN_CONFIRM);
 
   auto repacked = LoginConfirm(nd);
   EXPECT_EQ(repacked.id, lg.id);
@@ -44,7 +43,8 @@ TEST_CASE("serialization.size_of_args") {
   auto sz = serialization::BinaryReaderWriter<int, int>::capacity(int(1), int(1));
   EXPECT_EQ(sz, sizeof(int) * 2);
 
-  sz = serialization::BinaryReaderWriter<int, int, double>::capacity(int(1), int(1), double(1.0));
+  sz = serialization::BinaryReaderWriter<int, int, double>::capacity(int(1), int(1),
+                                                                     double(1.0));
   EXPECT_EQ(sz, sizeof(int) * 2 + sizeof(double));
 
   std::string str = "hello world";

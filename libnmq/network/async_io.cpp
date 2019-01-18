@@ -126,7 +126,6 @@ void AsyncIO::readNextAsync() {
       auto buf = buffer(buf_ptr, data_left);
       auto callback = [self, on_read_message, data_left, d](auto err, auto read_bytes) {
         on_read_message(err, read_bytes, data_left, d);
-
       };
       async_read(self->_sock, buf, callback);
     };
