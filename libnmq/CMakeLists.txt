@@ -32,6 +32,7 @@ SET(NMQ_LIBS nmq ${Boost_LIBRARIES} ${JEMALLOC_LIBS} CACHE STRING "nmq libs.")
 
 add_library(nmq SHARED ${SRC})
 TARGET_LINK_LIBRARIES(nmq ${CMAKE_THREAD_LIBS_INIT} ${CMAKE_THREAD_LIBS_INIT})
+cotire(nmq)
 
 IF(WIN32)
  target_link_libraries(nmq wsock32 ws2_32)

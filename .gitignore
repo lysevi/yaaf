@@ -1,4 +1,5 @@
 build/
+*.cmake
 .vscode*
 *.h.in.cmake
 .vs
