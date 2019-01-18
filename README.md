@@ -53,7 +53,10 @@ struct queue{
 			using data_handler = std::function<void(const queue<T>&source, const T &d)>;;
             data_handler handler;
         };
-        using transport_t=Transport;		typename transport_t::chanel _chanel;        queue(const std::string&name, typename transport_t::chanel _c){
+        using transport_t=Transport;
+		typename transport_t::chanel _chanel;
+
+        queue(const std::string&name, typename transport_t::chanel _c){
 			_chanel=_c;
 		}
 
@@ -129,5 +132,18 @@ namespace {
 
         auto local_connection_queue=tcp_queue("test1", local_connection);
         local_connection_queue.start();
+}
+```
+
+```C++
+{
+    using MyQueue=queue<MyMessage, MyResult, network::transport>;
+    ...
+    MyQueue::listener lstn;
+
+    //translated to object FunctionHandler;
+    lstn.consume([](const MyMessage&msg){
+        return MyResult;
+    });
 }
 ```
