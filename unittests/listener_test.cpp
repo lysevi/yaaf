@@ -79,7 +79,7 @@ void server_thread() {
 
   server = std::make_shared<nmq::network::Listener>(service, p);
   lstnr = std::make_shared<MockListener>();
-  server->addConsumer(lstnr);
+  server->addConsumer(lstnr.get());
 
   server->start();
   while (!server_stop) {
@@ -109,7 +109,7 @@ void testForConnection(const size_t clients_count) {
     p.login = "client_" + std::to_string(i);
     clients[i] = std::make_shared<network::Connection>(service, p);
     consumers[i] = std::make_shared<MockConnection>();
-    clients[i]->addConsumer(consumers[i]);
+    clients[i]->addConsumer(consumers[i].get());
     clients[i]->startAsyncConnection();
   }
 

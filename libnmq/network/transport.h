@@ -16,23 +16,61 @@ template <typename Arg, typename Result> struct Transport {
   using ResultScheme = serialization::ObjectScheme<Arg>;
 
   struct Params {
+    Params() {
+      threads_count = 1;
+      service = nullptr;
+    }
     boost::asio::io_service *service;
+    unsigned int threads_count;
     std::string host;
     unsigned short port;
   };
 
-  class Listener : public io_chanel_type::IOListener,
-                   public network::IListenerConsumer,
-                   public std::enable_shared_from_this<Transport::Listener> {
+  class Manager : public io_chanel_type::IOManager {
+  public:
+    Manager(const Params &p) : _params(p) {
+      ENSURE(_params.threads_count > 0);
+      _threads.resize(p.threads_count);
+    }
+
+    void start() override {
+      io_chanel_type::IOManager::start();
+      _stop = false;
+      for (unsigned int i = 0; i < _params.threads_count; i++) {
+        _threads[i] = std::thread([this]() {
+          while (!_stop) {
+            _params.service->run_one();
+          }
+        });
+      }
+    }
+
+    void stop() override {
+      io_chanel_type::IOManager::stop();
+      _stop = true;
+      for (auto &&t : _threads) {
+        t.join();
+      }
+    }
+
+  private:
+    bool _stop = false;
+    Params _params;
+    std::vector<std::thread> _threads;
+  };
+
+  class Listener : public io_chanel_type::IOListener, public network::IListenerConsumer {
   public:
     Listener() = delete;
     Listener(const Listener &) = delete;
     Listener &operator=(const Listener &) = delete;
 
-    Listener(boost::asio::io_service *service, const Transport::Params &p) {
+    Listener(const std::shared_ptr<Manager> &manager,
+             const Transport::Params &transport_params)
+        : io_chanel_type::IOListener(manager) {
       _next_message_id = 0;
-      _lstnr =
-          std::make_shared<network::Listener>(service, network::Listener::Params{p.port});
+      _lstnr = std::make_shared<network::Listener>(
+          transport_params.service, network::Listener::Params{transport_params.port});
     }
 
     void onStartComplete() override {}
@@ -63,8 +101,10 @@ template <typename Arg, typename Result> struct Transport {
     }
 
     void start() override {
+      io_chanel_type::IOListener::startListener();
+
       if (!isListenerExists()) {
-        _lstnr->addConsumer(shared_from_this());
+        _lstnr->addConsumer(this);
       }
       _lstnr->start();
     }
@@ -76,19 +116,20 @@ template <typename Arg, typename Result> struct Transport {
   };
 
   class Connection : public io_chanel_type::IOConnection,
-                     public network::IConnectionConsumer,
-                     public std::enable_shared_from_this<Connection> {
+                     public network::IConnectionConsumer {
   public:
     Connection() = delete;
     Connection(const Connection &) = delete;
     Connection &operator=(const Connection &) = delete;
 
-    Connection(boost::asio::io_service *service, const std::string &login,
-               const Transport::Params &transport_Params) {
+    Connection(const std::shared_ptr<Manager> &manager, const std::string &login,
+               const Transport::Params &transport_Params)
+        : io_chanel_type::IOConnection(manager) {
 
       _connection = std::make_shared<network::Connection>(
-          service, network::Connection::Params(login, transport_Params.host,
-                                               transport_Params.port));
+          transport_Params.service,
+          network::Connection::Params(login, transport_Params.host,
+                                      transport_Params.port));
     }
 
     void onConnect() override { this->onConnected(); };
@@ -109,13 +150,17 @@ template <typename Arg, typename Result> struct Transport {
     }
 
     void start() override {
+      IOConnection::startConnection();
       if (!isConnectionExists()) {
-        _connection->addConsumer(shared_from_this());
+        _connection->addConsumer(this);
       }
       _connection->startAsyncConnection();
     }
 
-    void stop() override { _connection->disconnect(); }
+    void stop() override {
+      IOConnection::stopConnection();
+      _connection->disconnect();
+    }
 
   private:
     std::shared_ptr<network::Connection> _connection;

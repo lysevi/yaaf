@@ -67,7 +67,9 @@ template <> struct ObjectScheme<MockResultMessage> {
 using MockTrasport = nmq::network::Transport<MockMessage, MockResultMessage>;
 
 struct MockTransportListener : public MockTrasport::Listener {
-  MockTransportListener(MockTrasport::Params &p) : MockTrasport::Listener(p.service, p) {}
+  MockTransportListener(const std::shared_ptr<MockTrasport::Manager> &manager,
+                        MockTrasport::Params &p)
+      : MockTrasport::Listener(manager, p) {}
 
   void onStartComplete() override { is_started_flag = true; }
 
@@ -102,8 +104,9 @@ struct MockTransportListener : public MockTrasport::Listener {
 };
 
 struct MockTransportClient : public MockTrasport::Connection {
-  MockTransportClient(const MockTrasport::Params &p, const std::string &login)
-      : MockTrasport::Connection(p.service, login, p) {}
+  MockTransportClient(const std::shared_ptr<MockTrasport::Manager> &manager,
+                      const MockTrasport::Params &p, const std::string &login)
+      : MockTrasport::Connection(manager, login, p) {}
 
   void onConnected() override { is_started_flag = true; }
 
@@ -134,26 +137,11 @@ TEST_CASE("transport.network") {
   p.service = &transport_service;
   p.host = "localhost";
   p.port = 4040;
-  bool stop_flag = false;
-  bool is_stoped_flag = false;
-  bool is_started = false;
+  auto manager = std::make_shared<MockTrasport::Manager>(p);
 
-  auto srv_thread = [&]() {
-    while (!stop_flag) {
-      transport_service.run_one();
-      is_started = true;
-    }
-    is_stoped_flag = true;
-  };
+  manager->start();
 
-  std::thread tr(srv_thread);
-
-  while (!is_started) {
-    logger("transport: !is_started");
-    std::this_thread::yield();
-  }
-
-  auto listener = std::make_shared<MockTransportListener>(p);
+  auto listener = std::make_shared<MockTransportListener>(manager, p);
   // auto connection = MockTrasport::connection(p, "c1");
 
   listener->start();
@@ -163,7 +151,7 @@ TEST_CASE("transport.network") {
     std::this_thread::yield();
   }
 
-  auto client = std::make_shared<MockTransportClient>(p, "client");
+  auto client = std::make_shared<MockTransportClient>(manager, p, "client");
   client->start();
 
   while (!client->is_started_flag) {
@@ -183,6 +171,6 @@ TEST_CASE("transport.network") {
     logger("transport: client->is_started_flag");
     std::this_thread::yield();
   }
-  stop_flag = true;
-  tr.join();
+
+  manager->stop();
 }

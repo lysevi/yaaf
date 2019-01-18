@@ -28,7 +28,7 @@ private:
   std::shared_ptr<Connection> _connection;
   Id _id;
 };
-using IConnectionConsumerPtr = std::shared_ptr<IConnectionConsumer>;
+using IConnectionConsumerPtr = IConnectionConsumer*;
 
 class Connection : public std::enable_shared_from_this<Connection> {
 public:
