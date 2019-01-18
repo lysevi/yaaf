@@ -70,7 +70,7 @@ template <typename Arg, typename Result> struct BaseIOChanel {
 
   class IOListener : public BaseIOChanel {
   public:
-    IOListener(std::shared_ptr<IOManager> manager) : _manager(manager) {}
+    IOListener(IOManager* manager) : _manager(manager) {}
     virtual ~IOListener() { _manager->rmListener(_id); }
     virtual void onStartComplete() = 0;
     virtual void onError(const Sender &i, const ErrorCode &err) = 0;
@@ -88,13 +88,13 @@ template <typename Arg, typename Result> struct BaseIOChanel {
 
   private:
     Id _id;
-    std::shared_ptr<IOManager> _manager;
+    IOManager* _manager;
   };
 
   class IOConnection : public BaseIOChanel {
   public:
     IOConnection() = delete;
-    IOConnection(std::shared_ptr<IOManager> manager) : _manager(manager) {}
+    IOConnection(IOManager *manager) : _manager(manager) {}
     virtual ~IOConnection() { _manager->rmConnection(_id); }
 
     virtual void onConnected() = 0;
@@ -108,7 +108,7 @@ template <typename Arg, typename Result> struct BaseIOChanel {
 
   private:
     Id _id;
-    std::shared_ptr<IOManager> _manager;
+    IOManager *_manager;
   };
 
   BaseIOChanel() { _next_message_id = 0; }

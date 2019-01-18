@@ -67,9 +67,9 @@ template <> struct ObjectScheme<MockResultMessage> {
 using MockTrasport = nmq::network::Transport<MockMessage, MockResultMessage>;
 
 struct MockTransportListener : public MockTrasport::Listener {
-  MockTransportListener(const std::shared_ptr<MockTrasport::Manager> &manager,
+  MockTransportListener(std::shared_ptr<MockTrasport::Manager> &manager,
                         MockTrasport::Params &p)
-      : MockTrasport::Listener(manager, p) {}
+      : MockTrasport::Listener(manager.get(), p) {}
 
   void onStartComplete() override { is_started_flag = true; }
 
@@ -104,9 +104,9 @@ struct MockTransportListener : public MockTrasport::Listener {
 };
 
 struct MockTransportClient : public MockTrasport::Connection {
-  MockTransportClient(const std::shared_ptr<MockTrasport::Manager> &manager,
+  MockTransportClient(std::shared_ptr<MockTrasport::Manager> &manager,
                       const MockTrasport::Params &p, const std::string &login)
-      : MockTrasport::Connection(manager, login, p) {}
+      : MockTrasport::Connection(manager.get(), login, p) {}
 
   void onConnected() override { is_started_flag = true; }
 
@@ -132,9 +132,7 @@ struct MockTransportClient : public MockTrasport::Connection {
 
 TEST_CASE("transport.network") {
 
-  boost::asio::io_service transport_service;
   MockTrasport::Params p;
-  p.service = &transport_service;
   p.host = "localhost";
   p.port = 4040;
   auto manager = std::make_shared<MockTrasport::Manager>(p);
@@ -142,10 +140,9 @@ TEST_CASE("transport.network") {
   manager->start();
 
   auto listener = std::make_shared<MockTransportListener>(manager, p);
-  // auto connection = MockTrasport::connection(p, "c1");
 
   listener->start();
-  // connection->start(client_on_data, client_on_error);
+
   while (!listener->is_started_flag) {
     logger("transport: !listener->is_started_flag");
     std::this_thread::yield();

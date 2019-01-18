@@ -18,9 +18,8 @@ template <typename Arg, typename Result> struct Transport {
   struct Params {
     Params() {
       threads_count = 1;
-      service = nullptr;
     }
-    boost::asio::io_service *service;
+    std::shared_ptr<boost::asio::io_service> service;
     unsigned int threads_count;
     std::string host;
     unsigned short port;
@@ -31,7 +30,10 @@ template <typename Arg, typename Result> struct Transport {
     Manager(const Params &p) : _params(p) {
       ENSURE(_params.threads_count > 0);
       _threads.resize(p.threads_count);
+	  _params.service=std::make_shared<boost::asio::io_service>();
     }
+
+    boost::asio::io_service *service() { return _params.service.get(); }
 
     void start() override {
       io_chanel_type::IOManager::start();
@@ -47,10 +49,12 @@ template <typename Arg, typename Result> struct Transport {
 
     void stop() override {
       io_chanel_type::IOManager::stop();
-      _stop = true;
+      _params.service->stop();
+	  _stop = true;
       for (auto &&t : _threads) {
         t.join();
       }
+	  
     }
 
   private:
@@ -65,12 +69,12 @@ template <typename Arg, typename Result> struct Transport {
     Listener(const Listener &) = delete;
     Listener &operator=(const Listener &) = delete;
 
-    Listener(const std::shared_ptr<Manager> &manager,
+    Listener(Manager *manager,
              const Transport::Params &transport_params)
         : io_chanel_type::IOListener(manager) {
       _next_message_id = 0;
       _lstnr = std::make_shared<network::Listener>(
-          transport_params.service, network::Listener::Params{transport_params.port});
+          manager->service(), network::Listener::Params{transport_params.port});
     }
 
     void onStartComplete() override {}
@@ -122,12 +126,12 @@ template <typename Arg, typename Result> struct Transport {
     Connection(const Connection &) = delete;
     Connection &operator=(const Connection &) = delete;
 
-    Connection(const std::shared_ptr<Manager> &manager, const std::string &login,
+    Connection(Manager*manager, const std::string &login,
                const Transport::Params &transport_Params)
         : io_chanel_type::IOConnection(manager) {
 
       _connection = std::make_shared<network::Connection>(
-          transport_Params.service,
+          manager->service(),
           network::Connection::Params(login, transport_Params.host,
                                       transport_Params.port));
     }
