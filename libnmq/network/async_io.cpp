@@ -68,11 +68,9 @@ void AsyncIO::send(const MessagePtr d) {
   auto self = shared_from_this();
 
   auto ds = d->asBuffer();
-  auto send_buffer = std::get<1>(ds);
-  auto send_buffer_size = std::get<0>(ds);
 
   _messages_to_send.fetch_add(1);
-  auto buf = buffer(send_buffer, send_buffer_size);
+  auto buf = buffer(ds.data, ds.size);
 
   auto on_write = [self, d](auto err, auto /*read_bytes*/) {
     if (err) {

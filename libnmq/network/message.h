@@ -8,6 +8,12 @@
 
 namespace nmq {
 namespace network {
+
+struct Buffer {
+  size_t size;
+  uint8_t *data;
+};
+
 #pragma pack(push, 1)
 
 struct Message {
@@ -47,10 +53,10 @@ struct Message {
 
   uint8_t *value() { return (data + sizeof(size_t) + sizeof(kind_t)); }
 
-  std::tuple<size_t, uint8_t *> asBuffer() {
+  Buffer asBuffer() {
     uint8_t *v = reinterpret_cast<uint8_t *>(data);
     auto buf_size = *size;
-    return std::tie(buf_size, v);
+    return Buffer{buf_size, v};
   }
 
   Header *header() { return reinterpret_cast<Header *>(this->data + SIZE_OF_SIZE); }
