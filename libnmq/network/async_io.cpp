@@ -88,6 +88,8 @@ void AsyncIO::readNextAsync() {
   auto self = shared_from_this();
 
   auto on_read_message = [self](auto err, auto read_bytes, auto data_left, MessagePtr d) {
+    UNUSED(read_bytes);
+    UNUSED(data_left);
     if (err) {
       self->_on_error_handler(d, err);
     } else {
@@ -109,6 +111,7 @@ void AsyncIO::readNextAsync() {
   };
 
   auto on_read_size = [this, self, on_read_message](auto err, auto read_bytes) {
+    UNUSED(read_bytes);
     if (err) {
       self->_on_error_handler(nullptr, err);
     } else {

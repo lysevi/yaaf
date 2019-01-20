@@ -15,6 +15,8 @@
 #define ENSURE(A)
 #endif
 
+#define UNUSED(x) (void)(x)
+
 namespace nmq {
 namespace utils {
 
