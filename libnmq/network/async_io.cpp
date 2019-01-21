@@ -123,7 +123,7 @@ void AsyncIO::readNextAsync() {
       auto data_left = self->next_message_size - Message::SIZE_OF_SIZE;
       MessagePtr d = std::make_shared<Message>(data_left);
 
-      auto buf_ptr = (uint8_t *)(d->data + Message::SIZE_OF_SIZE);
+      auto buf_ptr = (uint8_t *)(d->header());
       auto buf = buffer(buf_ptr, data_left);
       auto callback = [self, on_read_message, data_left, d](auto err, auto read_bytes) {
         on_read_message(err, read_bytes, data_left, d);
