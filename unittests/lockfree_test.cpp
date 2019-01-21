@@ -13,8 +13,10 @@ TEST_CASE("lockfree.queue") {
   auto clbk = [&calls1]() { calls1++; };
   auto clbk2 = [&calls2]() { calls2++; };
 
-  q.addCallback(clbk);
-  q.addCallback(clbk2);
+  EXPECT_TRUE(q.tryAddCallback(clbk));
+  EXPECT_TRUE(q.tryAddCallback(clbk2));
+
+  EXPECT_TRUE(q.empty());
 
   EXPECT_TRUE(q.tryPush(1));
   EXPECT_TRUE(q.tryPush(2));

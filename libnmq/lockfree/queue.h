@@ -1,5 +1,6 @@
 #pragma once
 
+#include <libnmq/utils/async/locker.h>
 #include <atomic>
 #include <cstdint>
 #include <functional>
@@ -16,7 +17,14 @@ public:
     _cap = int64_t(capacity);
   }
 
-  void addCallback(Callback clbk) { _clbks.push_back(clbk); }
+  bool tryAddCallback(Callback clbk) {
+    if (_locker.try_lock()) {
+      _clbks.push_back(clbk);
+      _locker.unlock();
+      return true;
+    }
+    return false;
+  }
 
   bool tryPush(T v) {
     for (;;) {
@@ -27,8 +35,11 @@ public:
         auto new_i = i + 1;
         if (_position.compare_exchange_strong(i, new_i)) {
           _values[new_i] = v;
-          for (auto &c : _clbks) {
-            c();
+
+          if (!_clbks.empty()) {
+            for (auto &c : _clbks) {
+              c();
+            }
           }
           return true;
         }
@@ -52,10 +63,14 @@ public:
 
   size_t capacity() const { return (size_t)(_cap); }
 
+  bool empty() const { return !_position.load() >= 0; }
+
 private:
   std::atomic_int64_t _position;
   int64_t _cap;
   Cont _values;
+
+  utils::async::locker _locker;
   std::list<Callback> _clbks;
 };
 } // namespace lockfree

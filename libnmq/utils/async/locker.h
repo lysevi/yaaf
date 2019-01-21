@@ -13,16 +13,21 @@ class locker {
   std::atomic_flag locked = ATOMIC_FLAG_INIT;
 
 public:
-  void lock() {
-    size_t num_try = 0;
-    while (locked.test_and_set(std::memory_order_acquire)) {
-      num_try++;
-      if (num_try >= LOCKER_MAX_TRY) {
-        num_try = 0;
-        std::this_thread::yield();
+  bool try_lock() {
+    for (size_t num_try = 0; num_try < LOCKER_MAX_TRY; ++num_try) {
+      if (!locked.test_and_set(std::memory_order_acquire)) {
+        return true;
       }
     }
+    return false;
   }
+
+  void lock() {
+    while (!try_lock()) {
+      std::this_thread::yield();
+    }
+  }
+
   void unlock() { locked.clear(std::memory_order_release); }
 };
 

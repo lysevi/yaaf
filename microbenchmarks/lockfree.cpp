@@ -13,8 +13,7 @@ public:
 };
 
 BENCHMARK_DEFINE_F(Lockfree, FixedQueue)(benchmark::State &state) {
-
-  while (state.KeepRunning()) {
+  for (auto _ : state) {
     FixedQueue<int> fq(1024);
     for (int i = 0; i < fq.capacity(); ++i) {
       bool f = fq.tryPush(i);
