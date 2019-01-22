@@ -93,9 +93,9 @@ struct Transport {
 
     void queueWorker() {
       while (!_args.empty()) {
-        std::tuple<bool, std::pair<Id, Arg>> a = _args.tryPop();
-        if (std::get<0>(a)) {
-          auto arg = std::get<1>(a);
+        auto a = _args.tryPop();
+        if (a.ok) {
+          auto arg = a.result;
           listenersVisit([arg](typename io_chanel_type::IOListener *l) {
             Sender s{*l, arg.first};
             bool cancel = false;
@@ -105,9 +105,9 @@ struct Transport {
       }
 
       while (!_results.empty()) {
-        std::tuple<bool, Result> a = _results.tryPop();
-        if (std::get<0>(a)) {
-          auto arg = std::get<1>(a);
+        auto a = _results.tryPop();
+        if (a.ok) {
+          auto arg = a.result;
           connectionsVisit([arg](typename io_chanel_type::IOConnection *c) {
             bool cancel = false;
             c->onMessage(arg, cancel);
@@ -132,7 +132,7 @@ struct Transport {
     Listener(const Listener &) = delete;
     Listener &operator=(const Listener &) = delete;
 
-    Listener(Manager *manager, const Transport::Params &transport_params)
+    Listener(Manager *manager, const Transport::Params &/*transport_params*/)
         : io_chanel_type::IOListener(manager) {
       _manager = manager;
     }

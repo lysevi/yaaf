@@ -1,15 +1,21 @@
 #pragma once
 
-#include <libnmq/utils/async/locker.h>
 #include <atomic>
 #include <cstdint>
 #include <functional>
-#include <list>
-#include <tuple>
 #include <type_traits>
 
 namespace nmq {
 namespace lockfree {
+
+template <class T> struct Result {
+  bool ok;
+  T result;
+
+  static Result<T> False() { return Result{false, T()}; }
+  static Result<T> Ok(T t) { return Result{true, t}; }
+};
+
 template <class T, class Cont = std::vector<T>> class FixedQueue {
 public:
   using Callback = std::function<void()>;
@@ -38,17 +44,17 @@ public:
     }
   }
 
-  std::tuple<bool, T> tryPop() {
+  Result<T> tryPop() {
     auto i = _position.load();
     while (i >= 0) {
       i = _position.load();
       T result{_values[i]};
       auto new_i = i - 1;
       if (i >= 0 && _position.compare_exchange_strong(i, new_i)) {
-        return std::tuple<bool, T>(true, result);
+        return Result<T>::Ok(result);
       }
     }
-    return std::tuple<bool, T>(false, T());
+    return Result<T>::False();
   }
 
   size_t capacity() const { return (size_t)(_cap); }

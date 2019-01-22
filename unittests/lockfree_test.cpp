@@ -16,17 +16,17 @@ TEST_CASE("lockfree.queue") {
   EXPECT_FALSE(q.tryPush(1));
 
   auto r = q.tryPop();
-  EXPECT_TRUE(std::get<0>(r));
-  EXPECT_EQ(std::get<1>(r), 3);
+  EXPECT_TRUE(r.ok);
+  EXPECT_EQ(r.result, 3);
 
   r = q.tryPop();
-  EXPECT_TRUE(std::get<0>(r));
-  EXPECT_EQ(std::get<1>(r), 2);
+  EXPECT_TRUE(r.ok);
+  EXPECT_EQ(r.result, 2);
 
   r = q.tryPop();
-  EXPECT_TRUE(std::get<0>(r));
-  EXPECT_EQ(std::get<1>(r), 1);
+  EXPECT_TRUE(r.ok);
+  EXPECT_EQ(r.result, 1);
 
   r = q.tryPop();
-  EXPECT_FALSE(std::get<0>(r));
+  EXPECT_FALSE(r.ok);
 }
