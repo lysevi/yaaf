@@ -12,7 +12,7 @@ class Lockfree : public benchmark::Fixture {
 public:
 };
 
-BENCHMARK_DEFINE_F(Lockfree, FixedQueue)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(Lockfree, FixedQueuePush)(benchmark::State &state) {
   for (auto _ : state) {
     FixedQueue<int> fq(1024);
     for (int i = 0; i < fq.capacity(); ++i) {
@@ -23,4 +23,4 @@ BENCHMARK_DEFINE_F(Lockfree, FixedQueue)(benchmark::State &state) {
     }
   }
 }
-BENCHMARK_REGISTER_F(Lockfree, FixedQueue);
+BENCHMARK_REGISTER_F(Lockfree, FixedQueuePush);
