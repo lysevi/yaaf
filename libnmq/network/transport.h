@@ -25,7 +25,7 @@ template <typename Arg, typename Result> struct Transport {
   using NetConnectionConsumer = network::IConnectionConsumer;
 
   struct Params : public io_chanel_type::Params {
-    Params() { }
+    Params() {}
     std::string host;
     unsigned short port;
   };
@@ -91,7 +91,10 @@ template <typename Arg, typename Result> struct Transport {
       _lstnr->start();
     }
 
-    void stop() override { _lstnr->stop(); }
+    void stop() override {
+      io_chanel_type::IOListener::stopListener();
+      _lstnr->stop();
+    }
 
     bool isStopingBegin() const override { return _lstnr->isStopingBegin(); }
 

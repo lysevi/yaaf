@@ -66,9 +66,9 @@ struct Transport {
       post([this]() { this->queueWorker(); });
     }
 
-    void stop() override {
-      io_chanel_type::IOManager::stop();
-    }
+    void stop() override { 
+		io_chanel_type::IOManager::stop(); 
+	}
 
     bool tryPushArg(Id id, const Arg a) { return _args.tryPush(std::make_pair(id, a)); }
     bool tryPushResult(const Result a) { return _results.tryPush(a); }
@@ -97,7 +97,9 @@ struct Transport {
         }
       }
       // TODO use shared_from_this
-      post([this]() { this->queueWorker(); });
+      if (!isStopped()) {
+        post([this]() { this->queueWorker(); });
+      }
     }
 
   private:

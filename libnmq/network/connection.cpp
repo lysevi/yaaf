@@ -67,14 +67,16 @@ void Connection::startAsyncConnection() {
   }
 
   tcp::endpoint ep = *iter;
-  logger_info("client: start async connection to ", _params.host,
-              ":", _params.port, " - ", ep.address().to_string());
+  logger_info("client: start async connection to ", _params.host, ":", _params.port,
+              " - ", ep.address().to_string());
 
   auto self = this->shared_from_this();
   self->_async_io = std::make_shared<AsyncIO>(self->_service);
   self->_async_io->socket().async_connect(ep, [self](auto ec) {
     if (ec) {
-      self->reconnectOnError(nullptr, ec);
+      if (!self->_isStoped) {
+        self->reconnectOnError(nullptr, ec);
+      }
     } else {
       if (self->_async_io->socket().is_open()) {
         logger_info("client: connected.");

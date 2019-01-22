@@ -189,12 +189,12 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
   logger("listener->stop()");
   listener->stop();
   logger("listener = nullptr;");
-  listener = nullptr;
 
   while (client->is_started_flag) {
     logger("transport: client->is_started_flag");
     std::this_thread::yield();
   }
-  logger("manager->stop();");
   manager->stop();
+  logger("manager->stop();");
+  
 }

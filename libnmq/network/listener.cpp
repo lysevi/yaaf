@@ -122,7 +122,9 @@ void Listener::stop() {
     logger("Listener::stop()");
     _acc->close();
     _acc = nullptr;
+    std::lock_guard<std::mutex> lg(_locker_connections);
     if (!_connections.empty()) {
+
       std::vector<std::shared_ptr<ListenerClient>> local_copy(_connections.begin(),
                                                               _connections.end());
       for (auto con : local_copy) {
@@ -135,7 +137,7 @@ void Listener::stop() {
 }
 
 void Listener::eraseClientDescription(const ListenerClientPtr client) {
-  std::lock_guard<std::mutex> lg(_locker_connections);
+  bool locked_localy = _locker_connections.try_lock();
   auto it = std::find_if(_connections.begin(), _connections.end(),
                          [client](auto c) { return c->get_id() == client->get_id(); });
   ENSURE(it != _connections.end());
@@ -146,6 +148,9 @@ void Listener::eraseClientDescription(const ListenerClientPtr client) {
     }
   }
   _connections.erase(it);
+  if (locked_localy) {
+	  _locker_connections.unlock();
+  }
 }
 
 void Listener::sendTo(ListenerClientPtr i, MessagePtr &d) {
