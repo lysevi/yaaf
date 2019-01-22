@@ -76,6 +76,8 @@ template <typename Arg, typename Result> struct Transport {
       onMessage(Sender{*this, i->get_id()}, msg.msg, cancel);
     }
 
+	bool onClient(const Sender &) override { return true; }
+
     void sendAsync(Id client, const Result message) override {
       queries::Message<Result> msg(getNextMessageId(), message);
       auto nd = msg.getMessage();

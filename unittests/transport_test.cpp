@@ -106,12 +106,6 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
       this->sendAsync(s.id, answer);
     }
 
-    /**
-    result - true for accept, false for failed.
-    */
-    bool onClient(const MockTrasport::io_chanel_type::Sender &) override { return true; }
-    void onClientDisconnect(const MockTrasport::io_chanel_type::Sender &) override {}
-
     bool is_started_flag = false;
     std::mutex _locker;
     std::map<uint64_t, std::string> _q;

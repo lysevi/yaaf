@@ -75,71 +75,74 @@ template <typename Arg, typename Result> struct BaseIOChanel {
       std::vector<IOListener *> lst;
       std::vector<IOConnection *> cons;
       {
-        std::lock_guard<std::mutex> lg_lst(_lock_listeners);
+        std::shared_lock<std::shared_mutex> lg_lst(_lock_listeners);
         for (auto kv : _listeners) {
           lst.push_back(kv.second);
         }
       }
-      for (auto l : lst) {
-        l->stopListener();
-      }
+
       {
-        std::lock_guard<std::mutex> lg_con(_lock_connections);
+        std::shared_lock<std::shared_mutex> lg_con(_lock_connections);
 
         for (auto kv : _connections) {
           cons.push_back(kv.second);
         }
       }
+
+      for (auto l : lst) {
+        l->stopListener();
+      }
+
       for (auto c : cons) {
         c->stopConnection();
       }
     };
 
     virtual Id addListener(IOListener *l) {
-      std::lock_guard<std::mutex> lg(_lock_listeners);
+      std::lock_guard<std::shared_mutex> lg(_lock_listeners);
       auto id = _id.fetch_add(1);
       _listeners[id] = l;
       return id;
     }
 
     virtual Id addConnection(IOConnection *c) {
-      std::lock_guard<std::mutex> lg(_lock_connections);
+      std::lock_guard<std::shared_mutex> lg(_lock_connections);
       auto id = _id.fetch_add(1);
       _connections[id] = c;
       return id;
     }
 
     virtual void rmListener(Id id) {
-      std::lock_guard<std::mutex> lg(_lock_listeners);
+      std::lock_guard<std::shared_mutex> lg(_lock_listeners);
       _listeners.erase(id);
     }
 
     virtual void rmConnection(Id id) {
-      std::lock_guard<std::mutex> lg(_lock_connections);
+      std::lock_guard<std::shared_mutex> lg(_lock_connections);
       _connections.erase(id);
     }
 
     void listenersVisit(std::function<void(IOListener *)> visitor) {
-      std::lock_guard<std::mutex> sl(_lock_listeners);
+      std::shared_lock<std::shared_mutex> sl(_lock_listeners);
       for (auto v : _listeners) {
         visitor(v.second);
       }
     }
 
     void connectionsVisit(std::function<void(IOConnection *)> visitor) {
-      std::lock_guard<std::mutex> sl(_lock_connections);
+      std::shared_lock<std::shared_mutex> sl(_lock_connections);
       for (auto v : _connections) {
         visitor(v.second);
       }
     }
 
     size_t listeners_count() const {
-      std::lock_guard<std::mutex> sl(_lock_listeners);
+      std::shared_lock<std::shared_mutex> sl(_lock_listeners);
       return _listeners.size();
     }
 
     size_t connections_count() const {
-      std::lock_guard<std::mutex> sl(_lock_connections);
+      std::shared_lock<std::shared_mutex> sl(_lock_connections);
       return _connections.size();
     }
 
@@ -154,9 +157,9 @@ template <typename Arg, typename Result> struct BaseIOChanel {
     virtual bool isStopped() const { return _stop_io_service; }
 
   private:
-    mutable std::mutex _lock_listeners;
+    mutable std::shared_mutex _lock_listeners;
     std::unordered_map<Id, IOListener *> _listeners;
-    mutable std::mutex _lock_connections;
+    mutable std::shared_mutex _lock_connections;
     std::unordered_map<Id, IOConnection *> _connections;
 
     std::atomic_uint64_t _id;
@@ -178,8 +181,8 @@ template <typename Arg, typename Result> struct BaseIOChanel {
     /**
     result - true for accept, false for failed.
     */
-    virtual bool onClient(const Sender &i) = 0;
-    virtual void onClientDisconnect(const Sender &i) = 0;
+    virtual bool onClient(const Sender &i) =0;
+    virtual void onClientDisconnect(const Sender &i) {UNUSED(i);};
     virtual void sendAsync(nmq::Id client, const Result message) = 0;
 
     virtual void startListener() { _id = _manager->addListener(this); }
