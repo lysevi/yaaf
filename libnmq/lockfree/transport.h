@@ -19,14 +19,11 @@ struct Transport {
   using Sender = typename io_chanel_type::Sender;
   using ErrorCode = typename io_chanel_type::ErrorCode;
 
-  struct Params {
+  struct Params : public io_chanel_type::Params {
     Params() {
-      threads_count = 1;
       arg_queue_size = 1;
       result_queue_size = 1;
     }
-    std::shared_ptr<io_service> service;
-    unsigned int threads_count;
     size_t arg_queue_size;
     size_t result_queue_size;
   };
@@ -34,15 +31,12 @@ struct Transport {
   class Manager : public io_chanel_type::IOManager {
   public:
     Manager(const Params &p)
-        : _params(p), _args(p.arg_queue_size), _results(p.result_queue_size) {
+        : io_chanel_type::IOManager(io_chanel_type::Params(p.threads_count)), _params(p),
+          _args(p.arg_queue_size), _results(p.result_queue_size) {
       ENSURE(_params.threads_count > 0);
       ENSURE(_params.arg_queue_size > 0);
       ENSURE(_params.result_queue_size > 0);
-      _threads.resize(p.threads_count);
-      _params.service = std::make_shared<io_service>();
     }
-
-    io_service *service() { return _params.service.get(); }
 
     Id addListener(typename io_chanel_type::IOListener *l) override {
       auto res = io_chanel_type::IOManager::addListener(l);
@@ -68,24 +62,12 @@ struct Transport {
 
     void start() override {
       io_chanel_type::IOManager::start();
-      _stop = false;
-      _params.service->post([this]() { this->queueWorker(); });
-      for (unsigned int i = 0; i < _params.threads_count; i++) {
-        _threads[i] = std::thread([this]() {
-          while (!_stop) {
-            _params.service->run_one();
-          }
-        });
-      }
+      // TODO use shared_from_this
+      post([this]() { this->queueWorker(); });
     }
 
     void stop() override {
       io_chanel_type::IOManager::stop();
-      _params.service->stop();
-      _stop = true;
-      for (auto &&t : _threads) {
-        t.join();
-      }
     }
 
     bool tryPushArg(Id id, const Arg a) { return _args.tryPush(std::make_pair(id, a)); }
@@ -114,13 +96,12 @@ struct Transport {
           });
         }
       }
-      _params.service->post([this]() { this->queueWorker(); });
+      // TODO use shared_from_this
+      post([this]() { this->queueWorker(); });
     }
 
   private:
-    bool _stop = false;
     Params _params;
-    std::vector<std::thread> _threads;
 
     ArgQueue _args;
     ResultQueue _results;
@@ -132,7 +113,7 @@ struct Transport {
     Listener(const Listener &) = delete;
     Listener &operator=(const Listener &) = delete;
 
-    Listener(Manager *manager, const Transport::Params &/*transport_params*/)
+    Listener(Manager *manager, const Transport::Params & /*transport_params*/)
         : io_chanel_type::IOListener(manager) {
       _manager = manager;
     }

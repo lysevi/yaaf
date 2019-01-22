@@ -7,6 +7,8 @@
 #include <shared_mutex>
 #include <unordered_map>
 
+#include <boost/asio.hpp>
+
 namespace nmq {
 
 enum class ErrorsKinds { ALL_LISTENERS_STOPED, Ok };
@@ -31,11 +33,37 @@ template <typename Arg, typename Result> struct BaseIOChanel {
   struct IOListener;
   struct IOConnection;
 
+  struct Params {
+    Params() { threads_count = 1; }
+
+    Params(unsigned int threads) {
+      ENSURE(threads > 0);
+      threads_count = threads;
+    }
+    unsigned int threads_count;
+  };
+
   class IOManager {
   public:
     using io_chanel_type = typename BaseIOChanel<Arg, Result>;
 
-    virtual void start(){};
+    IOManager(const Params &p) {
+      ENSURE(p.threads_count > 0);
+      _threads.resize(p.threads_count);
+    }
+
+    boost::asio::io_service *service() { return &_io_service; }
+
+    virtual void start() {
+      _stop_io_service = false;
+      for (unsigned int i = 0; i < _threads.size(); i++) {
+        _threads[i] = std::thread([this]() {
+          while (!_stop_io_service) {
+            _io_service.run_one();
+          }
+        });
+      }
+    };
 
     virtual void stop() {
       std::lock_guard<std::shared_mutex> lg_lst(_lock_listeners);
@@ -46,6 +74,12 @@ template <typename Arg, typename Result> struct BaseIOChanel {
       std::lock_guard<std::shared_mutex> lg_con(_lock_connections);
       for (auto c : _connections) {
         c.second->stopConnection();
+      }
+
+      _io_service.stop();
+      _stop_io_service = true;
+      for (auto &&t : _threads) {
+        t.join();
       }
     };
 
@@ -97,6 +131,14 @@ template <typename Arg, typename Result> struct BaseIOChanel {
       return _connections.size();
     }
 
+    bool post(std::function<void()> f) {
+      if (!_stop_io_service) {
+        _io_service.post(f);
+        return true;
+      }
+      return false;
+    }
+
   private:
     mutable std::shared_mutex _lock_listeners;
     std::unordered_map<Id, IOListener *> _listeners;
@@ -104,6 +146,10 @@ template <typename Arg, typename Result> struct BaseIOChanel {
     std::unordered_map<Id, IOConnection *> _connections;
 
     std::atomic_uint64_t _id;
+
+    boost::asio::io_service _io_service;
+    std::vector<std::thread> _threads;
+    bool _stop_io_service = false;
   };
 
   class IOListener : public BaseIOChanel {

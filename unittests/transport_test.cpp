@@ -89,6 +89,7 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
     };
     void onMessage(const MockTrasport::io_chanel_type::Sender &s, const MockMessage d,
                    bool &) override {
+      logger_info("<=id:", d.id, " msg:", d.msg);
       _locker.lock();
       _q.insert(std::make_pair(d.id, d.msg));
       _locker.unlock();
@@ -127,6 +128,7 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
       MockMessage m;
       m.id = msg_id++;
       m.msg = "msg_" + std::to_string(m.id);
+      logger_info("=>id:", m.id, " msg:", m.msg);
       this->sendAsync(m);
     }
 
@@ -134,6 +136,7 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
       is_started_flag = false;
     };
     void onMessage(const MockResultMessage d, bool &) override {
+      logger_info("<=id:", d.id, " length:", d.length);
       _locker.lock();
       _q.insert(std::make_pair(d.id, d.length));
       _locker.unlock();
@@ -183,13 +186,15 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
     std::this_thread::yield();
   }
 
+  logger("listener->stop()");
   listener->stop();
+  logger("listener = nullptr;");
   listener = nullptr;
 
   while (client->is_started_flag) {
     logger("transport: client->is_started_flag");
     std::this_thread::yield();
   }
-
+  logger("manager->stop();");
   manager->stop();
 }

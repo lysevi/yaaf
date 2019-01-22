@@ -9,8 +9,6 @@
 namespace nmq {
 namespace network {
 
-using boost::asio::io_service;
-
 template <typename Arg, typename Result> struct Transport {
   using ArgType = Arg;
   using ResultType = Result;
@@ -26,49 +24,24 @@ template <typename Arg, typename Result> struct Transport {
   using NetConnection = network::Connection;
   using NetConnectionConsumer = network::IConnectionConsumer;
 
-  struct Params {
-    Params() { threads_count = 1; }
-    std::shared_ptr<io_service> service;
-    unsigned int threads_count;
+  struct Params : public io_chanel_type::Params {
+    Params() { }
     std::string host;
     unsigned short port;
   };
 
   class Manager : public io_chanel_type::IOManager {
   public:
-    Manager(const Params &p) : _params(p) {
-      ENSURE(_params.threads_count > 0);
-      _threads.resize(p.threads_count);
-      _params.service = std::make_shared<io_service>();
+    Manager(const Params &p)
+        : _params(p), io_chanel_type::IOManager(io_chanel_type::Params(p.threads_count)) {
     }
 
-    io_service *service() { return _params.service.get(); }
+    void start() override { io_chanel_type::IOManager::start(); }
 
-    void start() override {
-      io_chanel_type::IOManager::start();
-      _stop = false;
-      for (unsigned int i = 0; i < _params.threads_count; i++) {
-        _threads[i] = std::thread([this]() {
-          while (!_stop) {
-            _params.service->run_one();
-          }
-        });
-      }
-    }
-
-    void stop() override {
-      io_chanel_type::IOManager::stop();
-      _params.service->stop();
-      _stop = true;
-      for (auto &&t : _threads) {
-        t.join();
-      }
-    }
+    void stop() override { io_chanel_type::IOManager::stop(); }
 
   private:
-    bool _stop = false;
     Params _params;
-    std::vector<std::thread> _threads;
   };
 
   class Listener : public io_chanel_type::IOListener, public NetListenerConsumer {
@@ -132,8 +105,7 @@ template <typename Arg, typename Result> struct Transport {
     Connection(const Connection &) = delete;
     Connection &operator=(const Connection &) = delete;
 
-    Connection(Manager *manager,
-               const Transport::Params &transport_Params)
+    Connection(Manager *manager, const Transport::Params &transport_Params)
         : io_chanel_type::IOConnection(manager) {
 
       NetConnection::Params nparams(transport_Params.host, transport_Params.port);
