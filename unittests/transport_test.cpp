@@ -1,20 +1,9 @@
 #include "helpers.h"
 
-#include <boost/asio.hpp>
-
-#include <libnmq/network/connection.h>
-#include <libnmq/network/listener.h>
+#include <libnmq/lockfree/transport.h>
 #include <libnmq/network/transport.h>
-#include <libnmq/utils/logger.h>
 
 #include <catch.hpp>
-
-#include <functional>
-#include <string>
-#include <thread>
-
-using namespace std::placeholders;
-using namespace boost::asio;
 
 using namespace nmq;
 using namespace nmq::utils;
@@ -28,6 +17,9 @@ struct MockResultMessage {
   uint64_t id;
   size_t length;
   std::string msg;
+
+  MockResultMessage()=default;
+  MockResultMessage(const MockResultMessage&) = default;
 };
 
 namespace nmq {
@@ -64,77 +56,94 @@ template <> struct ObjectScheme<MockResultMessage> {
 } // namespace serialization
 } // namespace nmq
 
-using MockTrasport = nmq::network::Transport<MockMessage, MockResultMessage>;
+namespace {
+using networkTransport = nmq::network::Transport<MockMessage, MockResultMessage>;
+using lockfreeTransport = nmq::lockfree::Transport<MockMessage, MockResultMessage>;
 
-struct MockTransportListener : public MockTrasport::Listener {
-  MockTransportListener(std::shared_ptr<MockTrasport::Manager> &manager,
-                        MockTrasport::Params &p)
-      : MockTrasport::Listener(manager.get(), p) {}
+template <typename T>
+std::enable_if_t<std::is_same_v<T, networkTransport::Params>, void> fillParams(T &t) {
+  t.host = "localhost";
+  t.port = 4040;
+}
 
-  void onStartComplete() override { is_started_flag = true; }
+template <typename T>
+std::enable_if_t<std::is_same_v<T, lockfreeTransport::Params>, void> fillParams(T &t) {
+  t.result_queue_size = 2;
+}
+} // namespace
 
-  void onError(const MockTrasport::io_chanel_type::Sender &,
-               const MockTrasport::io_chanel_type::ErrorCode & /*err*/) override {
-    is_started_flag = false;
-  };
-  void onMessage(const MockTrasport::io_chanel_type::Sender &s, const MockMessage d,
-                 bool &) override {
-    _q.insert(std::make_pair(d.id, d.msg));
+TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
 
-    MockResultMessage answer;
-    answer.id = d.id;
-    answer.msg = d.msg + " " + d.msg;
-    answer.length = answer.msg.size();
+  using MockTrasport = TestType;
 
-    if (this->isStopingBegin()) {
-      return;
+  struct MockTransportListener : public MockTrasport::Listener {
+    MockTransportListener(std::shared_ptr<MockTrasport::Manager> &manager,
+                          MockTrasport::Params &p)
+        : MockTrasport::Listener(manager.get(), p) {}
+
+    void onStartComplete() override { is_started_flag = true; }
+
+    void onError(const MockTrasport::io_chanel_type::Sender &,
+                 const MockTrasport::io_chanel_type::ErrorCode & /*err*/) override {
+      is_started_flag = false;
+    };
+    void onMessage(const MockTrasport::io_chanel_type::Sender &s, const MockMessage d,
+                   bool &) override {
+      _q.insert(std::make_pair(d.id, d.msg));
+
+      MockResultMessage answer;
+      answer.id = d.id;
+      answer.msg = d.msg + " " + d.msg;
+      answer.length = answer.msg.size();
+
+      if (this->isStopingBegin()) {
+        return;
+      }
+
+      this->sendAsync(s.id, answer);
     }
 
-    this->sendAsync(s.id, answer);
-  }
+    /**
+    result - true for accept, false for failed.
+    */
+    bool onClient(const MockTrasport::io_chanel_type::Sender &) override { return true; }
+    void onClientDisconnect(const MockTrasport::io_chanel_type::Sender &) override {}
 
-  /**
-  result - true for accept, false for failed.
-  */
-  bool onClient(const MockTrasport::io_chanel_type::Sender &) override { return true; }
-  void onClientDisconnect(const MockTrasport::io_chanel_type::Sender &) override {}
-
-  bool is_started_flag = false;
-  std::map<uint64_t, std::string> _q;
-};
-
-struct MockTransportClient : public MockTrasport::Connection {
-  MockTransportClient(std::shared_ptr<MockTrasport::Manager> &manager,
-                      const MockTrasport::Params &p, const std::string &login)
-      : MockTrasport::Connection(manager.get(), login, p) {}
-
-  void onConnected() override { is_started_flag = true; }
-
-  void sendQuery() {
-    MockMessage m;
-    m.id = msg_id++;
-    m.msg = "msg_" + std::to_string(m.id);
-    this->sendAsync(m);
-  }
-
-  void onError(const MockTrasport::io_chanel_type::ErrorCode & /*er*/) override {
-    is_started_flag = false;
+    bool is_started_flag = false;
+    std::map<uint64_t, std::string> _q;
   };
-  void onMessage(const MockResultMessage d, bool &) override {
-    _q.insert(std::make_pair(d.id, d.length));
-    sendQuery();
-  }
 
-  uint64_t msg_id = 1;
-  bool is_started_flag = false;
-  std::map<uint64_t, size_t> _q;
-};
+  struct MockTransportClient : public MockTrasport::Connection {
+    MockTransportClient(std::shared_ptr<MockTrasport::Manager> &manager,
+                        const MockTrasport::Params &p, const std::string &login)
+        : MockTrasport::Connection(manager.get(), login, p) {}
 
-TEST_CASE("transport.network") {
+    void onConnected() override { is_started_flag = true; }
+
+    void sendQuery() {
+      MockMessage m;
+      m.id = msg_id++;
+      m.msg = "msg_" + std::to_string(m.id);
+      this->sendAsync(m);
+    }
+
+    void onError(const MockTrasport::io_chanel_type::ErrorCode & /*er*/) override {
+      is_started_flag = false;
+    };
+    void onMessage(const MockResultMessage d, bool &) override {
+      _q.insert(std::make_pair(d.id, d.length));
+      sendQuery();
+    }
+
+    uint64_t msg_id = 1;
+    bool is_started_flag = false;
+    std::map<uint64_t, size_t> _q;
+  };
 
   MockTrasport::Params p;
-  p.host = "localhost";
-  p.port = 4040;
+
+  fillParams(p);
+
   auto manager = std::make_shared<MockTrasport::Manager>(p);
 
   manager->start();
@@ -163,6 +172,7 @@ TEST_CASE("transport.network") {
   }
 
   listener->stop();
+  listener=nullptr;
 
   while (client->is_started_flag) {
     logger("transport: client->is_started_flag");

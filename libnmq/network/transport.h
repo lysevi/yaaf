@@ -12,6 +12,9 @@ namespace network {
 using boost::asio::io_service;
 
 template <typename Arg, typename Result> struct Transport {
+  using ArgType = Arg;
+  using ResultType = Result;
+
   using io_chanel_type = typename BaseIOChanel<Arg, Result>;
   using Sender = typename io_chanel_type::Sender;
   using ArgScheme = serialization::ObjectScheme<Arg>;
@@ -116,6 +119,8 @@ template <typename Arg, typename Result> struct Transport {
     }
 
     void stop() override { _lstnr->stop(); }
+
+    bool isStopingBegin() const override { return _lstnr->isStopingBegin(); }
 
   private:
     std::shared_ptr<NetListener> _lstnr;

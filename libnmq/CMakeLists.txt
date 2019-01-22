@@ -9,7 +9,6 @@ FILE(GLOB UTILS_HDRS "utils/*.h")
 FILE(GLOB UTILS_ASYNC_HDRS "utils/async/*.h")
 FILE(GLOB LOCKFREE_HDRS "lockfree/*.h")
 
-
 FILE(GLOB GLOB_SRC "*.cpp")
 FILE(GLOB NET_SRC "network/*.cpp")
 FILE(GLOB SRLZ_SRC "serialization/*.cpp")
@@ -23,7 +22,7 @@ source_group(utils\\async FILES ${UTILS_ASYNC_HDRS} ${UTILS_ASYNC_SRC})
 source_group(nmq FILES ${GLOB_HDRS} ${GLOB_SRC})
 source_group(nmq\\network FILES ${NET_HDRS} ${NET_SRC})
 source_group(nmq\\serialization  FILES ${SRLZ_HDRS} ${SRLZ_SRC})
-source_group(nmq\\lockfree FILES ${LOCKFREE_HDRS} ${LOCKFREE_SRC})
+source_group(nmq\\lfree FILES ${LOCKFREE_HDRS} ${LOCKFREE_SRC})
 
 SET(SRC ${GLOB_HDRS} ${GLOB_SRC} 
 	${NET_HDRS} ${NET_SRC}

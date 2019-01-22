@@ -1,11 +1,19 @@
 #pragma once
+
+#include <libnmq/types.h>
+#include <libnmq/utils/utils.h>
 #include <atomic>
 #include <mutex>
+#include <shared_mutex>
 #include <unordered_map>
 
 namespace nmq {
 
+enum class ErrorsKinds { ALL_LISTENERS_STOPED, Ok };
+
 template <typename Arg, typename Result> struct BaseIOChanel {
+  using ArgType = Arg;
+  using ResultType = Result;
   struct Sender {
     Sender(BaseIOChanel<Arg, Result> &bc, nmq::Id id_) : chanel(bc) { id = id_; }
     BaseIOChanel<Arg, Result> &chanel;
@@ -13,7 +21,11 @@ template <typename Arg, typename Result> struct BaseIOChanel {
   };
 
   struct ErrorCode {
-    const boost::system::error_code &ec;
+    ErrorCode(boost::system::error_code e) : error(e), inner_error(ErrorsKinds::Ok) {}
+
+    ErrorCode(ErrorsKinds e) : inner_error(e) {}
+    boost::system::error_code error;
+    ErrorsKinds inner_error;
   };
 
   struct IOListener;
@@ -26,43 +38,69 @@ template <typename Arg, typename Result> struct BaseIOChanel {
     virtual void start(){};
 
     virtual void stop() {
-      std::lock_guard<std::mutex> lg(_chanels_locker);
+      std::lock_guard<std::shared_mutex> lg_lst(_lock_listeners);
       for (auto l : _listeners) {
         l.second->stopListener();
       }
 
+      std::lock_guard<std::shared_mutex> lg_con(_lock_connections);
       for (auto c : _connections) {
         c.second->stopConnection();
       }
     };
 
-    Id addListener(IOListener *l) {
-      std::lock_guard<std::mutex> lg(_chanels_locker);
+    virtual Id addListener(IOListener *l) {
+      std::lock_guard<std::shared_mutex> lg(_lock_listeners);
       auto id = _id.fetch_add(1);
       _listeners[id] = l;
       return id;
     }
 
-    Id addConnection(IOConnection *c) {
-      std::lock_guard<std::mutex> lg(_chanels_locker);
+    virtual Id addConnection(IOConnection *c) {
+      std::lock_guard<std::shared_mutex> lg(_lock_connections);
       auto id = _id.fetch_add(1);
       _connections[id] = c;
       return id;
     }
 
-    void rmListener(Id id) {
-      std::lock_guard<std::mutex> lg(_chanels_locker);
+    virtual void rmListener(Id id) {
+      std::lock_guard<std::shared_mutex> lg(_lock_listeners);
       _listeners.erase(id);
     }
 
-    void rmConnection(Id id) {
-      std::lock_guard<std::mutex> lg(_chanels_locker);
+    virtual void rmConnection(Id id) {
+      std::lock_guard<std::shared_mutex> lg(_lock_connections);
       _connections.erase(id);
     }
 
+    void listenersVisit(std::function<void(IOListener *)> visitor) {
+      std::shared_lock<std::shared_mutex> sl(_lock_listeners);
+      for (auto v : _listeners) {
+        visitor(v.second);
+      }
+    }
+
+    void connectionsVisit(std::function<void(IOConnection *)> visitor) {
+      std::shared_lock<std::shared_mutex> sl(_lock_connections);
+      for (auto v : _connections) {
+        visitor(v.second);
+      }
+    }
+
+    size_t listeners_count() const {
+      std::shared_lock<std::shared_mutex> sl(_lock_listeners);
+      return _listeners.size();
+    }
+
+    size_t connections_count() const {
+      std::shared_lock<std::shared_mutex> sl(_lock_connections);
+      return _connections.size();
+    }
+
   private:
-    std::mutex _chanels_locker;
+    mutable std::shared_mutex _lock_listeners;
     std::unordered_map<Id, IOListener *> _listeners;
+    mutable std::shared_mutex _lock_connections;
     std::unordered_map<Id, IOConnection *> _connections;
 
     std::atomic_uint64_t _id;
@@ -72,6 +110,8 @@ template <typename Arg, typename Result> struct BaseIOChanel {
   public:
     IOListener(IOManager *manager) : _manager(manager) {}
     virtual ~IOListener() { _manager->rmListener(_id); }
+    Id getId() const { return _Id; }
+    virtual bool isStopingBegin() const { return _isStopingBegin; }
     virtual void onStartComplete() = 0;
     virtual void onError(const Sender &i, const ErrorCode &err) = 0;
     virtual void onMessage(const Sender &i, const Arg d, bool &cancel) = 0;
@@ -84,11 +124,12 @@ template <typename Arg, typename Result> struct BaseIOChanel {
 
     virtual void startListener() { _id = _manager->addListener(this); }
 
-    virtual void stopListener() {}
+    virtual void stopListener() { _isStopingBegin = true; }
 
   private:
     Id _id;
     IOManager *_manager;
+    bool _isStopingBegin = false;
   };
 
   class IOConnection : public BaseIOChanel {
@@ -97,6 +138,7 @@ template <typename Arg, typename Result> struct BaseIOChanel {
     IOConnection(IOManager *manager) : _manager(manager) {}
     virtual ~IOConnection() { _manager->rmConnection(_id); }
 
+    Id getId() const { return _id; }
     virtual void onConnected() = 0;
     virtual void onError(const ErrorCode &err) = 0;
     virtual void onMessage(const Result d, bool &cancel) = 0;

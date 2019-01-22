@@ -16,7 +16,8 @@ public:
   FixedQueue(size_t capacity) : _position(-1), _values(capacity) {
     static_assert(std::is_default_constructible_v<T>,
                   "T is not std::is_default_constructible_v");
-    static_assert(std::is_trivially_copyable_v<T>, "T is not std::is_trivially_copyable");
+    static_assert(std::is_copy_constructible_v<T>,
+                  "T is not std::is_copy_constructible_v");
     _cap = int64_t(capacity);
   }
 
@@ -52,7 +53,7 @@ public:
 
   size_t capacity() const { return (size_t)(_cap); }
 
-  bool empty() const { return !_position.load() >= 0; }
+  bool empty() const { return !(_position.load() >= 0); }
 
 private:
   std::atomic_int64_t _position;
