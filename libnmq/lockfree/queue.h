@@ -20,15 +20,6 @@ public:
     _cap = int64_t(capacity);
   }
 
-  bool tryAddCallback(Callback clbk) {
-    if (_locker.try_lock()) {
-      _clbks.push_back(clbk);
-      _locker.unlock();
-      return true;
-    }
-    return false;
-  }
-
   bool tryPush(T v) {
     for (;;) {
       auto i = _position.load();
@@ -38,12 +29,6 @@ public:
         auto new_i = i + 1;
         if (_position.compare_exchange_strong(i, new_i)) {
           _values[new_i] = v;
-
-          if (!_clbks.empty()) {
-            for (auto &c : _clbks) {
-              c();
-            }
-          }
           return true;
         }
       } else {
@@ -53,7 +38,6 @@ public:
   }
 
   std::tuple<bool, T> tryPop() {
-
     auto i = _position.load();
     while (i >= 0) {
       i = _position.load();
@@ -74,9 +58,6 @@ private:
   std::atomic_int64_t _position;
   int64_t _cap;
   Cont _values;
-
-  utils::async::locker _locker;
-  std::list<Callback> _clbks;
 };
 } // namespace lockfree
 } // namespace nmq
