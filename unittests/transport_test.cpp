@@ -18,8 +18,8 @@ struct MockResultMessage {
   size_t length;
   std::string msg;
 
-  MockResultMessage()=default;
-  MockResultMessage(const MockResultMessage&) = default;
+  MockResultMessage() = default;
+  MockResultMessage(const MockResultMessage &) = default;
 };
 
 namespace nmq {
@@ -89,7 +89,9 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
     };
     void onMessage(const MockTrasport::io_chanel_type::Sender &s, const MockMessage d,
                    bool &) override {
+      _locker.lock();
       _q.insert(std::make_pair(d.id, d.msg));
+      _locker.unlock();
 
       MockResultMessage answer;
       answer.id = d.id;
@@ -110,6 +112,7 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
     void onClientDisconnect(const MockTrasport::io_chanel_type::Sender &) override {}
 
     bool is_started_flag = false;
+    std::mutex _locker;
     std::map<uint64_t, std::string> _q;
   };
 
@@ -131,12 +134,21 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
       is_started_flag = false;
     };
     void onMessage(const MockResultMessage d, bool &) override {
+      _locker.lock();
       _q.insert(std::make_pair(d.id, d.length));
+      _locker.unlock();
       sendQuery();
+    }
+
+    size_t qSize() const {
+      std::lock_guard<std::mutex> lg(_locker);
+      return _q.size();
     }
 
     uint64_t msg_id = 1;
     bool is_started_flag = false;
+
+    mutable std::mutex _locker;
     std::map<uint64_t, size_t> _q;
   };
 
@@ -166,13 +178,13 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
   }
 
   client->sendQuery();
-  while (client->_q.size() < 10) {
+  while (client->qSize() < 10) {
     logger("transport: client->_q.size() < 10 :", client->_q.size());
     std::this_thread::yield();
   }
 
   listener->stop();
-  listener=nullptr;
+  listener = nullptr;
 
   while (client->is_started_flag) {
     logger("transport: client->is_started_flag");
