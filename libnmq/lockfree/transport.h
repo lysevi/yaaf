@@ -145,9 +145,9 @@ struct Transport {
 
     bool onClient(const Sender &) override { return true; }
 
-    //void onClientDisconnect(const Sender &i) override {}
+    // void onClientDisconnect(const Sender &i) override {}
 
-    void sendAsync(nmq::Id , const Result message) override {
+    void sendAsync(nmq::Id, const Result message) override {
       _manager->tryPushResult(message);
     }
 
@@ -172,8 +172,7 @@ struct Transport {
     Connection(const Connection &) = delete;
     Connection &operator=(const Connection &) = delete;
 
-    Connection(Manager *manager, const std::string &login,
-               const Transport::Params &)
+    Connection(Manager *manager, const Transport::Params &)
         : io_chanel_type::IOConnection(manager) {
       _manager = manager;
     }

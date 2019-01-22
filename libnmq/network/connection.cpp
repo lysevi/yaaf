@@ -67,7 +67,7 @@ void Connection::startAsyncConnection() {
   }
 
   tcp::endpoint ep = *iter;
-  logger_info("client(", _params.login, "): start async connection to ", _params.host,
+  logger_info("client: start async connection to ", _params.host,
               ":", _params.port, " - ", ep.address().to_string());
 
   auto self = this->shared_from_this();
@@ -77,7 +77,7 @@ void Connection::startAsyncConnection() {
       self->reconnectOnError(nullptr, ec);
     } else {
       if (self->_async_io->socket().is_open()) {
-        logger_info("client(", self->_params.login, "): connected.");
+        logger_info("client: connected.");
         AsyncIO::data_handler_t on_d = [self](auto d, auto cancel) {
           self->onDataReceive(d, cancel);
         };

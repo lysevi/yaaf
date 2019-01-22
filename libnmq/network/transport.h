@@ -132,11 +132,11 @@ template <typename Arg, typename Result> struct Transport {
     Connection(const Connection &) = delete;
     Connection &operator=(const Connection &) = delete;
 
-    Connection(Manager *manager, const std::string &login,
+    Connection(Manager *manager,
                const Transport::Params &transport_Params)
         : io_chanel_type::IOConnection(manager) {
 
-      NetConnection::Params nparams(login, transport_Params.host, transport_Params.port);
+      NetConnection::Params nparams(transport_Params.host, transport_Params.port);
       _connection = std::make_shared<NetConnection>(manager->service(), nparams);
     }
 

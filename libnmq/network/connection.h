@@ -33,12 +33,8 @@ using IConnectionConsumerPtr = IConnectionConsumer *;
 class Connection : public std::enable_shared_from_this<Connection> {
 public:
   struct Params {
-    Params(std::string login_, std::string host_, unsigned short port_,
-           bool auto_reconnection_ = true)
-        : login(login_), host(host_), port(port_), auto_reconnection(auto_reconnection_) {
-
-    }
-    std::string login;
+    Params(std::string host_, unsigned short port_, bool auto_reconnection_ = true)
+        : host(host_), port(port_), auto_reconnection(auto_reconnection_) {}
     std::string host;
     unsigned short port;
     bool auto_reconnection = true;

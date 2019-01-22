@@ -94,7 +94,7 @@ void server_thread() {
 }
 
 void testForConnection(const size_t clients_count) {
-  network::Connection::Params p("empty", "localhost", 4040);
+  network::Connection::Params p("localhost", 4040);
 
   server_stop = false;
   std::thread t(server_thread);
@@ -106,7 +106,6 @@ void testForConnection(const size_t clients_count) {
   std::vector<std::shared_ptr<network::Connection>> clients(clients_count);
   std::vector<std::shared_ptr<MockConnection>> consumers(clients_count);
   for (size_t i = 0; i < clients_count; i++) {
-    p.login = "client_" + std::to_string(i);
     clients[i] = std::make_shared<network::Connection>(service, p);
     consumers[i] = std::make_shared<MockConnection>();
     clients[i]->addConsumer(consumers[i].get());

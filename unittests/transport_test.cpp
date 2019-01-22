@@ -115,8 +115,8 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
 
   struct MockTransportClient : public MockTrasport::Connection {
     MockTransportClient(std::shared_ptr<MockTrasport::Manager> &manager,
-                        const MockTrasport::Params &p, const std::string &login)
-        : MockTrasport::Connection(manager.get(), login, p) {}
+                        const MockTrasport::Params &p)
+        : MockTrasport::Connection(manager.get(), p) {}
 
     void onConnected() override { is_started_flag = true; }
 
@@ -157,7 +157,7 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
     std::this_thread::yield();
   }
 
-  auto client = std::make_shared<MockTransportClient>(manager, p, "client");
+  auto client = std::make_shared<MockTransportClient>(manager, p);
   client->start();
 
   while (!client->is_started_flag) {
