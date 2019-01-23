@@ -98,7 +98,7 @@ template <typename Arg, typename Result> struct Transport {
       _lstnr->stop();
     }
 
-    bool isStopingBegin() const override { return _lstnr->isStopingBegin(); }
+    bool isStoped() const override { return _lstnr->isStopingBegin(); }
 
   private:
     std::shared_ptr<NetListener> _lstnr;

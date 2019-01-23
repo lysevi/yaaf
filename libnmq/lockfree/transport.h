@@ -17,7 +17,6 @@ struct Transport {
   using ResultType = Result;
   using io_chanel_type = typename BaseIOChanel<Arg, Result>;
   using Sender = typename io_chanel_type::Sender;
-  using ErrorCode = typename io_chanel_type::ErrorCode;
 
   struct Params : public io_chanel_type::Params {
     Params() {

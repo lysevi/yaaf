@@ -84,8 +84,9 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
     void onStartComplete() override { is_started_flag = true; }
 
     void onError(const MockTrasport::io_chanel_type::Sender &,
-                 const MockTrasport::io_chanel_type::ErrorCode & /*err*/) override {
+                 const ErrorCode &er) override {
       is_started_flag = false;
+      full_stop_flag = er.inner_error == nmq::ErrorsKinds::FULL_STOP;
     };
     void onMessage(const MockTrasport::io_chanel_type::Sender &s, const MockMessage d,
                    bool &) override {
@@ -99,7 +100,7 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
       answer.msg = d.msg + " " + d.msg;
       answer.length = answer.msg.size();
 
-      if (this->isStopingBegin()) {
+      if (this->isStoped()) {
         return;
       }
 
@@ -109,6 +110,7 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
     bool is_started_flag = false;
     std::mutex _locker;
     std::map<uint64_t, std::string> _q;
+    bool full_stop_flag = false;
   };
 
   struct MockTransportClient : public MockTrasport::Connection {
@@ -126,8 +128,9 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
       this->sendAsync(m);
     }
 
-    void onError(const MockTrasport::io_chanel_type::ErrorCode & /*er*/) override {
+    void onError(const ErrorCode &er) override {
       is_started_flag = false;
+      full_stop_flag = er.inner_error == nmq::ErrorsKinds::FULL_STOP;
     };
     void onMessage(const MockResultMessage d, bool &) override {
       logger_info("<=id:", d.id, " length:", d.length);
@@ -147,6 +150,7 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
 
     mutable std::mutex _locker;
     std::map<uint64_t, size_t> _q;
+    bool full_stop_flag = false;
   };
 
   MockTrasport::Params p;
@@ -190,5 +194,6 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
   }
   manager->stop();
   logger("manager->stop();");
-  
+
+  EXPECT_TRUE(client->full_stop_flag);
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <libnmq/errors.h>
 #include <libnmq/types.h>
 #include <libnmq/utils/utils.h>
 #include <atomic>
@@ -11,8 +12,6 @@
 
 namespace nmq {
 
-enum class ErrorsKinds { ALL_LISTENERS_STOPED, Ok };
-
 template <typename Arg, typename Result> struct BaseIOChanel {
   using ArgType = Arg;
   using ResultType = Result;
@@ -20,14 +19,6 @@ template <typename Arg, typename Result> struct BaseIOChanel {
     Sender(BaseIOChanel<Arg, Result> &bc, nmq::Id id_) : chanel(bc) { id = id_; }
     BaseIOChanel<Arg, Result> &chanel;
     nmq::Id id;
-  };
-
-  struct ErrorCode {
-    ErrorCode(boost::system::error_code e) : error(e), inner_error(ErrorsKinds::Ok) {}
-
-    ErrorCode(ErrorsKinds e) : inner_error(e) {}
-    boost::system::error_code error;
-    ErrorsKinds inner_error;
   };
 
   struct IOListener;
@@ -88,12 +79,17 @@ template <typename Arg, typename Result> struct BaseIOChanel {
           cons.push_back(kv.second);
         }
       }
-
+      ErrorCode ec(ErrorsKinds::FULL_STOP);
+      
+	  
       for (auto l : lst) {
+        Sender s(*l, l->getId());
+        l->onError(s, ec);
         l->stopListener();
       }
 
       for (auto c : cons) {
+        c->onError(ec);
         c->stopConnection();
       }
     };
@@ -173,8 +169,8 @@ template <typename Arg, typename Result> struct BaseIOChanel {
   public:
     IOListener(IOManager *manager) : _manager(manager) {}
     virtual ~IOListener() { stopListener(); }
-    Id getId() const { return _Id; }
-    virtual bool isStopingBegin() const { return _isStopingBegin; }
+    Id getId() const { return _id; }
+    virtual bool isStoped() const { return _stoped; }
     virtual void onStartComplete() = 0;
     virtual void onError(const Sender &i, const ErrorCode &err) = 0;
     virtual void onMessage(const Sender &i, const Arg d, bool &cancel) = 0;
@@ -188,8 +184,8 @@ template <typename Arg, typename Result> struct BaseIOChanel {
     virtual void startListener() { _id = _manager->addListener(this); }
 
     virtual void stopListener() {
-      if (!_isStopingBegin) {
-        _isStopingBegin = true;
+      if (!_stoped) {
+        _stoped = true;
         _manager->rmListener(_id);
       }
     }
@@ -197,16 +193,18 @@ template <typename Arg, typename Result> struct BaseIOChanel {
   private:
     Id _id;
     IOManager *_manager;
-    bool _isStopingBegin = false;
+    bool _stoped = false;
   };
 
   class IOConnection : public BaseIOChanel {
   public:
     IOConnection() = delete;
     IOConnection(IOManager *manager) : _manager(manager) {}
-    virtual ~IOConnection() { _manager->rmConnection(_id); }
+    virtual ~IOConnection() { stopConnection(); }
 
     Id getId() const { return _id; }
+    bool isStoped() const { return _stoped; }
+
     virtual void onConnected() = 0;
     virtual void onError(const ErrorCode &err) = 0;
     virtual void onMessage(const Result d, bool &cancel) = 0;
@@ -214,11 +212,17 @@ template <typename Arg, typename Result> struct BaseIOChanel {
 
     virtual void startConnection() { _id = _manager->addConnection(this); }
 
-    virtual void stopConnection() {}
+    virtual void stopConnection() {
+      if (!_stoped) {
+        _manager->rmConnection(_id);
+        _stoped = true;
+      }
+    }
 
   private:
     Id _id;
     IOManager *_manager;
+    bool _stoped = false;
   };
 
   BaseIOChanel() { _next_message_id = 0; }
