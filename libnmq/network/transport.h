@@ -50,7 +50,8 @@ template <typename Arg, typename Result> struct Transport {
     Listener(const Listener &) = delete;
     Listener &operator=(const Listener &) = delete;
 
-    Listener(Manager *manager, const Transport::Params &transport_params)
+    Listener(std::shared_ptr<Manager> manager,
+             const Transport::Params &transport_params)
         : io_chanel_type::IOListener(manager) {
       _next_message_id = 0;
       _lstnr = std::make_shared<NetListener>(manager->service(),
@@ -110,7 +111,8 @@ template <typename Arg, typename Result> struct Transport {
     Connection(const Connection &) = delete;
     Connection &operator=(const Connection &) = delete;
 
-    Connection(Manager *manager, const Transport::Params &transport_Params)
+    Connection(std::shared_ptr<Manager>manager,
+               const Transport::Params &transport_Params)
         : io_chanel_type::IOConnection(manager) {
 
       NetConnection::Params nparams(transport_Params.host, transport_Params.port);

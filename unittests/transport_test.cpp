@@ -79,7 +79,7 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
   struct MockTransportListener : public MockTrasport::Listener {
     MockTransportListener(std::shared_ptr<MockTrasport::Manager> &manager,
                           MockTrasport::Params &p)
-        : MockTrasport::Listener(manager.get(), p) {}
+        : MockTrasport::Listener(manager, p) {}
 
     void onStartComplete() override { is_started_flag = true; }
 
@@ -116,7 +116,7 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
   struct MockTransportClient : public MockTrasport::Connection {
     MockTransportClient(std::shared_ptr<MockTrasport::Manager> &manager,
                         const MockTrasport::Params &p)
-        : MockTrasport::Connection(manager.get(), p) {}
+        : MockTrasport::Connection(manager, p) {}
 
     void onConnected() override { is_started_flag = true; }
 

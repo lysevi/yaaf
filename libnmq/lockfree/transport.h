@@ -29,6 +29,8 @@ struct Transport {
 
   class Manager : public io_chanel_type::IOManager {
   public:
+    using io_chanel_type::IOManager::shared_from_this;
+
     Manager(const Params &p)
         : io_chanel_type::IOManager(io_chanel_type::Params(p.threads_count)), _params(p),
           _args(p.arg_queue_size), _results(p.result_queue_size) {
@@ -37,12 +39,12 @@ struct Transport {
       ENSURE(_params.result_queue_size > 0);
     }
 
-    Id addListener(typename io_chanel_type::IOListener *l) override {
+    Id addListener(std::shared_ptr<typename io_chanel_type::IOListener> l) override {
       auto res = io_chanel_type::IOManager::addListener(l);
       return res;
     }
 
-    Id addConnection(typename io_chanel_type::IOConnection *c) override {
+    Id addConnection(std::shared_ptr<typename io_chanel_type::IOConnection> c) override {
       auto res = io_chanel_type::IOManager::addConnection(c);
       return res;
     }
@@ -51,7 +53,7 @@ struct Transport {
       io_chanel_type::IOManager::rmListener(id);
 
       if (listeners_count() == 0) {
-        connectionsVisit([](io_chanel_type::IOConnection *c) {
+        connectionsVisit([](std::shared_ptr<io_chanel_type::IOConnection> c) {
           c->onError(ErrorCode(ErrorsKinds::ALL_LISTENERS_STOPED));
         });
       }
@@ -61,8 +63,10 @@ struct Transport {
 
     void start() override {
       io_chanel_type::IOManager::start();
-      // TODO use shared_from_this
-      post([this]() { this->queueWorker(); });
+      auto self = shared_from_this();
+      post([self]() { 
+		  dynamic_cast<Manager*>(self.get())->queueWorker(); 
+	  });
     }
 
     void stop() override { io_chanel_type::IOManager::stop(); }
@@ -71,17 +75,19 @@ struct Transport {
     bool tryPushResult(const Result a) { return _results.tryPush(a); }
 
     void queueWorker() {
+      auto self = shared_from_this();
       while (!_args.empty()) {
         auto a = _args.tryPop();
         if (a.ok) {
           auto arg = a.result;
-          listenersVisit([this, arg](typename io_chanel_type::IOListener *l) {
+
+          listenersVisit([self, arg](std::shared_ptr<io_chanel_type::IOListener> l) {
             Sender s{*l, arg.first};
-            auto run = [this, s, l,arg]() {
+            auto run = [self, s, l, arg]() {
               bool cancel = false;
               l->onMessage(s, arg.second, cancel);
             };
-            this->post(run);
+            self->post(run);
           });
         }
       }
@@ -90,18 +96,18 @@ struct Transport {
         auto a = _results.tryPop();
         if (a.ok) {
           auto arg = a.result;
-          connectionsVisit([this, arg](typename io_chanel_type::IOConnection *c) {
-            auto run = [this, arg, c]() {
+          connectionsVisit([self, arg](std::shared_ptr<io_chanel_type::IOConnection> c) {
+            auto run = [self, arg, c]() {
               bool cancel = false;
               c->onMessage(arg, cancel);
             };
-            this->post(run);
+            self->post(run);
           });
         }
       }
-      // TODO use shared_from_this
+
       if (!isStopped()) {
-        post([this]() { this->queueWorker(); });
+        post([self]() { dynamic_cast<Manager*>(self.get())->queueWorker(); });
       }
     }
 
@@ -118,7 +124,8 @@ struct Transport {
     Listener(const Listener &) = delete;
     Listener &operator=(const Listener &) = delete;
 
-    Listener(Manager *manager, const Transport::Params & /*transport_params*/)
+    Listener(std::shared_ptr<Manager> manager,
+             const Transport::Params & /*transport_params*/)
         : io_chanel_type::IOListener(manager) {
       _manager = manager;
     }
@@ -149,7 +156,7 @@ struct Transport {
     void stop() { stopListener(); }
 
   private:
-    Manager *_manager;
+    std::shared_ptr<Manager> _manager;
   };
 
   class Connection : public io_chanel_type::IOConnection {
@@ -158,7 +165,7 @@ struct Transport {
     Connection(const Connection &) = delete;
     Connection &operator=(const Connection &) = delete;
 
-    Connection(Manager *manager, const Transport::Params &)
+    Connection(std::shared_ptr<Manager> manager, const Transport::Params &)
         : io_chanel_type::IOConnection(manager) {
       _manager = manager;
     }
@@ -180,7 +187,7 @@ struct Transport {
     void stop() {}
 
   private:
-    Manager *_manager;
+    std::shared_ptr<Manager> _manager;
   };
 };
 } // namespace lockfree
