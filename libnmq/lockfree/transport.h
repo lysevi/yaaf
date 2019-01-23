@@ -65,9 +65,7 @@ struct Transport {
       post([this]() { this->queueWorker(); });
     }
 
-    void stop() override { 
-		io_chanel_type::IOManager::stop(); 
-	}
+    void stop() override { io_chanel_type::IOManager::stop(); }
 
     bool tryPushArg(Id id, const Arg a) { return _args.tryPush(std::make_pair(id, a)); }
     bool tryPushResult(const Result a) { return _results.tryPush(a); }
@@ -77,10 +75,13 @@ struct Transport {
         auto a = _args.tryPop();
         if (a.ok) {
           auto arg = a.result;
-          listenersVisit([arg](typename io_chanel_type::IOListener *l) {
+          listenersVisit([this, arg](typename io_chanel_type::IOListener *l) {
             Sender s{*l, arg.first};
-            bool cancel = false;
-            l->onMessage(s, arg.second, cancel);
+            auto run = [this, s, l,arg]() {
+              bool cancel = false;
+              l->onMessage(s, arg.second, cancel);
+            };
+            this->post(run);
           });
         }
       }
@@ -89,9 +90,12 @@ struct Transport {
         auto a = _results.tryPop();
         if (a.ok) {
           auto arg = a.result;
-          connectionsVisit([arg](typename io_chanel_type::IOConnection *c) {
-            bool cancel = false;
-            c->onMessage(arg, cancel);
+          connectionsVisit([this, arg](typename io_chanel_type::IOConnection *c) {
+            auto run = [this, arg, c]() {
+              bool cancel = false;
+              c->onMessage(arg, cancel);
+            };
+            this->post(run);
           });
         }
       }
