@@ -4,6 +4,7 @@
 #include <libnmq/utils/utils.h>
 #include <cstddef>
 #include <cstring>
+#include <type_traits>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -13,7 +14,9 @@ namespace nmq {
 namespace serialization {
 
 template <class T> struct getSize {
-  static size_t size(const T &) { return sizeof(T); }
+  static std::enable_if_t<std::is_pod_v<T>, size_t> size(const T &) {
+    return sizeof(T);
+  }
 };
 
 template <> struct getSize<std::string> {
@@ -28,8 +31,7 @@ template <class T> struct getSize<std::vector<T>> {
 };
 
 template <typename S> struct Writer {
-  static size_t write(uint8_t *it, const S &s) {
-    static_assert(std::is_pod<S>::value, "S is not a POD value");
+  static std::enable_if_t<std::is_pod_v<S>, size_t> write(uint8_t *it, const S &s) {
     std::memcpy(it, &s, sizeof(s));
     return sizeof(s);
   }
@@ -57,8 +59,7 @@ template <class T> struct Writer<std::vector<T>> {
 };
 
 template <typename S> struct Reader {
-  static size_t read(uint8_t *it, S &s) {
-    static_assert(std::is_pod<S>::value, "S is not a POD value");
+  static std::enable_if_t<std::is_pod_v<S>, size_t> read(uint8_t *it, S &s) {
     auto ptr = it;
     std::memcpy(&s, ptr, sizeof(s));
     return sizeof(s);
@@ -142,13 +143,13 @@ template <typename T> struct ObjectScheme {
   template <class Iterator> static void pack(Iterator it, const T t) {
     return BinaryReaderWriter<T>::write(it, t);
   }
-  static T unpack(uint8_t *ii) {
+  static T unpack(uint8_t *it) {
     T result = empty();
-    BinaryReaderWriter<T>::read(it, t);
+    BinaryReaderWriter<T>::read(it, result);
     return result;
   }
   static T empty() {
-    static_cast(std::is_default_constructible<T>::value, "T is default_constructible");
+    static_assert(std::is_default_constructible<T>::value, "T is default_constructible");
     return T{};
   }
 };

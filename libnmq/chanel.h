@@ -34,7 +34,7 @@ template <typename Arg, typename Result> struct BaseIOChanel {
     unsigned int threads_count;
   };
 
-  class IOManager : virtual public  std::enable_shared_from_this<IOManager> {
+  class IOManager : virtual public std::enable_shared_from_this<IOManager> {
   public:
     using io_chanel_type = typename BaseIOChanel<Arg, Result>;
 
@@ -170,8 +170,12 @@ template <typename Arg, typename Result> struct BaseIOChanel {
     IOListener(std::shared_ptr<IOManager> manager) : _manager(manager) {}
     virtual ~IOListener() { stopListener(); }
     Id getId() const { return _id; }
+    virtual bool isStarted() const { return _started; }
     virtual bool isStoped() const { return _stoped; }
-    virtual void onStartComplete() = 0;
+    virtual void onStartComplete() {
+      _started = true;
+      _stoped = false;
+    }
     virtual void onError(const Sender &i, const ErrorCode &err) = 0;
     virtual void onMessage(const Sender &i, const Arg d, bool &cancel) = 0;
     /**
@@ -193,7 +197,9 @@ template <typename Arg, typename Result> struct BaseIOChanel {
   private:
     Id _id;
     std::shared_ptr<IOManager> _manager; // TODO use std::weak_ptr?
-    bool _stoped = false;
+    bool _stoped = true;
+
+    bool _started = false;
   };
 
   class IOConnection : public BaseIOChanel,
@@ -205,8 +211,12 @@ template <typename Arg, typename Result> struct BaseIOChanel {
 
     Id getId() const { return _id; }
     bool isStoped() const { return _stoped; }
+    bool isStarted() const { return _started; }
 
-    virtual void onConnected() = 0;
+    virtual void onConnected() {
+      _stoped = false;
+      _started = true;
+    }
     virtual void onError(const ErrorCode &err) = 0;
     virtual void onMessage(const Result d, bool &cancel) = 0;
     virtual void sendAsync(const Arg message) = 0;
@@ -216,6 +226,7 @@ template <typename Arg, typename Result> struct BaseIOChanel {
     virtual void stopConnection() {
       if (!_stoped) {
         _manager->rmConnection(_id);
+        _started = false;
         _stoped = true;
       }
     }
@@ -223,7 +234,9 @@ template <typename Arg, typename Result> struct BaseIOChanel {
   private:
     Id _id;
     std::shared_ptr<IOManager> _manager;
-    bool _stoped = false;
+    bool _stoped = true;
+
+    bool _started = false;
   };
 
   BaseIOChanel() { _next_message_id = 0; }

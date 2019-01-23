@@ -50,15 +50,14 @@ template <typename Arg, typename Result> struct Transport {
     Listener(const Listener &) = delete;
     Listener &operator=(const Listener &) = delete;
 
-    Listener(std::shared_ptr<Manager> manager,
-             const Transport::Params &transport_params)
+    Listener(std::shared_ptr<Manager> manager, const Transport::Params &transport_params)
         : io_chanel_type::IOListener(manager) {
       _next_message_id = 0;
       _lstnr = std::make_shared<NetListener>(manager->service(),
                                              NetListener::Params{transport_params.port});
     }
 
-    void onStartComplete() override {}
+    void onStartComplete() override { io_chanel_type::IOListener::onStartComplete(); }
 
     bool onNewConnection(ListenerClientPtr i) override {
       return onClient(Sender{*this, i->get_id()});
@@ -77,7 +76,7 @@ template <typename Arg, typename Result> struct Transport {
       onMessage(Sender{*this, i->get_id()}, msg.msg, cancel);
     }
 
-	bool onClient(const Sender &) override { return true; }
+    bool onClient(const Sender &) override { return true; }
 
     void sendAsync(Id client, const Result message) override {
       queries::Message<Result> msg(getNextMessageId(), message);
@@ -100,6 +99,7 @@ template <typename Arg, typename Result> struct Transport {
     }
 
     bool isStoped() const override { return _lstnr->isStopingBegin(); }
+    bool isStarted() const override { return _lstnr->isStarted(); }
 
   private:
     std::shared_ptr<NetListener> _lstnr;
@@ -107,11 +107,12 @@ template <typename Arg, typename Result> struct Transport {
 
   class Connection : public io_chanel_type::IOConnection, public NetConnectionConsumer {
   public:
+    using io_chanel_type::IOConnection::isStoped;
     Connection() = delete;
     Connection(const Connection &) = delete;
     Connection &operator=(const Connection &) = delete;
 
-    Connection(std::shared_ptr<Manager>manager,
+    Connection(std::shared_ptr<Manager> manager,
                const Transport::Params &transport_Params)
         : io_chanel_type::IOConnection(manager) {
 
@@ -119,7 +120,11 @@ template <typename Arg, typename Result> struct Transport {
       _connection = std::make_shared<NetConnection>(manager->service(), nparams);
     }
 
-    void onConnect() override { this->onConnected(); };
+    void onConnect() override {
+      io_chanel_type::IOConnection::onConnected();
+      this->onConnected();
+    };
+
     void onNewMessage(const MessagePtr &d, bool &cancel) override {
       queries::Message<Result> msg(d);
       onMessage(msg.msg, cancel);

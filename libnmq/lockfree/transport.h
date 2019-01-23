@@ -64,9 +64,7 @@ struct Transport {
     void start() override {
       io_chanel_type::IOManager::start();
       auto self = shared_from_this();
-      post([self]() { 
-		  dynamic_cast<Manager*>(self.get())->queueWorker(); 
-	  });
+      post([self]() { dynamic_cast<Manager *>(self.get())->queueWorker(); });
     }
 
     void stop() override { io_chanel_type::IOManager::stop(); }
@@ -107,7 +105,7 @@ struct Transport {
       }
 
       if (!isStopped()) {
-        post([self]() { dynamic_cast<Manager*>(self.get())->queueWorker(); });
+        post([self]() { dynamic_cast<Manager *>(self.get())->queueWorker(); });
       }
     }
 
@@ -130,7 +128,7 @@ struct Transport {
       _manager = manager;
     }
 
-    void onStartComplete() override {}
+    void onStartComplete() override { io_chanel_type::IOListener::onStartComplete(); }
 
     /*void onError(const Sender &i, const ErrorCode &err) override {}
 
@@ -170,7 +168,7 @@ struct Transport {
       _manager = manager;
     }
 
-    void onConnected() override {}
+    void onConnected() override { io_chanel_type::IOConnection::onConnected(); }
     /*void onError(const ErrorCode &err) override {}
     void onMessage(const Result d, bool &cancel) override {}*/
     void sendAsync(const Arg message) override { _manager->tryPushArg(getId(), message); }

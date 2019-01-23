@@ -27,6 +27,11 @@ public:
   EXPORT void message(LOG_MESSAGE_KIND kind, const std::string &msg) override;
 };
 
+class QuietLogger : public ILogger {
+public:
+  EXPORT void message(LOG_MESSAGE_KIND kind, const std::string &msg) override;
+};
+
 enum class Verbose { Verbose, Debug, Quiet };
 
 class LogManager {

@@ -1,4 +1,5 @@
 #include <libnmq/utils/logger.h>
+#include <libnmq/utils/utils.h>
 #include <iostream>
 
 using namespace nmq::utils;
@@ -59,4 +60,9 @@ void ConsoleLogger::message(LOG_MESSAGE_KIND kind, const std::string &msg) {
     }
     break;
   }
+}
+
+void QuietLogger::message(LOG_MESSAGE_KIND kind, const std::string &msg) {
+  UNUSED(kind);
+  UNUSED(msg);
 }

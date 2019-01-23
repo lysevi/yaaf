@@ -81,7 +81,10 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
                           MockTrasport::Params &p)
         : MockTrasport::Listener(manager, p) {}
 
-    void onStartComplete() override { is_started_flag = true; }
+    void onStartComplete() override {
+      MockTrasport::Listener::onStartComplete();
+      is_started_flag = true;
+    }
 
     void onError(const MockTrasport::io_chanel_type::Sender &,
                  const ErrorCode &er) override {
@@ -118,7 +121,10 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
                         const MockTrasport::Params &p)
         : MockTrasport::Connection(manager, p) {}
 
-    void onConnected() override { is_started_flag = true; }
+    void onConnected() override { 
+		MockTrasport::Connection::onConnected();
+		is_started_flag = true; 
+	}
 
     void sendQuery() {
       MockMessage m;
