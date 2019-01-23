@@ -10,22 +10,26 @@ template <class T> using networkTransport = nmq::network::Transport<T, size_t>;
 template <class T> using lockfreeTransport = nmq::lockfree::Transport<T, size_t>;
 
 template <typename Tr> struct ParamFiller {
-  static std::enable_if_t<
-      std::is_same_v<typename Tr::Params,
-                     typename networkTransport<typename Tr::ArgType>::Params>,
-      void>
-  fillParams(typename Tr::Params &t) {
+  static typename  std::enable_if<
+      std::is_same<typename Tr::Params, typename networkTransport<typename Tr::ArgType>::Params>::value, bool>
+	  ::type
+  fillParams(typename Tr::Params &t) 
+  {
     t.host = "localhost";
     t.port = 4040;
+	return true;
   }
 
-  /* static std::enable_if_t<
-       std::is_same_v<typename Tr::Params,
-                      typename lockfreeTransport<typename Tr::ArgType>::Params>,
-       void>
-   fillParams(typename Tr::Params &t) {
-     t.result_queue_size = 2;
-   }*/
+  /*static  typename std::enable_if<
+      std::is_same<typename Tr::Params,
+                   typename lockfreeTransport<typename Tr::ArgType>::Params>::value,
+      bool>
+	  ::type
+  fillParams(typename Tr::Params &t) 
+  {
+    t.result_queue_size = 2;
+    return true;
+  }*/
 };
 } // namespace inner
 
@@ -64,11 +68,9 @@ struct MockTransportClient : public MockTrasport::Connection {
 
   void sendQuery() { this->sendAsync(toSend); }
 
-  void onError(const nmq::ErrorCode &er) override {
-    UNUSED(er);
-  };
+  void onError(const nmq::ErrorCode &er) override { UNUSED(er); };
   void onMessage(const typename MockTrasport::ResultType d, bool &) override {
-	  UNUSED(d);
+    UNUSED(d);
     sendQuery();
   }
 
@@ -109,8 +111,8 @@ template <class Tr> struct TransportTester : public benchmark::Fixture {
 
   void TearDown(const ::benchmark::State &) override {
     manager->stop();
-	listener->stop();
-	client->stop();
+    listener->stop();
+    client->stop();
     while (!listener->isStoped()) {
     }
 
@@ -125,10 +127,10 @@ BENCHMARK_TEMPLATE_F(TransportTester, NetUint8, inner::networkTransport<uint8_t>
   }
   st.counters["messages"] = (double)listener->_count.load();
 }
-
-BENCHMARK_TEMPLATE_F(TransportTester, NetUint64, inner::networkTransport<uint64_t>)
-(benchmark::State &st) {
-  while (st.KeepRunning()) {
-  }
-  st.counters["messages"] = (double)listener->_count.load();
-}
+//
+//BENCHMARK_TEMPLATE_F(TransportTester, NetUint64, inner::networkTransport<uint64_t>)
+//(benchmark::State &st) {
+//  while (st.KeepRunning()) {
+//  }
+//  st.counters["messages"] = (double)listener->_count.load();
+//}
