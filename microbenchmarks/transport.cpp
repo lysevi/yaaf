@@ -100,11 +100,8 @@ template <class Tr> struct TransportTester : public benchmark::Fixture {
 
     client = std::make_shared<MockTransportClient<Tr>>(manager, p);
     client->start();
-    for (;;) {
-      bool started = client->isStarted();
-      if (started) {
-        break;
-      }
+    for (;!client->isStarted();) {
+      std::this_thread::yield();
     }
     client->sendQuery();
   }
