@@ -172,7 +172,7 @@ template <typename Arg, typename Result> struct BaseIOChanel {
   class IOListener : public BaseIOChanel {
   public:
     IOListener(IOManager *manager) : _manager(manager) {}
-    virtual ~IOListener() {}
+    virtual ~IOListener() { stopListener(); }
     Id getId() const { return _Id; }
     virtual bool isStopingBegin() const { return _isStopingBegin; }
     virtual void onStartComplete() = 0;
@@ -181,8 +181,8 @@ template <typename Arg, typename Result> struct BaseIOChanel {
     /**
     result - true for accept, false for failed.
     */
-    virtual bool onClient(const Sender &i) =0;
-    virtual void onClientDisconnect(const Sender &i) {UNUSED(i);};
+    virtual bool onClient(const Sender &i) = 0;
+    virtual void onClientDisconnect(const Sender &i) { UNUSED(i); };
     virtual void sendAsync(nmq::Id client, const Result message) = 0;
 
     virtual void startListener() { _id = _manager->addListener(this); }
