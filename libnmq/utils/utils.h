@@ -74,9 +74,6 @@ struct Waitable {
   }
 
   void stopBegin() {
-    if (_stop_begin.load()) {
-      throw std::logic_error("Double stop");
-    }
     _start_begin.store(false);
     _stop_begin.store(true);
   }

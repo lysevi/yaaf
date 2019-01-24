@@ -23,7 +23,7 @@ void IListenerConsumer::setListener(const std::shared_ptr<Listener> &lstnr, nmq:
 }
 
 bool IListenerConsumer::isStopingBegin() const {
-  return _lstnr->isStopingBegin();
+  return _lstnr->isStartBegin();
 }
 bool IListenerConsumer::isStoped() const {
   return _lstnr->isStoped();
@@ -47,6 +47,7 @@ Listener::~Listener() {
 }
 
 void Listener::start() {
+  startBegin();
   tcp::endpoint ep(tcp::v4(), _params.port);
   auto aio = std::make_shared<network::AsyncIO>(_service);
   _acc = std::make_shared<boost::asio::ip::tcp::acceptor>(*_service, ep);
@@ -57,18 +58,18 @@ void Listener::start() {
       c.second->onStartComplete();
     }
   }
-  _is_started = true;
 }
 
 void Listener::startAsyncAccept(network::AsyncIOPtr aio) {
   auto self = shared_from_this();
   _acc->async_accept(aio->socket(),
                      [self, aio](auto ec) { self->OnAcceptHandler(self, aio, ec); });
+  startComplete();
 }
 
 void Listener::OnAcceptHandler(std::shared_ptr<Listener> self, network::AsyncIOPtr aio,
                                const boost::system::error_code &err) {
-  if (self->_begin_stoping) {
+  if (self->isStopBegin()) {
     return;
   }
   if (err) {
@@ -80,7 +81,7 @@ void Listener::OnAcceptHandler(std::shared_ptr<Listener> self, network::AsyncIOP
       THROW_EXCEPTION("nmq::server: error on accept - ", err.message());
     }
   } else {
-    ENSURE(!self->_is_stoped);
+    ENSURE(!self->isStoped());
 
     logger_info("server: accept connection.");
     std::shared_ptr<ListenerClient> new_client = nullptr;
@@ -117,8 +118,8 @@ void Listener::OnAcceptHandler(std::shared_ptr<Listener> self, network::AsyncIOP
 }
 
 void Listener::stop() {
-  _begin_stoping = true;
-  if (!_is_stoped) {
+  stopBegin();
+  if (!isStoped()) {
     logger("Listener::stop()");
     _acc->close();
     _acc = nullptr;
@@ -132,8 +133,8 @@ void Listener::stop() {
       }
       _connections.clear();
     }
-    _is_stoped = true;
   }
+  stopComplete();
 }
 
 void Listener::eraseClientDescription(const ListenerClientPtr client) {
@@ -149,7 +150,7 @@ void Listener::eraseClientDescription(const ListenerClientPtr client) {
   }
   _connections.erase(it);
   if (locked_localy) {
-	  _locker_connections.unlock();
+    _locker_connections.unlock();
   }
 }
 

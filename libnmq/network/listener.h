@@ -38,7 +38,7 @@ private:
 
 using IListenerConsumerPtr = IListenerConsumer *;
 
-class Listener : public std::enable_shared_from_this<Listener> {
+class Listener : public std::enable_shared_from_this<Listener>, public utils::Waitable {
 public:
   struct Params {
     unsigned short port;
@@ -50,10 +50,6 @@ public:
   EXPORT virtual ~Listener();
   EXPORT void start();
   EXPORT void stop();
-
-  EXPORT bool isStopingBegin() const { return _begin_stoping; }
-  EXPORT bool isStarted() const { return _is_started; }
-  EXPORT bool isStoped() const { return _is_stoped; }
 
   EXPORT void sendTo(ListenerClientPtr i, network::MessagePtr &d);
   EXPORT void sendTo(Id id, network::MessagePtr &d);
@@ -84,7 +80,6 @@ private:
 protected:
   boost::asio::io_service *_service = nullptr;
   std::shared_ptr<boost::asio::ip::tcp::acceptor> _acc = nullptr;
-  bool _is_started = false;
   std::atomic_int _next_id;
 
   std::mutex _locker_consumers;
@@ -95,9 +90,6 @@ protected:
   std::list<ListenerClientPtr> _connections;
 
   Params _params;
-
-  bool _begin_stoping = false;
-  bool _is_stoped = false;
 };
 } // namespace network
 } // namespace nmq

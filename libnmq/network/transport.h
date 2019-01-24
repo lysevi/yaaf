@@ -98,7 +98,7 @@ template <typename Arg, typename Result> struct Transport {
       _lstnr->stop();
     }
 
-    bool isStoped() const override { return _lstnr->isStopingBegin(); }
+    bool isStoped() const override { return _lstnr->isStoped(); }
     bool isStarted() const override { return _lstnr->isStarted(); }
 
   private:
