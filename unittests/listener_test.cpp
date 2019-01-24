@@ -124,7 +124,7 @@ void testForConnection(const size_t clients_count) {
 
   for (auto &c : clients) {
     c->disconnect();
-    while (c->isConnected()) {
+    while (!c->isStoped()) {
       logger("listener.client.testForConnection. client is still connected");
     }
   }

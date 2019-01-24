@@ -30,7 +30,8 @@ private:
 };
 using IConnectionConsumerPtr = IConnectionConsumer *;
 
-class Connection : public std::enable_shared_from_this<Connection> {
+class Connection : public std::enable_shared_from_this<Connection>,
+                   public utils::Waitable {
 public:
   struct Params {
     Params(std::string host_, unsigned short port_, bool auto_reconnection_ = true)
@@ -49,8 +50,6 @@ public:
   EXPORT void reconnectOnError(const MessagePtr &d, const boost::system::error_code &err);
   EXPORT void onDataReceive(const MessagePtr &d, bool &cancel);
   EXPORT void sendAsync(const MessagePtr &d);
-  EXPORT bool isConnected() const { return _isConnected; }
-  EXPORT bool isStoped() const { return _isStoped; }
 
   EXPORT void addConsumer(const IConnectionConsumerPtr &c);
   EXPORT void eraseConsumer(Id id);
@@ -58,8 +57,6 @@ public:
 protected:
   std::shared_ptr<AsyncIO> _async_io = nullptr;
   boost::asio::io_service *_service = nullptr;
-  bool _isConnected = false;
-  bool _isStoped = false;
   Params _params;
 
   std::mutex _locker_consumers;

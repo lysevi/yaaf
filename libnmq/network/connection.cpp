@@ -8,8 +8,9 @@ using namespace nmq::network;
 IConnectionConsumer ::~IConnectionConsumer() {}
 
 bool IConnectionConsumer::isConnected() const {
-  return _connection->isConnected();
+  return _connection->isStarted();
 }
+
 bool IConnectionConsumer::isStoped() const {
   return _connection->isStoped();
 }
@@ -29,26 +30,30 @@ Connection::~Connection() {
 }
 
 void Connection::disconnect() {
-  if (!_isStoped) {
-    _isStoped = true;
+  if (!isStoped()) {
+    stopBegin();
     _async_io->fullStop();
+    stopComplete();
   }
 }
 
 void Connection::reconnectOnError(const MessagePtr &d,
                                   const boost::system::error_code &err) {
-  _isConnected = false;
+	stopBegin();
   {
     std::lock_guard<std::mutex> lg(_locker_consumers);
     for (auto kv : _consumers)
       kv.second->onNetworkError(d, err);
   }
-  if (!_isStoped && _params.auto_reconnection) {
+  stopComplete();
+  if (!(isStoped() && isStopBegin()) && _params.auto_reconnection) {
     this->startAsyncConnection();
   }
 }
 
 void Connection::startAsyncConnection() {
+  startBegin();
+
   using namespace boost::asio::ip;
   tcp::resolver resolver(*_service);
   tcp::resolver::query query(_params.host, std::to_string(_params.port),
@@ -74,10 +79,11 @@ void Connection::startAsyncConnection() {
   self->_async_io = std::make_shared<AsyncIO>(self->_service);
   self->_async_io->socket().async_connect(ep, [self](auto ec) {
     if (ec) {
-      if (!self->_isStoped) {
+      if (!self->isStoped()) {
         self->reconnectOnError(nullptr, ec);
       }
     } else {
+      
       if (self->_async_io->socket().is_open()) {
         logger_info("client: connected.");
         AsyncIO::data_handler_t on_d = [self](auto d, auto cancel) {
@@ -88,13 +94,14 @@ void Connection::startAsyncConnection() {
         };
 
         self->_async_io->start(on_d, on_n);
-        self->_isConnected = true;
+        
         {
           std::lock_guard<std::mutex> lg(self->_locker_consumers);
           for (auto kv : self->_consumers) {
             kv.second->onConnect();
           }
         }
+        self->startComplete();
       }
     }
   });

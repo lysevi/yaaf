@@ -33,7 +33,9 @@ bool IListenerConsumer::isStopingBeginisStopingBegin() const {
 }
 
 void IListenerConsumer::sendTo(Id id, network::MessagePtr &d) {
-  _lstnr->sendTo(id, d);
+  if (!_lstnr->isStopBegin()) {
+    _lstnr->sendTo(id, d);
+  }
 }
 
 Listener::Listener(boost::asio::io_service *service, Listener::Params p)
@@ -123,15 +125,17 @@ void Listener::stop() {
     logger("Listener::stop()");
     _acc->close();
     _acc = nullptr;
-    std::lock_guard<std::mutex> lg(_locker_connections);
-    if (!_connections.empty()) {
 
-      std::vector<std::shared_ptr<ListenerClient>> local_copy(_connections.begin(),
-                                                              _connections.end());
+    if (!_connections.empty()) {
+      std::vector<std::shared_ptr<ListenerClient>> local_copy;
+      {
+        std::lock_guard<std::mutex> lg(_locker_connections);
+        local_copy = std::vector<std::shared_ptr<ListenerClient>>(_connections.begin(),
+                                                                  _connections.end());
+      }
       for (auto con : local_copy) {
         con->close();
       }
-      _connections.clear();
     }
   }
   stopComplete();
