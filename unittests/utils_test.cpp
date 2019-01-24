@@ -24,3 +24,52 @@ TEST_CASE("utils.to_lower") {
   auto res = nmq::utils::strings::to_lower(s);
   EXPECT_EQ(res, "upper string");
 }
+
+TEST_CASE("utils.waitable") {
+  nmq::utils::Waitable child_w, parent_w;
+  {
+    EXPECT_FALSE(child_w.isStartBegin());
+
+    parent_w.startBegin();
+    child_w.startBegin();
+
+    REQUIRE_THROWS(child_w.startBegin());
+    REQUIRE_THROWS(parent_w.startBegin());
+
+    EXPECT_TRUE(child_w.isStartBegin());
+
+    auto chld = [&child_w, &parent_w]() {
+      parent_w.waitStarting();
+      EXPECT_TRUE(parent_w.isStarted());
+      child_w.startComplete();
+    };
+
+    std::thread chldT(chld);
+
+    parent_w.startComplete();
+    child_w.waitStarting();
+    EXPECT_TRUE(child_w.isStarted());
+
+    chldT.join();
+  }
+
+  child_w.stopBegin();
+  auto chld_stoper = [&parent_w, &child_w]() {
+    child_w.stopComplete();
+    EXPECT_TRUE(child_w.isStoped());
+    EXPECT_FALSE(child_w.isStarted());
+    parent_w.waitStoping();
+    EXPECT_TRUE(parent_w.isStoped());
+    EXPECT_FALSE(parent_w.isStarted());
+  };
+  
+  std::thread chldStoper(chld_stoper);
+
+  child_w.waitStoping();
+
+  parent_w.stopBegin();
+  parent_w.stopComplete();
+  chldStoper.join();
+  
+  parent_w.stopComplete();
+}
