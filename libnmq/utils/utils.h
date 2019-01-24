@@ -73,12 +73,18 @@ struct Waitable {
     _stoped.store(false);
   }
 
-  void stopBegin() {
+  void stopBegin(bool checkTwiceStoping = false) {
+    if (checkTwiceStoping && _stop_begin.load()) {
+      THROW_EXCEPTION("Double stoping begin");
+    }
     _start_begin.store(false);
     _stop_begin.store(true);
   }
 
-  void stopComplete() {
+  void stopComplete(bool checkTwiceStoping = false) {
+    if (checkTwiceStoping && _stoped.load()) {
+      THROW_EXCEPTION("Double stoping complete");
+    }
     _started.store(false);
     _stoped.store(true);
   }

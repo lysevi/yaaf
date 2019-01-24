@@ -22,16 +22,6 @@ void IListenerConsumer::setListener(const std::shared_ptr<Listener> &lstnr, nmq:
   _id = id;
 }
 
-bool IListenerConsumer::isStopingBegin() const {
-  return _lstnr->isStartBegin();
-}
-bool IListenerConsumer::isStoped() const {
-  return _lstnr->isStoped();
-}
-bool IListenerConsumer::isStopingBeginisStopingBegin() const {
-  return _lstnr->isStoped();
-}
-
 void IListenerConsumer::sendTo(Id id, network::MessagePtr &d) {
   if (!_lstnr->isStopBegin()) {
     _lstnr->sendTo(id, d);
@@ -57,6 +47,7 @@ void Listener::start() {
   {
     std::lock_guard<std::mutex> lg(_locker_consumers);
     for (auto c : _consumers) {
+      c.second->startBegin();
       c.second->onStartComplete();
     }
   }
@@ -67,6 +58,12 @@ void Listener::startAsyncAccept(network::AsyncIOPtr aio) {
   _acc->async_accept(aio->socket(),
                      [self, aio](auto ec) { self->OnAcceptHandler(self, aio, ec); });
   startComplete();
+  {
+    std::lock_guard<std::mutex> lg(_locker_consumers);
+    for (auto c : _consumers) {
+      c.second->startComplete();
+    }
+  }
 }
 
 void Listener::OnAcceptHandler(std::shared_ptr<Listener> self, network::AsyncIOPtr aio,
@@ -123,8 +120,13 @@ void Listener::stop() {
   stopBegin();
   if (!isStoped()) {
     logger("Listener::stop()");
-    _acc->close();
-    _acc = nullptr;
+
+    {
+      std::lock_guard<std::mutex> consumersLockG(_locker_consumers);
+      for (auto c : _consumers) {
+        c.second->stopBegin();
+      }
+    }
 
     if (!_connections.empty()) {
       std::vector<std::shared_ptr<ListenerClient>> local_copy;
@@ -136,7 +138,19 @@ void Listener::stop() {
       for (auto con : local_copy) {
         con->close();
       }
+      
     }
+
+	{
+      std::lock_guard<std::mutex> consumersLockG(_locker_consumers);
+      for (auto c : _consumers) {
+        c.second->stopBegin();
+        c.second->stopComplete();
+      }
+    }
+
+	_acc->close();
+    _acc = nullptr;
   }
   stopComplete();
 }
@@ -145,7 +159,9 @@ void Listener::eraseClientDescription(const ListenerClientPtr client) {
   bool locked_localy = _locker_connections.try_lock();
   auto it = std::find_if(_connections.begin(), _connections.end(),
                          [client](auto c) { return c->get_id() == client->get_id(); });
-  ENSURE(it != _connections.end());
+  if (it == _connections.end()) {
+	  THROW_EXCEPTION("delete error");
+  }
   {
     std::lock_guard<std::mutex> consumersLockG(_locker_consumers);
     for (auto c : _consumers) {
@@ -156,6 +172,7 @@ void Listener::eraseClientDescription(const ListenerClientPtr client) {
   if (locked_localy) {
     _locker_connections.unlock();
   }
+  client->stopComplete();
 }
 
 void Listener::sendTo(ListenerClientPtr i, MessagePtr &d) {

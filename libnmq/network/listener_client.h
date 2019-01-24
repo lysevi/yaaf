@@ -10,7 +10,7 @@ namespace nmq {
 namespace network {
 
 class Listener;
-class ListenerClient : public std::enable_shared_from_this<ListenerClient> {
+class ListenerClient : public std::enable_shared_from_this<ListenerClient>, public utils::Waitable {
 public:
   ListenerClient(Id id_, network::AsyncIOPtr async_io, std::shared_ptr<Listener> s);
   ~ListenerClient();

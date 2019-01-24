@@ -21,6 +21,7 @@ ListenerClient::ListenerClient(Id id_, network::AsyncIOPtr async_io,
 ListenerClient::~ListenerClient() {}
 
 void ListenerClient::start() {
+  startBegin();
   auto self = shared_from_this();
 
   AsyncIO::data_handler_t on_d = [self](const MessagePtr &d, bool &cancel) {
@@ -33,13 +34,17 @@ void ListenerClient::start() {
   };
 
   _async_connection->start(on_d, on_n);
+  startComplete();
 }
 
 void ListenerClient::close() {
-  if (_async_connection != nullptr) {
-    _async_connection->fullStop();
-    _async_connection = nullptr;
-    this->_listener->eraseClientDescription(this->shared_from_this());
+  if (!isStopBegin() && !isStoped()) {
+    stopBegin(true);
+    if (_async_connection != nullptr) {
+      _async_connection->fullStop();
+      _async_connection = nullptr;
+      this->_listener->eraseClientDescription(this->shared_from_this());
+    }
   }
 }
 

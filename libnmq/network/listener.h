@@ -12,7 +12,7 @@ namespace nmq {
 namespace network {
 class Listener;
 
-class IListenerConsumer {
+class IListenerConsumer : public utils::Waitable {
 public:
   EXPORT virtual ~IListenerConsumer();
 
@@ -25,9 +25,6 @@ public:
   virtual void onDisconnect(const ListenerClientPtr &i) = 0;
 
   EXPORT void setListener(const std::shared_ptr<Listener> &lstnr, Id id);
-  EXPORT bool isStopingBegin() const;
-  EXPORT bool isStoped() const;
-  EXPORT bool isStopingBeginisStopingBegin() const;
   EXPORT bool isListenerExists() const { return _lstnr != nullptr; }
   EXPORT void sendTo(Id id, network::MessagePtr &d);
 
