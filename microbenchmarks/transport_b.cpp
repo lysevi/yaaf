@@ -10,27 +10,30 @@ template <class T> using networkTransport = nmq::network::Transport<T, size_t>;
 template <class T> using lockfreeTransport = nmq::lockfree::Transport<T, size_t>;
 
 template <typename Tr> struct ParamFiller {
-  static typename  std::enable_if<
-      std::is_same<typename Tr::Params, typename networkTransport<typename Tr::ArgType>::Params>::value, bool>
-	  ::type
-  fillParams(typename Tr::Params &t) 
-  {
+
+  template <class Q = Tr>
+  static typename std::enable_if<
+      std::is_same<typename Q::Params,
+                   typename networkTransport<typename Q::ArgType>::Params>::value,
+      bool>::type
+  fillParams(typename Q::Params &t) {
     t.host = "localhost";
     t.port = 4040;
-	return true;
+    return true;
   }
 
-  /*static  typename std::enable_if<
-      std::is_same<typename Tr::Params,
-                   typename lockfreeTransport<typename Tr::ArgType>::Params>::value,
-      bool>
-	  ::type
-  fillParams(typename Tr::Params &t) 
-  {
-    t.result_queue_size = 2;
+  template <class Q = Tr>
+  static typename std::enable_if<
+      std::is_same<typename Q::Params,
+                   typename lockfreeTransport<typename Q::ArgType>::Params>::value,
+      bool>::type
+  fillParams(typename Q::Params &t) {
+    t.host = "localhost";
+    t.port = 4040;
     return true;
-  }*/
+  }
 };
+
 } // namespace inner
 
 template <class MockTrasport>
@@ -100,7 +103,7 @@ template <class Tr> struct TransportTester : public benchmark::Fixture {
 
     client = std::make_shared<MockTransportClient<Tr>>(manager, p);
     client->start();
-    for (;!client->isStarted();) {
+    for (; !client->isStarted();) {
       std::this_thread::yield();
     }
     client->sendQuery();
@@ -125,7 +128,7 @@ BENCHMARK_TEMPLATE_F(TransportTester, NetUint8, inner::networkTransport<uint8_t>
   st.counters["messages"] = (double)listener->_count.load();
 }
 //
-//BENCHMARK_TEMPLATE_F(TransportTester, NetUint64, inner::networkTransport<uint64_t>)
+// BENCHMARK_TEMPLATE_F(TransportTester, NetUint64, inner::networkTransport<uint64_t>)
 //(benchmark::State &st) {
 //  while (st.KeepRunning()) {
 //  }
