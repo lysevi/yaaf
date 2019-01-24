@@ -19,8 +19,8 @@
 
 #ifdef DEBUG
 #define THROW_EXCEPTION(...)                                                             \
-  nmq::utils::Exception::create_and_log(CODE_POS, __VA_ARGS__);                          \
-  std::exit(1);
+  throw nmq::utils::Exception::create_and_log(CODE_POS, __VA_ARGS__);                          \
+  //std::exit(1);
 #else
 #define THROW_EXCEPTION(...)                                                             \
   throw nmq::utils::Exception::create_and_log(CODE_POS, __VA_ARGS__);
