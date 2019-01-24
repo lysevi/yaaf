@@ -16,7 +16,6 @@ class IListenerConsumer : public utils::Waitable {
 public:
   EXPORT virtual ~IListenerConsumer();
 
-  virtual void onStartComplete() = 0;
   virtual void onNetworkError(ListenerClientPtr i, const network::MessagePtr &d,
                               const boost::system::error_code &err) = 0;
   virtual void onNewMessage(ListenerClientPtr i, const network::MessagePtr &d,

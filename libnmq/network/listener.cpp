@@ -48,7 +48,7 @@ void Listener::start() {
     std::lock_guard<std::mutex> lg(_locker_consumers);
     for (auto c : _consumers) {
       c.second->startBegin();
-      c.second->onStartComplete();
+      c.second->startComplete();
     }
   }
 }

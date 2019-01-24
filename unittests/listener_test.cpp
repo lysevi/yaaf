@@ -24,8 +24,7 @@ namespace listener_test {
 struct MockListener : public nmq::network::IListenerConsumer {
   MockListener() {}
 
-  void onStartComplete() override { is_start_complete = true; }
-
+  
   bool onNewConnection(nmq::network::ListenerClientPtr) override {
     connections.fetch_add(1);
     return true;
@@ -42,7 +41,6 @@ struct MockListener : public nmq::network::IListenerConsumer {
     connections.fetch_sub(1);
   }
 
-  bool is_start_complete = false;
   std::atomic_int16_t connections = 0;
 };
 
@@ -118,7 +116,7 @@ void testForConnection(const size_t clients_count) {
     }
   }
 
-  while (!lstnr->is_start_complete && lstnr->connections != clients_count) {
+  while (!lstnr->isStarted() && lstnr->connections != clients_count) {
     logger("listener.client.testForConnection. not all clients was loggined");
   }
 

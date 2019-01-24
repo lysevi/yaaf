@@ -34,7 +34,8 @@ template <typename Arg, typename Result> struct BaseIOChanel {
     unsigned int threads_count;
   };
 
-  class IOManager : virtual public std::enable_shared_from_this<IOManager> {
+  class IOManager : virtual public std::enable_shared_from_this<IOManager>,
+                    public utils::Waitable {
   public:
     using io_chanel_type = typename BaseIOChanel<Arg, Result>;
 
@@ -46,6 +47,7 @@ template <typename Arg, typename Result> struct BaseIOChanel {
     boost::asio::io_service *service() { return &_io_service; }
 
     virtual void start() {
+      
       _stop_io_service = false;
       for (unsigned int i = 0; i < _threads.size(); i++) {
         _threads[i] = std::thread([this]() {
@@ -54,9 +56,11 @@ template <typename Arg, typename Result> struct BaseIOChanel {
           }
         });
       }
-    };
+      
+    }
 
     virtual void stop() {
+      
       _io_service.stop();
       _stop_io_service = true;
       for (auto &&t : _threads) {
@@ -88,9 +92,12 @@ template <typename Arg, typename Result> struct BaseIOChanel {
       }
 
       for (auto c : cons) {
+        c->stopBegin();
         c->onError(ec);
         c->stopConnection();
+        c->stopComplete();
       }
+      
     };
 
     virtual Id addListener(std::shared_ptr<IOListener> l) {
@@ -165,17 +172,13 @@ template <typename Arg, typename Result> struct BaseIOChanel {
   };
 
   class IOListener : public BaseIOChanel,
-                     public std::enable_shared_from_this<IOListener> {
+                     public std::enable_shared_from_this<IOListener>,
+                     public utils ::Waitable {
   public:
     IOListener(std::shared_ptr<IOManager> manager) : _manager(manager) {}
     virtual ~IOListener() { stopListener(); }
     Id getId() const { return _id; }
-    virtual bool isStarted() const { return _started; }
-    virtual bool isStoped() const { return _stoped; }
-    virtual void onStartComplete() {
-      _started = true;
-      _stoped = false;
-    }
+
     virtual void onError(const Sender &i, const ErrorCode &err) = 0;
     virtual void onMessage(const Sender &i, const Arg d, bool &cancel) = 0;
     /**
@@ -188,8 +191,7 @@ template <typename Arg, typename Result> struct BaseIOChanel {
     virtual void startListener() { _id = _manager->addListener(shared_from_this()); }
 
     virtual void stopListener() {
-      if (!_stoped) {
-        _stoped = true;
+      if (!isStoped()) {
         _manager->rmListener(_id);
       }
     }
@@ -197,46 +199,34 @@ template <typename Arg, typename Result> struct BaseIOChanel {
   private:
     Id _id;
     std::shared_ptr<IOManager> _manager; // TODO use std::weak_ptr?
-    bool _stoped = true;
-
-    bool _started = false;
   };
 
   class IOConnection : public BaseIOChanel,
-                       public std::enable_shared_from_this<IOConnection> {
+                       public std::enable_shared_from_this<IOConnection>,
+                       public utils ::Waitable {
   public:
     IOConnection() = delete;
     IOConnection(std::shared_ptr<IOManager> manager) : _manager(manager) {}
     virtual ~IOConnection() { stopConnection(); }
 
     Id getId() const { return _id; }
-    bool isStoped() const { return _stoped; }
-    bool isStarted() const { return _started; }
 
-    virtual void onConnected() {
-      _stoped = false;
-      _started = true;
-    }
-    virtual void onError(const ErrorCode &err) = 0;
+    virtual void onConnected() { startComplete(); }
+    virtual void onError(const ErrorCode &err) { UNUSED(err); };
     virtual void onMessage(const Result d, bool &cancel) = 0;
     virtual void sendAsync(const Arg message) = 0;
 
     virtual void startConnection() { _id = _manager->addConnection(shared_from_this()); }
 
     virtual void stopConnection() {
-      if (!_stoped) {
+      if (!isStoped()) {
         _manager->rmConnection(_id);
-        _started = false;
-        _stoped = true;
       }
     }
 
   private:
     Id _id;
     std::shared_ptr<IOManager> _manager;
-    bool _stoped = true;
-
-    bool _started = false;
   };
 
   BaseIOChanel() { _next_message_id = 0; }

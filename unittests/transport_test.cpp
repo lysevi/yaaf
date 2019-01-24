@@ -81,14 +81,8 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
                           MockTrasport::Params &p)
         : MockTrasport::Listener(manager, p) {}
 
-    void onStartComplete() override {
-      MockTrasport::Listener::onStartComplete();
-      is_started_flag = true;
-    }
-
     void onError(const MockTrasport::io_chanel_type::Sender &,
                  const ErrorCode &er) override {
-      is_started_flag = false;
       full_stop_flag = er.inner_error == nmq::ErrorsKinds::FULL_STOP;
     };
     void onMessage(const MockTrasport::io_chanel_type::Sender &s, const MockMessage d,
@@ -110,7 +104,6 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
       this->sendAsync(s.id, answer);
     }
 
-    bool is_started_flag = false;
     std::mutex _locker;
     std::map<uint64_t, std::string> _q;
     bool full_stop_flag = false;
@@ -121,10 +114,7 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
                         const MockTrasport::Params &p)
         : MockTrasport::Connection(manager, p) {}
 
-    void onConnected() override { 
-		MockTrasport::Connection::onConnected();
-		is_started_flag = true; 
-	}
+    void onConnected() override { MockTrasport::Connection::onConnected(); }
 
     void sendQuery() {
       MockMessage m;
@@ -135,8 +125,8 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
     }
 
     void onError(const ErrorCode &er) override {
-      is_started_flag = false;
       full_stop_flag = er.inner_error == nmq::ErrorsKinds::FULL_STOP;
+      MockTrasport::Connection::onError(er);
     };
     void onMessage(const MockResultMessage d, bool &) override {
       logger_info("<=id:", d.id, " length:", d.length);
@@ -152,7 +142,6 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
     }
 
     uint64_t msg_id = 1;
-    bool is_started_flag = false;
 
     mutable std::mutex _locker;
     std::map<uint64_t, size_t> _q;
@@ -166,12 +155,13 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
   auto manager = std::make_shared<MockTrasport::Manager>(p);
 
   manager->start();
+  manager->waitStarting();
 
   auto listener = std::make_shared<MockTransportListener>(manager, p);
 
   listener->start();
 
-  while (!listener->is_started_flag) {
+  while (!listener->isStarted()) {
     logger("transport: !listener->is_started_flag");
     std::this_thread::yield();
   }
@@ -179,7 +169,7 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
   auto client = std::make_shared<MockTransportClient>(manager, p);
   client->start();
 
-  while (!client->is_started_flag) {
+  while (!client->isStarted()) {
     logger("transport: !client->is_started_flag");
     std::this_thread::yield();
   }
@@ -194,12 +184,15 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
   listener->stop();
   logger("listener = nullptr;");
 
-  while (client->is_started_flag) {
+  while (client->isStarted() && !client->full_stop_flag) {
     logger("transport: client->is_started_flag");
     std::this_thread::yield();
   }
   manager->stop();
+  manager->waitStoping();
   logger("manager->stop();");
-
-  EXPECT_TRUE(client->full_stop_flag);
+  if (std::is_same_v<MockTrasport, lockfreeTransport>) {
+    logger("check full_stop_flag");
+    EXPECT_TRUE(client->full_stop_flag);
+  }
 }

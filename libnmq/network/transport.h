@@ -36,9 +36,17 @@ template <typename Arg, typename Result> struct Transport {
         : _params(p), io_chanel_type::IOManager(io_chanel_type::Params(p.threads_count)) {
     }
 
-    void start() override { io_chanel_type::IOManager::start(); }
+    void start() override {
+      startBegin();
+      io_chanel_type::IOManager::start();
+      startComplete();
+    }
 
-    void stop() override { io_chanel_type::IOManager::stop(); }
+    void stop() override {
+      stopBegin();
+      io_chanel_type::IOManager::stop();
+      stopComplete();
+    }
 
   private:
     Params _params;
@@ -46,6 +54,11 @@ template <typename Arg, typename Result> struct Transport {
 
   class Listener : public io_chanel_type::IOListener, public NetListenerConsumer {
   public:
+    using io_chanel_type::IOListener::startBegin;
+    using io_chanel_type::IOListener::startComplete;
+    using io_chanel_type::IOListener::stopBegin;
+    using io_chanel_type::IOListener::stopComplete;
+
     Listener() = delete;
     Listener(const Listener &) = delete;
     Listener &operator=(const Listener &) = delete;
@@ -56,8 +69,6 @@ template <typename Arg, typename Result> struct Transport {
       _lstnr = std::make_shared<NetListener>(manager->service(),
                                              NetListener::Params{transport_params.port});
     }
-
-    void onStartComplete() override { io_chanel_type::IOListener::onStartComplete(); }
 
     bool onNewConnection(ListenerClientPtr i) override {
       return onClient(Sender{*this, i->get_id()});
@@ -85,21 +96,26 @@ template <typename Arg, typename Result> struct Transport {
     }
 
     void start() override {
+      startBegin();
       io_chanel_type::IOListener::startListener();
 
       if (!isListenerExists()) {
         _lstnr->addConsumer(this);
       }
       _lstnr->start();
+      startComplete();
     }
 
     void stop() override {
+      stopBegin();
       io_chanel_type::IOListener::stopListener();
       _lstnr->stop();
+      _lstnr->waitStoping();
+      stopComplete();
     }
 
-    bool isStoped() const override { return _lstnr->isStoped(); }
-    bool isStarted() const override { return _lstnr->isStarted(); }
+    bool isStoped() const { return _lstnr->isStoped(); }
+    bool isStarted() const { return _lstnr->isStarted(); }
 
   private:
     std::shared_ptr<NetListener> _lstnr;
@@ -132,7 +148,13 @@ template <typename Arg, typename Result> struct Transport {
 
     void onNetworkError(const MessagePtr &,
                         const boost::system::error_code &err) override {
+
       onError(ErrorCode{err});
+    }
+
+    void onError(const ErrorCode &err) override {
+      UNUSED(err);
+      stop();
     }
 
     void sendAsync(const Arg message) override {
@@ -150,8 +172,10 @@ template <typename Arg, typename Result> struct Transport {
     }
 
     void stop() override {
+      stopBegin();
       IOConnection::stopConnection();
       _connection->disconnect();
+      stopComplete();
     }
 
   private:

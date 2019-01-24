@@ -54,7 +54,9 @@ struct Transport {
 
       if (listeners_count() == 0) {
         connectionsVisit([](std::shared_ptr<io_chanel_type::IOConnection> c) {
+          c->stopBegin();
           c->onError(ErrorCode(ErrorsKinds::ALL_LISTENERS_STOPED));
+          c->stopComplete();
         });
       }
     }
@@ -62,12 +64,18 @@ struct Transport {
     void rmConnection(Id id) override { io_chanel_type::IOManager::rmConnection(id); }
 
     void start() override {
+      startBegin();
       io_chanel_type::IOManager::start();
       auto self = shared_from_this();
       post([self]() { dynamic_cast<Manager *>(self.get())->queueWorker(); });
+      startComplete();
     }
 
-    void stop() override { io_chanel_type::IOManager::stop(); }
+    void stop() override {
+      stopBegin();
+      io_chanel_type::IOManager::stop();
+      stopComplete();
+    }
 
     bool tryPushArg(Id id, const Arg a) { return _args.tryPush(std::make_pair(id, a)); }
     bool tryPushResult(const Result a) { return _results.tryPush(a); }
@@ -118,6 +126,13 @@ struct Transport {
 
   class Listener : public io_chanel_type::IOListener {
   public:
+    using io_chanel_type::IOListener::isStarted;
+    using io_chanel_type::IOListener::isStoped;
+    using io_chanel_type::IOListener::startBegin;
+    using io_chanel_type::IOListener::startComplete;
+    using io_chanel_type::IOListener::stopBegin;
+    using io_chanel_type::IOListener::stopComplete;
+
     Listener() = delete;
     Listener(const Listener &) = delete;
     Listener &operator=(const Listener &) = delete;
@@ -128,26 +143,23 @@ struct Transport {
       _manager = manager;
     }
 
-    void onStartComplete() override { io_chanel_type::IOListener::onStartComplete(); }
-
-    /*void onError(const Sender &i, const ErrorCode &err) override {}
-
-    void onMessage(const Sender &i, const Arg d, bool &cancel) override {}*/
-
     bool onClient(const Sender &) override { return true; }
-
-    // void onClientDisconnect(const Sender &i) override {}
 
     void sendAsync(nmq::Id, const Result message) override {
       _manager->tryPushResult(message);
     }
 
     void startListener() override {
+      startBegin();
       io_chanel_type::IOListener::startListener();
-      onStartComplete();
+      startComplete();
     }
 
-    void stopListener() override { io_chanel_type::IOListener::stopListener(); }
+    void stopListener() override {
+      stopBegin();
+      io_chanel_type::IOListener::stopListener();
+      stopComplete();
+    }
 
     void start() { startListener(); }
 
@@ -159,6 +171,13 @@ struct Transport {
 
   class Connection : public io_chanel_type::IOConnection {
   public:
+    using io_chanel_type::IOListener::isStarted;
+    using io_chanel_type::IOListener::isStoped;
+    using io_chanel_type::IOListener::startBegin;
+    using io_chanel_type::IOListener::startComplete;
+    using io_chanel_type::IOListener::stopBegin;
+    using io_chanel_type::IOListener::stopComplete;
+
     Connection() = delete;
     Connection(const Connection &) = delete;
     Connection &operator=(const Connection &) = delete;
@@ -168,12 +187,17 @@ struct Transport {
       _manager = manager;
     }
 
+    void onError(const ErrorCode &err) override {
+      io_chanel_type::IOConnection::onError(err);
+    }
+
     void onConnected() override { io_chanel_type::IOConnection::onConnected(); }
-    /*void onError(const ErrorCode &err) override {}
-    void onMessage(const Result d, bool &cancel) override {}*/
     void sendAsync(const Arg message) override { _manager->tryPushArg(getId(), message); }
 
-    void startConnection() { io_chanel_type::IOConnection::startConnection(); }
+    void startConnection() {
+      startBegin();
+      io_chanel_type::IOConnection::startConnection();
+    }
 
     void stopConnection() { io_chanel_type::IOConnection::stopConnection(); }
 
@@ -182,7 +206,7 @@ struct Transport {
       onConnected();
     }
 
-    void stop() {}
+    void stop() { stopConnection(); }
 
   private:
     std::shared_ptr<Manager> _manager;
