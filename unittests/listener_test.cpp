@@ -86,6 +86,8 @@ void server_thread() {
 
   server->stop();
   service->stop();
+  while (!service->stopped()) {
+  }
   EXPECT_TRUE(service->stopped());
   delete service;
   server = nullptr;

@@ -54,6 +54,7 @@ TEST_CASE("utils.waitable") {
   }
 
   child_w.stopBegin();
+  parent_w.stopBegin();
   auto chld_stoper = [&parent_w, &child_w]() {
     child_w.stopComplete();
     EXPECT_TRUE(child_w.isStoped());
@@ -67,9 +68,7 @@ TEST_CASE("utils.waitable") {
 
   child_w.waitStoping();
 
-  parent_w.stopBegin();
-  parent_w.stopComplete();
-  chldStoper.join();
   
   parent_w.stopComplete();
+  chldStoper.join();
 }
