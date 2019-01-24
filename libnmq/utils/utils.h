@@ -41,6 +41,58 @@ struct elapsed_time {
   clock_t start_time;
 };
 
+class LongProcess {
+public:
+  LongProcess() = delete;
+
+  LongProcess(const std::string &name) : _name(name) {
+    _started.store(false);
+    _stoped.store(true);
+  }
+
+  ~LongProcess() {
+    if (!isStoped()) {
+      logger_fatal(_name + " Process was not stopped correctly");
+      std::abort();
+    }
+  }
+
+  bool isStarted() const { return _started.load(); }
+  bool isStoped() const { return _stoped.load(); }
+
+  void start() {
+    if (_started.load()) {
+      throw std::logic_error(_name + " Double start");
+    }
+
+    _started.store(true);
+    _stoped.store(false);
+  }
+
+  void stop(bool checkTwiceStoping = false) {
+    if (!_started.load()) {
+      throw std::logic_error(_name + " Stoping is false");
+    }
+    if (checkTwiceStoping && _stoped.load()) {
+      throw std::logic_error(_name + " Double stoping begin");
+    }
+    _started.store(false);
+    _stoped.store(true);
+  }
+
+  void wait() {
+    ENSURE(_started);
+    while (!_stoped.load()) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+  }
+
+private:
+  std::string _name;
+  std::atomic_bool _started;
+  std::atomic_bool _stoped;
+};
+
 struct Waitable {
   Waitable() {
     _start_begin.store(false);
