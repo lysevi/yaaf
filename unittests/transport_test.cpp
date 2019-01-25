@@ -5,6 +5,7 @@
 
 #include <catch.hpp>
 
+#include <iterator>
 #include <vector>
 
 using namespace nmq;
@@ -192,9 +193,8 @@ template <class TestType> struct TransportTester {
       newClient->sendQuery();
     }
 
-	
     for (auto client : clients) {
-		client->sendQuery();
+      client->sendQuery();
     }
 
     for (auto client : clients) {
@@ -204,10 +204,21 @@ template <class TestType> struct TransportTester {
       }
     }
 
+    if (clientsCount > 1) {
+      auto end = (size_t)clientsCount % 2;
+      for (size_t i = 0; i < end; ++i) {
+        clients[i]->stop();
+        clients[i] = nullptr;
+      }
+    }
+
     logger("listener->stop()");
     listener->stop();
     logger("listener = nullptr;");
     for (auto client : clients) {
+      if (client == nullptr) {
+        continue;
+      }
       if (std::is_same_v<MockTrasport, lockfreeTransport>) {
 
         while (!client->all_listeners__stoped_flag) {
@@ -229,7 +240,9 @@ template <class TestType> struct TransportTester {
     if (std::is_same_v<MockTrasport, lockfreeTransport>) {
       logger("check full_stop_flag");
       for (auto client : clients) {
-        EXPECT_TRUE(client->full_stop_flag);
+        if (client != nullptr) {
+          EXPECT_TRUE(client->full_stop_flag);
+        }
       }
     }
   }
