@@ -55,6 +55,8 @@ template <typename Arg, typename Result> struct Transport {
 
   class Listener : public io_chanel_type::IOListener, public NetListenerConsumer {
   public:
+    using io_chanel_type::IOListener::isStartBegin;
+    using io_chanel_type::IOListener::isStopBegin;
     using io_chanel_type::IOListener::startBegin;
     using io_chanel_type::IOListener::startComplete;
     using io_chanel_type::IOListener::stopBegin;
@@ -85,7 +87,10 @@ template <typename Arg, typename Result> struct Transport {
 
     void onNewMessage(ListenerClientPtr i, const MessagePtr &d, bool &cancel) override {
       queries::Message<Arg> msg(d);
-      onMessage(Sender{*this, i->get_id()}, msg.msg, cancel);
+      //if (!isStopBegin()) 
+	  {
+        onMessage(Sender{*this, i->get_id()}, msg.msg, cancel);
+      }
     }
 
     bool onClient(const Sender &) override { return true; }
@@ -120,8 +125,8 @@ template <typename Arg, typename Result> struct Transport {
       stopComplete();
     }
 
-    bool isStoped() const { return _lstnr->isStoped(); }
-    bool isStarted() const { return _lstnr->isStarted(); }
+    bool isStoped() const { return io_chanel_type::IOListener::isStoped(); }
+    bool isStarted() const { return io_chanel_type::IOListener::isStarted(); }
 
   private:
     std::shared_ptr<NetListener> _lstnr;
@@ -185,7 +190,7 @@ template <typename Arg, typename Result> struct Transport {
       stopBegin();
       IOConnection::stopConnection();
       _connection->disconnect();
-	  _connection->waitStoping();
+      _connection->waitStoping();
       stopComplete();
     }
 
