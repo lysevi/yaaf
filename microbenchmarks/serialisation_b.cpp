@@ -21,16 +21,12 @@ public:
 };
 
 template <class T> void BM_serialisation_pack(benchmark::State &state, T arg) {
-  std::array<uint8_t, 1024 * 10> buffer;
+  std::array<uint8_t, 1024> buffer;
   std::fill(buffer.begin(), buffer.end(), uint8_t(0));
 
-  auto it = buffer.data();
-  auto cap = nmq::serialization::BinaryReaderWriter<T>::capacity(arg);
   for (auto _ : state) {
+    auto it = buffer.data();
     nmq::serialization::BinaryReaderWriter<T>::write(it, arg);
-    if (it == (buffer.data() + buffer.size() - cap)) {
-      it = buffer.data();
-    }
   }
 }
 BENCHMARK_CAPTURE(BM_serialisation_pack, uint8_t, uint8_t(10));
@@ -45,7 +41,7 @@ template <class T> void BM_serialisation_unpack(benchmark::State &state, T arg) 
 
   std::vector<uint8_t> buffer(cap);
   std::fill(buffer.begin(), buffer.end(), uint8_t(0));
-  
+
   auto it = buffer.data();
   nmq::serialization::BinaryReaderWriter<T>::write(it, arg);
 

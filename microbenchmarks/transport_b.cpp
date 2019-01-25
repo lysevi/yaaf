@@ -127,7 +127,7 @@ BENCHMARK_TEMPLATE_F(TransportTester, NetUint8, inner::networkTransport<uint8_t>
   st.counters["messages"] = (double)listener->_count.load();
 }
 
-BENCHMARK_TEMPLATE_F(TransportTester, NetUint64, inner::lockfreeTransport<uint8_t>)
+BENCHMARK_TEMPLATE_F(TransportTester, LockfreeUint64, inner::lockfreeTransport<uint8_t>)
 (benchmark::State &st) {
   while (st.KeepRunning()) {
   }
