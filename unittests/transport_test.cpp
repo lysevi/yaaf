@@ -71,7 +71,8 @@ std::enable_if_t<std::is_same_v<T, networkTransport::Params>, void> fillParams(T
 
 template <typename T>
 std::enable_if_t<std::is_same_v<T, lockfreeTransport::Params>, void> fillParams(T &t) {
-  t.result_queue_size = 2;
+  t.result_queue_size = 10;
+  t.result_queue_size = 10;
 }
 } // namespace
 
@@ -94,7 +95,7 @@ template <class TestType> struct TransportTester {
       void onMessage(const MockTrasport::io_chanel_type::Sender &s, const MockMessage d,
                      bool &) override {
         if (isStopBegin()) {
-			return;
+          return;
         }
         logger_info("<=id:", d.id, " msg:", d.msg);
         _locker.lock();
@@ -166,7 +167,7 @@ template <class TestType> struct TransportTester {
     MockTrasport::Params p;
 
     fillParams(p);
-
+    p.threads_count = (listenersCount+clientsCount)*2;
     auto manager = std::make_shared<MockTrasport::Manager>(p);
 
     manager->start();
@@ -263,10 +264,10 @@ TEMPLATE_TEST_CASE("transport.1", "", networkTransport, lockfreeTransport) {
   TransportTester<TestType>::run(size_t(1), size_t(1));
 }
 
-TEMPLATE_TEST_CASE("transport.2", "", networkTransport, lockfreeTransport) {
-  TransportTester<TestType>::run(size_t(2), size_t(1));
+TEMPLATE_TEST_CASE("transport.2x2", "", networkTransport, lockfreeTransport) {
+  TransportTester<TestType>::run(size_t(2), size_t(2));
 }
 
-TEMPLATE_TEST_CASE("transport.10", "", networkTransport, lockfreeTransport) {
-  TransportTester<TestType>::run(size_t(10), size_t(1));
+TEMPLATE_TEST_CASE("transport.2x5", "", networkTransport, lockfreeTransport) {
+  TransportTester<TestType>::run(size_t(2), size_t(5));
 }

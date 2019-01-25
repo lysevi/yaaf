@@ -216,6 +216,7 @@ template <typename Arg, typename Result> struct BaseIOChanel {
     virtual void onError(const ErrorCode &err) { UNUSED(err); };
     virtual void onMessage(const Result d, bool &cancel) = 0;
     virtual void sendAsync(const Arg message) = 0;
+    
 
     virtual void startConnection() { _id = _manager->addConnection(shared_from_this()); }
 

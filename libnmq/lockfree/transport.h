@@ -20,8 +20,8 @@ struct Transport {
 
   struct Params : public io_chanel_type::Params {
     Params() {
-      arg_queue_size = 1;
-      result_queue_size = 1;
+      arg_queue_size = 10;
+      result_queue_size = 10;
     }
     size_t arg_queue_size;
     size_t result_queue_size;
@@ -54,9 +54,9 @@ struct Transport {
 
       if (listeners_count() == 0) {
         connectionsVisit([](std::shared_ptr<io_chanel_type::IOConnection> c) {
-          //c->stopBegin();
+          // c->stopBegin();
           c->onError(ErrorCode(ErrorsKinds::ALL_LISTENERS_STOPED));
-          //c->stopComplete();
+          // c->stopComplete();
         });
       }
     }
@@ -153,6 +153,7 @@ struct Transport {
       _manager->tryPushResult(message);
     }
 
+    
     void startListener() override {
       startBegin();
       io_chanel_type::IOListener::startListener();
@@ -196,8 +197,9 @@ struct Transport {
     }
 
     void onConnected() override { io_chanel_type::IOConnection::onConnected(); }
-    void sendAsync(const Arg message) override { _manager->tryPushArg(getId(), message); }
 
+    void sendAsync(const Arg message) override { _manager->tryPushArg(getId(), message); }
+    
     void startConnection() {
       startBegin();
       io_chanel_type::IOConnection::startConnection();
@@ -210,11 +212,11 @@ struct Transport {
       onConnected();
     }
 
-    void stop() { 
-		stopBegin();
-		stopConnection(); 
-		stopComplete();
-	}
+    void stop() {
+      stopBegin();
+      stopConnection();
+      stopComplete();
+    }
 
   private:
     std::shared_ptr<Manager> _manager;

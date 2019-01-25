@@ -105,6 +105,7 @@ template <typename Arg, typename Result> struct Transport {
       sendTo(client, nd);
     }
 
+    
     void start() override {
       std::lock_guard<std::mutex> lg(_locker);
       startBegin();
