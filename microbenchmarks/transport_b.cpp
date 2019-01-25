@@ -109,14 +109,13 @@ template <class Tr> struct TransportTester : public benchmark::Fixture {
   }
 
   void TearDown(const ::benchmark::State &) override {
-    manager->stop();
-    listener->stop();
     client->stop();
-    while (!listener->isStoped()) {
-    }
+    client->waitStoping();
 
-    while (!client->isStoped()) {
-    }
+    listener->stop();
+    listener->waitStoping();
+
+    manager->stop();
   }
 };
 

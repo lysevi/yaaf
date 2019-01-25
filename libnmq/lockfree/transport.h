@@ -54,9 +54,9 @@ struct Transport {
 
       if (listeners_count() == 0) {
         connectionsVisit([](std::shared_ptr<io_chanel_type::IOConnection> c) {
-          c->stopBegin();
+          //c->stopBegin();
           c->onError(ErrorCode(ErrorsKinds::ALL_LISTENERS_STOPED));
-          c->stopComplete();
+          //c->stopComplete();
         });
       }
     }
@@ -73,6 +73,10 @@ struct Transport {
 
     void stop() override {
       stopBegin();
+      connectionsVisit([](std::shared_ptr<io_chanel_type::IOConnection> c) {
+        c->onError(ErrorCode(ErrorsKinds::FULL_STOP));
+      });
+
       io_chanel_type::IOManager::stop();
       stopComplete();
     }
@@ -202,11 +206,15 @@ struct Transport {
     void stopConnection() { io_chanel_type::IOConnection::stopConnection(); }
 
     void start() {
-      IOConnection::startConnection();
+      startConnection();
       onConnected();
     }
 
-    void stop() { stopConnection(); }
+    void stop() { 
+		stopBegin();
+		stopConnection(); 
+		stopComplete();
+	}
 
   private:
     std::shared_ptr<Manager> _manager;

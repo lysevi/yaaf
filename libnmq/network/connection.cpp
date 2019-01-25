@@ -12,7 +12,7 @@ bool IConnectionConsumer::isConnected() const {
 }
 
 bool IConnectionConsumer::isStoped() const {
-  return _connection->isStoped();
+  return _connection->isStopBegin();
 }
 
 void IConnectionConsumer::addConnection(std::shared_ptr<Connection> c, nmq::Id id) {
@@ -39,14 +39,14 @@ void Connection::disconnect() {
 
 void Connection::reconnectOnError(const MessagePtr &d,
                                   const boost::system::error_code &err) {
-	stopBegin();
+
   {
     std::lock_guard<std::mutex> lg(_locker_consumers);
     for (auto kv : _consumers)
       kv.second->onNetworkError(d, err);
   }
-  stopComplete();
-  if (!(isStoped() && isStopBegin()) && _params.auto_reconnection) {
+
+  if (!isStopBegin()  && !isStoped() && _params.auto_reconnection) {
     this->startAsyncConnection();
   }
 }
@@ -83,7 +83,7 @@ void Connection::startAsyncConnection() {
         self->reconnectOnError(nullptr, ec);
       }
     } else {
-      
+
       if (self->_async_io->socket().is_open()) {
         logger_info("client: connected.");
         AsyncIO::data_handler_t on_d = [self](auto d, auto cancel) {
@@ -94,7 +94,7 @@ void Connection::startAsyncConnection() {
         };
 
         self->_async_io->start(on_d, on_n);
-        
+
         {
           std::lock_guard<std::mutex> lg(self->_locker_consumers);
           for (auto kv : self->_consumers) {

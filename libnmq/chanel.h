@@ -39,16 +39,15 @@ template <typename Arg, typename Result> struct BaseIOChanel {
   public:
     using io_chanel_type = typename BaseIOChanel<Arg, Result>;
 
-    IOManager(const Params &p) {
-      ENSURE(p.threads_count > 0);
-      _threads.resize(p.threads_count);
-    }
+    IOManager(const Params &p) : _params(p) { ENSURE(_params.threads_count > 0); }
 
     boost::asio::io_service *service() { return &_io_service; }
 
     virtual void start() {
-      
+
       _stop_io_service = false;
+
+      _threads.resize(_params.threads_count);
       for (unsigned int i = 0; i < _threads.size(); i++) {
         _threads[i] = std::thread([this]() {
           while (!_stop_io_service) {
@@ -56,17 +55,16 @@ template <typename Arg, typename Result> struct BaseIOChanel {
           }
         });
       }
-      
     }
 
     virtual void stop() {
-      
+
       _io_service.stop();
       _stop_io_service = true;
       for (auto &&t : _threads) {
         t.join();
       }
-
+      _threads.clear();
       std::vector<std::shared_ptr<IOListener>> lst;
       std::vector<std::shared_ptr<IOConnection>> cons;
       {
@@ -97,7 +95,6 @@ template <typename Arg, typename Result> struct BaseIOChanel {
         c->stopConnection();
         c->stopComplete();
       }
-      
     };
 
     virtual Id addListener(std::shared_ptr<IOListener> l) {
@@ -159,6 +156,7 @@ template <typename Arg, typename Result> struct BaseIOChanel {
     virtual bool isStopped() const { return _stop_io_service; }
 
   private:
+    Params _params;
     mutable std::shared_mutex _lock_listeners;
     std::unordered_map<Id, std::shared_ptr<IOListener>> _listeners;
     mutable std::shared_mutex _lock_connections;
@@ -177,7 +175,9 @@ template <typename Arg, typename Result> struct BaseIOChanel {
   public:
     IOListener(std::shared_ptr<IOManager> manager) : _manager(manager) {}
     virtual ~IOListener() { stopListener(); }
+
     Id getId() const { return _id; }
+    std::shared_ptr<IOManager> getManager() const { return _manager; }
 
     virtual void onError(const Sender &i, const ErrorCode &err) = 0;
     virtual void onMessage(const Sender &i, const Arg d, bool &cancel) = 0;
@@ -210,6 +210,7 @@ template <typename Arg, typename Result> struct BaseIOChanel {
     virtual ~IOConnection() { stopConnection(); }
 
     Id getId() const { return _id; }
+    std::shared_ptr<IOManager> getManager() const { return _manager; }
 
     virtual void onConnected() { startComplete(); }
     virtual void onError(const ErrorCode &err) { UNUSED(err); };

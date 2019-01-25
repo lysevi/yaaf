@@ -26,21 +26,21 @@ TEST_CASE("utils.to_lower") {
 }
 
 TEST_CASE("utils.longProcess") {
-  nmq::utils::LongProcess run(std::string("run"));
+  nmq::utils::LongProcess run(std::string("run"), true);
   EXPECT_FALSE(run.isStarted());
-  EXPECT_TRUE(run.isStoped());
+  EXPECT_FALSE(run.isComplete());
 
-  REQUIRE_THROWS(run.stop());
+  REQUIRE_THROWS(run.complete());
 
   run.start();
   EXPECT_TRUE(run.isStarted());
-  EXPECT_FALSE(run.isStoped());
+  EXPECT_FALSE(run.isComplete());
 
-  run.stop();
-  EXPECT_FALSE(run.isStarted());
-  EXPECT_TRUE(run.isStoped());
+  run.complete();
+  EXPECT_TRUE(run.isStarted());
+  EXPECT_TRUE(run.isComplete());
 
-  REQUIRE_THROWS(run.stop());
+  REQUIRE_THROWS(run.complete(true));
 }
 
 TEST_CASE("utils.waitable") {

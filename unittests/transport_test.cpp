@@ -83,7 +83,10 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
 
     void onError(const MockTrasport::io_chanel_type::Sender &,
                  const ErrorCode &er) override {
-      full_stop_flag = er.inner_error == nmq::ErrorsKinds::FULL_STOP;
+
+      if (er.inner_error == nmq::ErrorsKinds::FULL_STOP) {
+        full_stop_flag = true;
+      }
     };
     void onMessage(const MockTrasport::io_chanel_type::Sender &s, const MockMessage d,
                    bool &) override {
@@ -125,7 +128,12 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
     }
 
     void onError(const ErrorCode &er) override {
-      full_stop_flag = er.inner_error == nmq::ErrorsKinds::FULL_STOP;
+      if (er.inner_error == nmq::ErrorsKinds::ALL_LISTENERS_STOPED) {
+        all_listeners__stoped_flag = true;
+      }
+      if (er.inner_error == nmq::ErrorsKinds::FULL_STOP) {
+        full_stop_flag = true;
+      }
       MockTrasport::Connection::onError(er);
     };
     void onMessage(const MockResultMessage d, bool &) override {
@@ -146,6 +154,7 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
     mutable std::mutex _locker;
     std::map<uint64_t, size_t> _q;
     bool full_stop_flag = false;
+    bool all_listeners__stoped_flag = false;
   };
 
   MockTrasport::Params p;
@@ -184,10 +193,18 @@ TEMPLATE_TEST_CASE("transport", "", networkTransport, lockfreeTransport) {
   listener->stop();
   logger("listener = nullptr;");
 
-  while (client->isStarted() && !client->full_stop_flag) {
-    logger("transport: client->is_started_flag");
-    std::this_thread::yield();
+  if (std::is_same_v<MockTrasport, lockfreeTransport>) {
+    while (!client->all_listeners__stoped_flag) {
+      logger("transport: client->full_stop_flag");
+      std::this_thread::yield();
+    }
+  } else {
+    while (!client->isStoped()) {
+      logger("transport: client->isStoped");
+      std::this_thread::yield();
+    }
   }
+
   manager->stop();
   manager->waitStoping();
   logger("manager->stop();");

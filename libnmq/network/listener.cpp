@@ -43,20 +43,23 @@ void Listener::start() {
   tcp::endpoint ep(tcp::v4(), _params.port);
   auto aio = std::make_shared<network::AsyncIO>(_service);
   _acc = std::make_shared<boost::asio::ip::tcp::acceptor>(*_service, ep);
-  startAsyncAccept(aio);
   {
     std::lock_guard<std::mutex> lg(_locker_consumers);
     for (auto c : _consumers) {
       c.second->startBegin();
-      c.second->startComplete();
     }
   }
+
+  startAsyncAccept(aio);
 }
 
 void Listener::startAsyncAccept(network::AsyncIOPtr aio) {
   auto self = shared_from_this();
   _acc->async_accept(aio->socket(),
                      [self, aio](auto ec) { self->OnAcceptHandler(self, aio, ec); });
+  if (self->isStopBegin()) {
+    return;
+  }
   startComplete();
   {
     std::lock_guard<std::mutex> lg(_locker_consumers);
@@ -111,14 +114,18 @@ void Listener::OnAcceptHandler(std::shared_ptr<Listener> self, network::AsyncIOP
       aio->fullStop();
     }
   }
+
   boost::asio::ip::tcp::socket new_sock(*self->_service);
   auto newaio = std::make_shared<network::AsyncIO>(self->_service);
+  if (self->isStopBegin()) {
+    return;
+  }
   self->startAsyncAccept(newaio);
 }
 
 void Listener::stop() {
-  stopBegin();
   if (!isStoped()) {
+    stopBegin();
     logger("Listener::stop()");
 
     {
@@ -138,21 +145,19 @@ void Listener::stop() {
       for (auto con : local_copy) {
         con->close();
       }
-      
     }
 
-	{
+    {
       std::lock_guard<std::mutex> consumersLockG(_locker_consumers);
       for (auto c : _consumers) {
-        c.second->stopBegin();
         c.second->stopComplete();
       }
     }
 
-	_acc->close();
+    _acc->close();
     _acc = nullptr;
+    stopComplete();
   }
-  stopComplete();
 }
 
 void Listener::eraseClientDescription(const ListenerClientPtr client) {
@@ -160,7 +165,7 @@ void Listener::eraseClientDescription(const ListenerClientPtr client) {
   auto it = std::find_if(_connections.begin(), _connections.end(),
                          [client](auto c) { return c->get_id() == client->get_id(); });
   if (it == _connections.end()) {
-	  THROW_EXCEPTION("delete error");
+    THROW_EXCEPTION("delete error");
   }
   {
     std::lock_guard<std::mutex> consumersLockG(_locker_consumers);

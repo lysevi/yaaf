@@ -25,9 +25,10 @@ template <typename Arg, typename Result> struct Transport {
   using NetConnectionConsumer = network::IConnectionConsumer;
 
   struct Params : public io_chanel_type::Params {
-    Params() {}
+    Params() { auto_reconnect = true; }
     std::string host;
     unsigned short port;
+    bool auto_reconnect;
   };
 
   class Manager : public io_chanel_type::IOManager {
@@ -58,16 +59,16 @@ template <typename Arg, typename Result> struct Transport {
     using io_chanel_type::IOListener::startComplete;
     using io_chanel_type::IOListener::stopBegin;
     using io_chanel_type::IOListener::stopComplete;
+    using io_chanel_type::IOListener::waitStarting;
+    using io_chanel_type::IOListener::waitStoping;
 
     Listener() = delete;
     Listener(const Listener &) = delete;
     Listener &operator=(const Listener &) = delete;
 
-    Listener(std::shared_ptr<Manager> manager, const Transport::Params &transport_params)
-        : io_chanel_type::IOListener(manager) {
+    Listener(std::shared_ptr<Manager> manager, const Transport::Params &transport_params_)
+        : io_chanel_type::IOListener(manager), transport_params(transport_params_) {
       _next_message_id = 0;
-      _lstnr = std::make_shared<NetListener>(manager->service(),
-                                             NetListener::Params{transport_params.port});
     }
 
     bool onNewConnection(ListenerClientPtr i) override {
@@ -99,10 +100,14 @@ template <typename Arg, typename Result> struct Transport {
       startBegin();
       io_chanel_type::IOListener::startListener();
 
+      _lstnr = std::make_shared<NetListener>(getManager()->service(),
+                                             NetListener::Params{transport_params.port});
+
       if (!isListenerExists()) {
         _lstnr->addConsumer(this);
       }
       _lstnr->start();
+      _lstnr->waitStarting();
       startComplete();
     }
 
@@ -111,6 +116,7 @@ template <typename Arg, typename Result> struct Transport {
       io_chanel_type::IOListener::stopListener();
       _lstnr->stop();
       _lstnr->waitStoping();
+      _lstnr = nullptr;
       stopComplete();
     }
 
@@ -119,6 +125,7 @@ template <typename Arg, typename Result> struct Transport {
 
   private:
     std::shared_ptr<NetListener> _lstnr;
+    Transport::Params transport_params;
   };
 
   class Connection : public io_chanel_type::IOConnection, public NetConnectionConsumer {
@@ -132,7 +139,8 @@ template <typename Arg, typename Result> struct Transport {
                const Transport::Params &transport_Params)
         : io_chanel_type::IOConnection(manager) {
 
-      NetConnection::Params nparams(transport_Params.host, transport_Params.port);
+      NetConnection::Params nparams(transport_Params.host, transport_Params.port,
+                                    transport_Params.auto_reconnect);
       _connection = std::make_shared<NetConnection>(manager->service(), nparams);
     }
 
@@ -164,10 +172,12 @@ template <typename Arg, typename Result> struct Transport {
     }
 
     void start() override {
+      startBegin();
       IOConnection::startConnection();
       if (!isConnectionExists()) {
         _connection->addConsumer(this);
       }
+
       _connection->startAsyncConnection();
     }
 
@@ -175,6 +185,7 @@ template <typename Arg, typename Result> struct Transport {
       stopBegin();
       IOConnection::stopConnection();
       _connection->disconnect();
+	  _connection->waitStoping();
       stopComplete();
     }
 
