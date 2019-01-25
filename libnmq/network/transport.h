@@ -73,6 +73,12 @@ template <typename Arg, typename Result> struct Transport {
       _next_message_id = 0;
     }
 
+    ~Listener() {
+      if (!isStoped()) {
+        stop();
+      }
+    }
+
     bool onNewConnection(ListenerClientPtr i) override {
       return onClient(Sender{*this, i->get_id()});
     }
@@ -87,10 +93,8 @@ template <typename Arg, typename Result> struct Transport {
 
     void onNewMessage(ListenerClientPtr i, const MessagePtr &d, bool &cancel) override {
       queries::Message<Arg> msg(d);
-      //if (!isStopBegin()) 
-	  {
-        onMessage(Sender{*this, i->get_id()}, msg.msg, cancel);
-      }
+      // if (!isStopBegin())
+      { onMessage(Sender{*this, i->get_id()}, msg.msg, cancel); }
     }
 
     bool onClient(const Sender &) override { return true; }
@@ -102,6 +106,7 @@ template <typename Arg, typename Result> struct Transport {
     }
 
     void start() override {
+      std::lock_guard<std::mutex> lg(_locker);
       startBegin();
       io_chanel_type::IOListener::startListener();
 
@@ -117,11 +122,13 @@ template <typename Arg, typename Result> struct Transport {
     }
 
     void stop() override {
+      std::lock_guard<std::mutex> lg(_locker);
       stopBegin();
       io_chanel_type::IOListener::stopListener();
       _lstnr->stop();
       _lstnr->waitStoping();
       _lstnr = nullptr;
+
       stopComplete();
     }
 
@@ -131,23 +138,18 @@ template <typename Arg, typename Result> struct Transport {
   private:
     std::shared_ptr<NetListener> _lstnr;
     Transport::Params transport_params;
+    std::mutex _locker;
   };
 
   class Connection : public io_chanel_type::IOConnection, public NetConnectionConsumer {
   public:
-    using io_chanel_type::IOConnection::isStoped;
     Connection() = delete;
     Connection(const Connection &) = delete;
     Connection &operator=(const Connection &) = delete;
 
     Connection(std::shared_ptr<Manager> manager,
                const Transport::Params &transport_Params)
-        : io_chanel_type::IOConnection(manager) {
-
-      NetConnection::Params nparams(transport_Params.host, transport_Params.port,
-                                    transport_Params.auto_reconnect);
-      _connection = std::make_shared<NetConnection>(manager->service(), nparams);
-    }
+        : _transport_Params(transport_Params), io_chanel_type::IOConnection(manager) {}
 
     void onConnect() override {
       io_chanel_type::IOConnection::onConnected();
@@ -167,7 +169,9 @@ template <typename Arg, typename Result> struct Transport {
 
     void onError(const ErrorCode &err) override {
       UNUSED(err);
-      stop();
+      if (!isStopBegin()) {
+        stop();
+      }
     }
 
     void sendAsync(const Arg message) override {
@@ -177,7 +181,13 @@ template <typename Arg, typename Result> struct Transport {
     }
 
     void start() override {
+      std::lock_guard<std::mutex> lg(_locker);
       startBegin();
+
+      NetConnection::Params nparams(_transport_Params.host, _transport_Params.port,
+                                    _transport_Params.auto_reconnect);
+      _connection = std::make_shared<NetConnection>(getManager()->service(), nparams);
+
       IOConnection::startConnection();
       if (!isConnectionExists()) {
         _connection->addConsumer(this);
@@ -187,15 +197,22 @@ template <typename Arg, typename Result> struct Transport {
     }
 
     void stop() override {
+      std::lock_guard<std::mutex> lg(_locker);
       stopBegin();
       IOConnection::stopConnection();
       _connection->disconnect();
       _connection->waitStoping();
+      _connection = nullptr;
       stopComplete();
     }
 
+    bool isStoped() const { return io_chanel_type::IOConnection::isStoped(); }
+    bool isStarted() const { return io_chanel_type::IOConnection::isStarted(); }
+
   private:
     std::shared_ptr<NetConnection> _connection;
+    Transport::Params _transport_Params;
+    std::mutex _locker;
   };
 };
 } // namespace network

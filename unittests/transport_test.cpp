@@ -76,7 +76,7 @@ std::enable_if_t<std::is_same_v<T, lockfreeTransport::Params>, void> fillParams(
 } // namespace
 
 template <class TestType> struct TransportTester {
-  static void run(size_t clientsCount) {
+  static void run(size_t clientsCount, size_t listenersCount) {
     using MockTrasport = TestType;
 
     struct MockTransportListener : public MockTrasport::Listener {
@@ -93,6 +93,9 @@ template <class TestType> struct TransportTester {
       };
       void onMessage(const MockTrasport::io_chanel_type::Sender &s, const MockMessage d,
                      bool &) override {
+        if (isStopBegin()) {
+			return;
+        }
         logger_info("<=id:", d.id, " msg:", d.msg);
         _locker.lock();
         _q.insert(std::make_pair(d.id, d.msg));
@@ -169,14 +172,18 @@ template <class TestType> struct TransportTester {
     manager->start();
     manager->waitStarting();
 
-    auto listener = std::make_shared<MockTransportListener>(manager, p);
+    std::vector<std::shared_ptr<MockTransportListener>> listeners(listenersCount);
+    for (int i = 0; i < listenersCount; ++i) {
+      auto listener = std::make_shared<MockTransportListener>(manager, p);
+      listeners[i] = listener;
+      listener->start();
 
-    listener->start();
-
-    while (!listener->isStarted()) {
-      logger("transport: !listener->is_started_flag");
-      std::this_thread::yield();
+      while (!listener->isStarted()) {
+        logger("transport: !listener->is_started_flag");
+        std::this_thread::yield();
+      }
     }
+
     std::vector<std::shared_ptr<MockTransportClient>> clients(clientsCount);
 
     for (int i = 0; i < clientsCount; ++i) {
@@ -213,8 +220,12 @@ template <class TestType> struct TransportTester {
     }
 
     logger("listener->stop()");
-    listener->stop();
-    logger("listener = nullptr;");
+    for (size_t i = 0; i < listenersCount; ++i) {
+      listeners[i]->stop();
+      logger("listener = nullptr;");
+      listeners[i] = nullptr;
+    }
+
     for (auto client : clients) {
       if (client == nullptr) {
         continue;
@@ -249,13 +260,13 @@ template <class TestType> struct TransportTester {
 };
 
 TEMPLATE_TEST_CASE("transport.1", "", networkTransport, lockfreeTransport) {
-  TransportTester<TestType>::run(size_t(1));
+  TransportTester<TestType>::run(size_t(1), size_t(1));
 }
 
 TEMPLATE_TEST_CASE("transport.2", "", networkTransport, lockfreeTransport) {
-  TransportTester<TestType>::run(size_t(2));
+  TransportTester<TestType>::run(size_t(2), size_t(1));
 }
 
 TEMPLATE_TEST_CASE("transport.10", "", networkTransport, lockfreeTransport) {
-  TransportTester<TestType>::run(size_t(10));
+  TransportTester<TestType>::run(size_t(10), size_t(1));
 }
