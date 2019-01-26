@@ -26,6 +26,8 @@ struct Transport {
     size_t arg_queue_size;
     size_t result_queue_size;
   };
+  class Connection;
+  class Listener;
 
   class Manager : public io_chanel_type::IOManager {
   public:
@@ -33,7 +35,7 @@ struct Transport {
 
     Manager(const Params &p)
         : io_chanel_type::IOManager(io_chanel_type::Params(p.threads_count)), _params(p),
-          _args(p.arg_queue_size), _results(p.result_queue_size) {
+          _args(p.arg_queue_size) {
       ENSURE(_params.threads_count > 0);
       ENSURE(_params.arg_queue_size > 0);
       ENSURE(_params.result_queue_size > 0);
@@ -82,7 +84,7 @@ struct Transport {
     }
 
     bool tryPushArg(Id id, const Arg a) { return _args.tryPush(std::make_pair(id, a)); }
-    bool tryPushResult(const Result a) { return _results.tryPush(a); }
+    bool tryPushResult(const nmq::Id id, const Result a);
 
     void queueWorker() {
       auto self = shared_from_this();
@@ -102,19 +104,20 @@ struct Transport {
         }
       }
 
-      while (!_results.empty()) {
-        auto a = _results.tryPop();
-        if (a.ok) {
-          auto arg = a.result;
-          connectionsVisit([self, arg](std::shared_ptr<io_chanel_type::IOConnection> c) {
-            auto run = [self, arg, c]() {
+      connectionsVisit([self](std::shared_ptr<io_chanel_type::IOConnection> c) {
+        auto tptr = dynamic_cast<typename Transport::Connection *>(c.get());
+        ENSURE(tptr != nullptr);
+        if (!tptr->_results.empty()) {
+          auto run = [self, c, tptr]() {
+            auto arg = tptr->_results.tryPop();
+            if (arg.ok) {
               bool cancel = false;
-              c->onMessage(arg, cancel);
-            };
-            self->post(run);
-          });
+              c->onMessage(arg.result, cancel);
+            }
+          };
+          self->post(run);
         }
-      }
+      });
 
       if (!isStopped()) {
         post([self]() { dynamic_cast<Manager *>(self.get())->queueWorker(); });
@@ -125,7 +128,6 @@ struct Transport {
     Params _params;
 
     ArgQueue _args;
-    ResultQueue _results;
   };
 
   class Listener : public io_chanel_type::IOListener {
@@ -149,11 +151,10 @@ struct Transport {
 
     bool onClient(const Sender &) override { return true; }
 
-    void sendAsync(nmq::Id, const Result message) override {
-      _manager->tryPushResult(message);
+    void sendAsync(const nmq::Id id, const Result message) override {
+      _manager->tryPushResult(id, message);
     }
 
-    
     void startListener() override {
       startBegin();
       io_chanel_type::IOListener::startListener();
@@ -187,8 +188,8 @@ struct Transport {
     Connection(const Connection &) = delete;
     Connection &operator=(const Connection &) = delete;
 
-    Connection(std::shared_ptr<Manager> manager, const Transport::Params &)
-        : io_chanel_type::IOConnection(manager) {
+    Connection(std::shared_ptr<Manager> manager, const Transport::Params &p)
+        : _results(p.result_queue_size), io_chanel_type::IOConnection(manager) {
       _manager = manager;
     }
 
@@ -199,7 +200,7 @@ struct Transport {
     void onConnected() override { io_chanel_type::IOConnection::onConnected(); }
 
     void sendAsync(const Arg message) override { _manager->tryPushArg(getId(), message); }
-    
+
     void startConnection() {
       startBegin();
       io_chanel_type::IOConnection::startConnection();
@@ -218,9 +219,26 @@ struct Transport {
       stopComplete();
     }
 
+    friend Manager;
+
   private:
     std::shared_ptr<Manager> _manager;
+
+    ResultQueue _results;
   };
 };
+
+template <class Arg, class Result, class ArgQueue, class ResultQueue>
+bool Transport<Arg, Result, ArgQueue, ResultQueue>::Manager::tryPushResult(
+    const nmq::Id id, const Result a) {
+  auto target = getConnection(id);
+  if (target == nullptr) { // TODO notofy about it.
+    return false;
+  }
+  auto tptr = dynamic_cast<typename Transport::Connection *>(target.get());
+  ENSURE(tptr != nullptr);
+  return tptr->_results.tryPush(a);
+}
+
 } // namespace lockfree
 } // namespace nmq

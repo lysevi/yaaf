@@ -135,6 +135,16 @@ template <typename Arg, typename Result> struct BaseIOChanel {
       }
     }
 
+    std::shared_ptr<IOConnection> getConnection(const Id id) {
+      std::shared_lock<std::shared_mutex> sl(_lock_connections);
+      auto result = _connections.find(id);
+      if (result != _connections.end()) {
+        return result->second;
+      } else {
+        return nullptr;
+      }
+    }
+
     size_t listeners_count() const {
       std::shared_lock<std::shared_mutex> sl(_lock_listeners);
       return _listeners.size();
@@ -216,7 +226,6 @@ template <typename Arg, typename Result> struct BaseIOChanel {
     virtual void onError(const ErrorCode &err) { UNUSED(err); };
     virtual void onMessage(const Result d, bool &cancel) = 0;
     virtual void sendAsync(const Arg message) = 0;
-    
 
     virtual void startConnection() { _id = _manager->addConnection(shared_from_this()); }
 

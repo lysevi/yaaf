@@ -13,11 +13,13 @@ using namespace nmq::utils;
 
 struct MockMessage {
   uint64_t id;
+  size_t client_id;
   std::string msg;
 };
 
 struct MockResultMessage {
   uint64_t id;
+  size_t client_id;
   size_t length;
   std::string msg;
 
@@ -28,31 +30,34 @@ struct MockResultMessage {
 namespace nmq {
 namespace serialization {
 template <> struct ObjectScheme<MockMessage> {
-  using BinaryRW = nmq::serialization::BinaryReaderWriter<uint64_t, std::string>;
+  using BinaryRW = nmq::serialization::BinaryReaderWriter<uint64_t, size_t, std::string>;
 
-  static size_t capacity(const MockMessage &t) { return BinaryRW::capacity(t.id, t.msg); }
+  static size_t capacity(const MockMessage &t) {
+    return BinaryRW::capacity(t.id, t.client_id, t.msg);
+  }
   template <class Iterator> static void pack(Iterator it, const MockMessage t) {
-    return BinaryRW::write(it, t.id, t.msg);
+    return BinaryRW::write(it, t.client_id, t.id, t.msg);
   }
   template <class Iterator> static MockMessage unpack(Iterator ii) {
     MockMessage t{};
-    BinaryRW::read(ii, t.id, t.msg);
+    BinaryRW::read(ii, t.client_id, t.id, t.msg);
     return t;
   }
 };
 
 template <> struct ObjectScheme<MockResultMessage> {
-  using BinaryRW = nmq::serialization::BinaryReaderWriter<uint64_t, size_t, std::string>;
+  using BinaryRW =
+      nmq::serialization::BinaryReaderWriter<uint64_t, size_t, size_t, std::string>;
 
   static size_t capacity(const MockResultMessage &t) {
-    return BinaryRW::capacity(t.id, t.length, t.msg);
+    return BinaryRW::capacity(t.id, t.client_id, t.length, t.msg);
   }
   template <class Iterator> static void pack(Iterator it, const MockResultMessage t) {
-    return BinaryRW::write(it, t.id, t.length, t.msg);
+    return BinaryRW::write(it, t.id, t.client_id, t.length, t.msg);
   }
   template <class Iterator> static MockResultMessage unpack(Iterator ii) {
     MockResultMessage t{};
-    BinaryRW::read(ii, t.id, t.length, t.msg);
+    BinaryRW::read(ii, t.id, t.client_id, t.length, t.msg);
     return t;
   }
 };
@@ -104,6 +109,7 @@ template <class TestType> struct TransportTester {
 
         MockResultMessage answer;
         answer.id = d.id;
+        answer.client_id = d.client_id;
         answer.msg = d.msg + " " + d.msg;
         answer.length = answer.msg.size();
 
@@ -121,14 +127,15 @@ template <class TestType> struct TransportTester {
 
     struct MockTransportClient : public MockTrasport::Connection {
       MockTransportClient(std::shared_ptr<MockTrasport::Manager> &manager,
-                          const MockTrasport::Params &p)
-          : MockTrasport::Connection(manager, p) {}
+                          const MockTrasport::Params &p, size_t id_)
+          : MockTrasport::Connection(manager, p), id(id_) {}
 
       void onConnected() override { MockTrasport::Connection::onConnected(); }
 
       void sendQuery() {
         MockMessage m;
         m.id = msg_id++;
+        m.client_id = id;
         m.msg = "msg_" + std::to_string(m.id);
         logger_info("=>id:", m.id, " msg:", m.msg);
         this->sendAsync(m);
@@ -148,6 +155,7 @@ template <class TestType> struct TransportTester {
         _locker.lock();
         _q.insert(std::make_pair(d.id, d.length));
         _locker.unlock();
+        EXPECT_EQ(d.client_id, d.client_id);
         sendQuery();
       }
 
@@ -162,19 +170,21 @@ template <class TestType> struct TransportTester {
       std::map<uint64_t, size_t> _q;
       bool full_stop_flag = false;
       bool all_listeners__stoped_flag = false;
+
+      size_t id;
     };
 
     MockTrasport::Params p;
 
     fillParams(p);
-    p.threads_count = (listenersCount+clientsCount)*2;
+    p.threads_count = (listenersCount + clientsCount) * 2;
     auto manager = std::make_shared<MockTrasport::Manager>(p);
 
     manager->start();
     manager->waitStarting();
 
     std::vector<std::shared_ptr<MockTransportListener>> listeners(listenersCount);
-    for (int i = 0; i < listenersCount; ++i) {
+    for (size_t i = 0; i < listenersCount; ++i) {
       auto listener = std::make_shared<MockTransportListener>(manager, p);
       listeners[i] = listener;
       listener->start();
@@ -187,8 +197,8 @@ template <class TestType> struct TransportTester {
 
     std::vector<std::shared_ptr<MockTransportClient>> clients(clientsCount);
 
-    for (int i = 0; i < clientsCount; ++i) {
-      auto newClient = std::make_shared<MockTransportClient>(manager, p);
+    for (size_t i = 0; i < clientsCount; ++i) {
+      auto newClient = std::make_shared<MockTransportClient>(manager, p, i + 1);
       clients[i] = newClient;
 
       newClient->start();
@@ -268,11 +278,10 @@ TEMPLATE_TEST_CASE("transport.2x1", "", networkTransport, lockfreeTransport) {
   TransportTester<TestType>::run(size_t(2), size_t(1));
 }
 
-TEMPLATE_TEST_CASE("transport.5x1", "", networkTransport, lockfreeTransport) {
-  TransportTester<TestType>::run(size_t(10), size_t(1));
-}
-
-
-TEMPLATE_TEST_CASE("transport.3x2", "", lockfreeTransport) {
-  TransportTester<TestType>::run(size_t(10), size_t(2));
-}
+//TEMPLATE_TEST_CASE("transport.10x2", "", networkTransport, lockfreeTransport) {
+//  TransportTester<TestType>::run(size_t(10), size_t(2));
+//}
+//
+//TEMPLATE_TEST_CASE("transport.10x1", "", lockfreeTransport) {
+//  TransportTester<TestType>::run(size_t(10), size_t(1));
+//}
