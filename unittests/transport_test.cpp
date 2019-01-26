@@ -264,10 +264,15 @@ TEMPLATE_TEST_CASE("transport.1", "", networkTransport, lockfreeTransport) {
   TransportTester<TestType>::run(size_t(1), size_t(1));
 }
 
-TEMPLATE_TEST_CASE("transport.2x2", "", networkTransport, lockfreeTransport) {
-  TransportTester<TestType>::run(size_t(2), size_t(2));
+TEMPLATE_TEST_CASE("transport.2x1", "", networkTransport, lockfreeTransport) {
+  TransportTester<TestType>::run(size_t(2), size_t(1));
 }
 
-TEMPLATE_TEST_CASE("transport.2x5", "", networkTransport, lockfreeTransport) {
-  TransportTester<TestType>::run(size_t(2), size_t(5));
+TEMPLATE_TEST_CASE("transport.5x1", "", networkTransport, lockfreeTransport) {
+  TransportTester<TestType>::run(size_t(10), size_t(1));
+}
+
+
+TEMPLATE_TEST_CASE("transport.3x2", "", lockfreeTransport) {
+  TransportTester<TestType>::run(size_t(10), size_t(2));
 }

@@ -27,11 +27,11 @@ template <typename Arg, typename Result> struct BaseIOChanel {
   struct Params {
     Params() { threads_count = 1; }
 
-    Params(unsigned int threads) {
+    Params(size_t threads) {
       ENSURE(threads > 0);
       threads_count = threads;
     }
-    unsigned int threads_count;
+    size_t threads_count;
   };
 
   class IOManager : virtual public std::enable_shared_from_this<IOManager>,
