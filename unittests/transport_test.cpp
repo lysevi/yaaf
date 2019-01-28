@@ -65,6 +65,7 @@ template <> struct ObjectScheme<MockResultMessage> {
 } // namespace nmq
 
 namespace {
+const size_t TestableQSize = 10;
 using networkTransport = nmq::network::Transport<MockMessage, MockResultMessage>;
 using lockfreeTransport = nmq::lockfree::Transport<MockMessage, MockResultMessage>;
 
@@ -161,13 +162,15 @@ template <class TestType> struct TransportTester {
       };
 
       void onMessage(const MockResultMessage d, bool &) override {
-        logger_info("<=id:", d.id, " length:", d.length);
-        _locker.lock();
-        _q.insert(std::make_pair(d.id, d.length));
-        _locker.unlock();
-        ENSURE(d.client_id == getId());
         if (!isStopBegin()) {
-          auto aor = sendQuery();
+          logger_info("<=id:", d.id, " length:", d.length);
+          _locker.lock();
+          _q.insert(std::make_pair(d.id, d.length));
+          _locker.unlock();
+          ENSURE(d.client_id == getId());
+          if (qSize() < TestableQSize) {
+            auto aor = sendQuery();
+          }
         }
         // aor.wait();
       }
@@ -227,14 +230,14 @@ template <class TestType> struct TransportTester {
     }
 
     for (auto client : clients) {
-      while (client->qSize() < 10) {
-        logger("transport: client->_q.size() < 10 :", client->_q.size());
+      while (client->qSize() < TestableQSize) {
+        logger("transport: client->_q.size() != 10 :", client->_q.size());
         std::this_thread::yield();
       }
     }
 
     if (clientsCount > 1) {
-      auto end = (size_t)clientsCount % 2;
+      auto end = (size_t)(clientsCount / 2);
       for (size_t i = 0; i < end; ++i) {
         clients[i]->stop();
         clients[i] = nullptr;
