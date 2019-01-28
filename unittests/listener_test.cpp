@@ -4,7 +4,7 @@
 
 #include <libnmq/network/connection.h>
 #include <libnmq/network/listener.h>
-#include <libnmq/network/transport.h>
+#include <libnmq/network/net_transport.h>
 #include <libnmq/utils/logger.h>
 
 #include <catch.hpp>

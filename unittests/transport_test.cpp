@@ -1,7 +1,7 @@
 #include "helpers.h"
 
-#include <libnmq/lockfree/transport.h>
-#include <libnmq/network/transport.h>
+#include <libnmq/lockfree/l_transport.h>
+#include <libnmq/network/net_transport.h>
 
 #include <catch.hpp>
 

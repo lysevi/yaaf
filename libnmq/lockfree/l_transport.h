@@ -15,7 +15,7 @@ struct Transport {
   using SelfType = Transport<Arg, Result>;
   using ArgType = Arg;
   using ResultType = Result;
-  using io_chanel_type = typename BaseIOChanel<Arg, Result>;
+  using io_chanel_type = BaseIOChanel<Arg, Result>;
   using Sender = typename io_chanel_type::Sender;
 
   struct Params : public io_chanel_type::Params {
@@ -130,18 +130,13 @@ struct Transport {
               auto arg = a.result;
 
               Sender s{*l, arg.first};
-              //auto run = [self, s, l, arg]() 
-			  {
-                auto rawPtr = dynamic_cast<typename Transport::Listener *>(l.get());
-                bool cancel = false;
-                rawPtr->run(s, arg.second, cancel);
-              };
-              //self->post(run);
+              auto rawPtr = dynamic_cast<typename Transport::Listener *>(l.get());
+              bool cancel = false;
+              rawPtr->run(s, arg.second, cancel);
               return true;
-            } else {
-              return false; // break visitors' loop
             }
           }
+          return false; // break visitors' loop
         });
       }
 
@@ -157,8 +152,8 @@ struct Transport {
             }
           };
           self->post(run);
-          return true;
         }
+        return true;
       });
 
       if (!isStopBegin()) {
@@ -295,7 +290,7 @@ void Transport<Arg, Result, ArgQueue, ResultQueue>::Manager::pushResulLoop(
     this->markOperationAsFinished(aor);
     return;
   }
-  
+
   auto tptr = dynamic_cast<typename Transport::Connection *>(target.get());
   ENSURE(tptr != nullptr);
   ENSURE(tptr->getId() == id);
