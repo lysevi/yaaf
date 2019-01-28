@@ -5,7 +5,9 @@
 using namespace nmq;
 using namespace nmq::network;
 
-IConnectionConsumer ::~IConnectionConsumer() {}
+IConnectionConsumer ::~IConnectionConsumer() {
+  _connection->eraseConsumer(_id);
+}
 
 bool IConnectionConsumer::isConnected() const {
   return _connection->isStarted();

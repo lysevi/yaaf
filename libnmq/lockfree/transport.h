@@ -298,6 +298,7 @@ void Transport<Arg, Result, ArgQueue, ResultQueue>::Manager::pushResulLoop(
   
   auto tptr = dynamic_cast<typename Transport::Connection *>(target.get());
   ENSURE(tptr != nullptr);
+  ENSURE(tptr->getId() == id);
   if (tptr->isStopBegin() || this->isStopBegin() || tptr->_results.tryPush(a)) {
     this->markOperationAsFinished(aor);
     return;

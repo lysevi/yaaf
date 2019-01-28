@@ -187,7 +187,7 @@ template <class TestType> struct TransportTester {
     MockTrasport::Params p;
 
     fillParams(p);
-    p.threads_count = (listenersCount + clientsCount) * 2;
+    p.threads_count = (listenersCount + clientsCount);
     auto manager = std::make_shared<MockTrasport::Manager>(p);
 
     manager->start();
