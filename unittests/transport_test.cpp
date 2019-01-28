@@ -97,15 +97,16 @@ template <class TestType> struct TransportTester {
           full_stop_flag = true;
         }
       };
+
       void onMessage(const MockTrasport::io_chanel_type::Sender &s, const MockMessage d,
                      bool &) override {
-        
+
         if (isStopBegin()) {
           return;
         }
 
-		EXPECT_FALSE(is_bysy_test_flag);
-        is_bysy_test_flag=true;
+        EXPECT_FALSE(is_bysy_test_flag);
+        is_bysy_test_flag = true;
         logger_info("<=id:", d.id, " msg:", d.msg);
         _locker.lock();
         _q.insert(std::make_pair(d.id, d.msg));
@@ -122,31 +123,31 @@ template <class TestType> struct TransportTester {
         }
 
         this->sendAsync(s.id, answer).wait();
-        is_bysy_test_flag=false;
+        is_bysy_test_flag = false;
       }
 
       std::mutex _locker;
       std::map<uint64_t, std::string> _q;
       bool full_stop_flag = false;
 
-	  bool is_bysy_test_flag=false;
+      bool is_bysy_test_flag = false;
     };
 
     struct MockTransportClient : public MockTrasport::Connection {
       MockTransportClient(std::shared_ptr<MockTrasport::Manager> &manager,
-                          const MockTrasport::Params &p, size_t id_)
-          : MockTrasport::Connection(manager, p), id(id_) {}
+                          const MockTrasport::Params &p)
+          : MockTrasport::Connection(manager, p) {}
 
       void onConnected() override { MockTrasport::Connection::onConnected(); }
 
       nmq::AsyncOperationResult sendQuery() {
         MockMessage m;
         m.id = msg_id++;
-        m.client_id = id;
+        m.client_id = getId();
         m.msg = "msg_" + std::to_string(m.id);
         logger_info("=>id:", m.id, " msg:", m.msg);
         auto aor = this->sendAsync(m);
-		return aor;
+        return aor;
       }
 
       void onError(const ErrorCode &er) override {
@@ -164,9 +165,9 @@ template <class TestType> struct TransportTester {
         _locker.lock();
         _q.insert(std::make_pair(d.id, d.length));
         _locker.unlock();
-        EXPECT_EQ(d.client_id, d.client_id);
-        auto aor=sendQuery();
-//        aor.wait();
+        ENSURE(d.client_id==getId());
+        auto aor = sendQuery();
+        // aor.wait();
       }
 
       size_t qSize() const {
@@ -181,7 +182,6 @@ template <class TestType> struct TransportTester {
       bool full_stop_flag = false;
       bool all_listeners__stoped_flag = false;
 
-      size_t id;
     };
 
     MockTrasport::Params p;
@@ -208,7 +208,7 @@ template <class TestType> struct TransportTester {
     std::vector<std::shared_ptr<MockTransportClient>> clients(clientsCount);
 
     for (size_t i = 0; i < clientsCount; ++i) {
-      auto newClient = std::make_shared<MockTransportClient>(manager, p, i + 1);
+      auto newClient = std::make_shared<MockTransportClient>(manager, p);
       clients[i] = newClient;
 
       newClient->start();
@@ -288,9 +288,9 @@ TEMPLATE_TEST_CASE("transport.2x1", "", networkTransport, lockfreeTransport) {
   TransportTester<TestType>::run(size_t(2), size_t(1));
 }
 
-// TEMPLATE_TEST_CASE("transport.10x2", "", networkTransport, lockfreeTransport) {
-//  TransportTester<TestType>::run(size_t(10), size_t(2));
-//}
+TEMPLATE_TEST_CASE("transport.5x1", "", networkTransport, lockfreeTransport) {
+  TransportTester<TestType>::run(size_t(5), size_t(1));
+}
 //
 // TEMPLATE_TEST_CASE("transport.10x1", "", lockfreeTransport) {
 //  TransportTester<TestType>::run(size_t(10), size_t(1));

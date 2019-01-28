@@ -99,30 +99,33 @@ struct LoginFailed {
 template <typename T> struct Message {
   uint64_t id;
   Id asyncOperationId;
+  Id clientId;
   T msg;
-  using BinaryRW = serialization::BinaryReaderWriter<uint64_t, Id>;
+  using BinaryRW = serialization::BinaryReaderWriter<uint64_t, Id, Id>;
 
-  Message(uint64_t id_, Id asyncOperationId_, const T &msg_) {
+  Message(uint64_t id_, Id asyncOperationId_,  Id client, const T &msg_) {
     id = id_;
     msg = msg_;
+    clientId=client,
     asyncOperationId = asyncOperationId_;
   }
 
   Message(const network::MessagePtr &nd) {
     auto iterator = nd->value();
-    BinaryRW::read(iterator, id, asyncOperationId);
-    msg = serialization::ObjectScheme<T>::unpack(iterator + BinaryRW::capacity(id, asyncOperationId));
+    BinaryRW::read(iterator, id, asyncOperationId, clientId);
+    msg = serialization::ObjectScheme<T>::unpack(
+        iterator + BinaryRW::capacity(id, asyncOperationId, clientId));
   }
 
   network::MessagePtr getMessage() const {
-    auto self_size = BinaryRW::capacity(id, asyncOperationId);
+    auto self_size = BinaryRW::capacity(id, asyncOperationId, clientId);
     network::Message::size_t neededSize = static_cast<network::Message::size_t>(
         self_size + serialization::ObjectScheme<T>::capacity(msg));
 
     auto nd = std::make_shared<network::Message>(
         neededSize, (network::Message::kind_t)MessageKinds::MSG);
 
-    BinaryRW::write(nd->value(), id, asyncOperationId);
+    BinaryRW::write(nd->value(), id, asyncOperationId, clientId);
     serialization::ObjectScheme<T>::pack(nd->value() + self_size, msg);
     return nd;
   }

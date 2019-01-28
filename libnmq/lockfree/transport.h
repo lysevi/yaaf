@@ -29,7 +29,7 @@ struct Transport {
   class Connection;
   class Listener;
 
-  class Manager : public io_chanel_type::IOManager {
+  class Manager : public io_chanel_type::IOManager, public AsyncOperationsProcess {
   public:
     using io_chanel_type::IOManager::shared_from_this;
 
@@ -130,12 +130,13 @@ struct Transport {
               auto arg = a.result;
 
               Sender s{*l, arg.first};
-              auto run = [self, s, l, arg]() {
+              //auto run = [self, s, l, arg]() 
+			  {
                 auto rawPtr = dynamic_cast<typename Transport::Listener *>(l.get());
                 bool cancel = false;
                 rawPtr->run(s, arg.second, cancel);
               };
-              self->post(run);
+              //self->post(run);
               return true;
             } else {
               return false; // break visitors' loop
@@ -294,6 +295,7 @@ void Transport<Arg, Result, ArgQueue, ResultQueue>::Manager::pushResulLoop(
     this->markOperationAsFinished(aor);
     return;
   }
+  
   auto tptr = dynamic_cast<typename Transport::Connection *>(target.get());
   ENSURE(tptr != nullptr);
   if (tptr->isStopBegin() || this->isStopBegin() || tptr->_results.tryPush(a)) {

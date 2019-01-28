@@ -53,7 +53,7 @@ template <typename Arg, typename Result> struct Transport {
     Params _params;
   };
 
-  class Listener : public io_chanel_type::IOListener, public NetListenerConsumer {
+  class Listener : public io_chanel_type::IOListener, public NetListenerConsumer, public AsyncOperationsProcess {
   public:
     using io_chanel_type::IOListener::isStartBegin;
     using io_chanel_type::IOListener::isStopBegin;
@@ -104,8 +104,8 @@ template <typename Arg, typename Result> struct Transport {
     bool onClient(const Sender &) override { return true; }
 
     AsyncOperationResult sendAsync(Id client, const Result message) override {
-      auto r = _manager->makeAsyncResult();
-      queries::Message<Result> msg(getNextMessageId(), r.id, message);
+      auto r = makeAsyncResult();
+      queries::Message<Result> msg(getNextMessageId(), r.id, client, message);
 
       auto nd = msg.getMessage();
       sendTo(client, nd);
@@ -151,7 +151,9 @@ template <typename Arg, typename Result> struct Transport {
     std::shared_ptr<Manager> _manager;
   };
 
-  class Connection : public io_chanel_type::IOConnection, public NetConnectionConsumer {
+  class Connection : public io_chanel_type::IOConnection,
+                     public NetConnectionConsumer,
+                     public AsyncOperationsProcess {
   public:
     Connection() = delete;
     Connection(const Connection &) = delete;
@@ -171,7 +173,7 @@ template <typename Arg, typename Result> struct Transport {
     void onNewMessage(const MessagePtr &d, bool &cancel) override {
       if (d->header()->kind == (network::Message::kind_t)MessageKinds::OK) {
         queries::Ok okRes(d);
-        _manager->markOperationAsFinished(okRes.id);
+        markOperationAsFinished(okRes.id);
       } else {
         queries::Message<Result> msg(d);
         onMessage(msg.msg, cancel);
@@ -192,8 +194,8 @@ template <typename Arg, typename Result> struct Transport {
     }
 
     AsyncOperationResult sendAsync(const Arg message) override {
-      auto r = _manager->makeAsyncResult();
-      queries::Message<Arg> msg(getNextMessageId(), r.id, message);
+      auto r = makeAsyncResult();
+      queries::Message<Arg> msg(getNextMessageId(), r.id, getId(), message);
       auto nd = msg.getMessage();
 
       _connection->sendAsync(nd);
