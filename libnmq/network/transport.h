@@ -71,6 +71,7 @@ template <typename Arg, typename Result> struct Transport {
     Listener(std::shared_ptr<Manager> manager, const Transport::Params &transport_params_)
         : io_chanel_type::IOListener(manager), transport_params(transport_params_) {
       _next_message_id = 0;
+      _manager = manager;
     }
 
     ~Listener() {
@@ -94,18 +95,25 @@ template <typename Arg, typename Result> struct Transport {
     void onNewMessage(ListenerClientPtr i, const MessagePtr &d, bool &cancel) override {
       queries::Message<Arg> msg(d);
       // if (!isStopBegin())
+      auto okMsg = queries::Ok(msg.asyncOperationId).getMessage();
+      sendTo(i->get_id(), okMsg);
+
       { onMessage(Sender{*this, i->get_id()}, msg.msg, cancel); }
     }
 
     bool onClient(const Sender &) override { return true; }
 
-    void sendAsync(Id client, const Result message) override {
-      queries::Message<Result> msg(getNextMessageId(), message);
+    AsyncOperationResult sendAsync(Id client, const Result message) override {
+      auto r = _manager->makeAsyncResult();
+      queries::Message<Result> msg(getNextMessageId(), r.id, message);
+
       auto nd = msg.getMessage();
       sendTo(client, nd);
+
+      r.markAsFinished();
+      return r;
     }
 
-    
     void start() override {
       std::lock_guard<std::mutex> lg(_locker);
       startBegin();
@@ -140,6 +148,7 @@ template <typename Arg, typename Result> struct Transport {
     std::shared_ptr<NetListener> _lstnr;
     Transport::Params transport_params;
     std::mutex _locker;
+    std::shared_ptr<Manager> _manager;
   };
 
   class Connection : public io_chanel_type::IOConnection, public NetConnectionConsumer {
@@ -150,7 +159,9 @@ template <typename Arg, typename Result> struct Transport {
 
     Connection(std::shared_ptr<Manager> manager,
                const Transport::Params &transport_Params)
-        : _transport_Params(transport_Params), io_chanel_type::IOConnection(manager) {}
+        : _transport_Params(transport_Params), io_chanel_type::IOConnection(manager) {
+      _manager = manager;
+    }
 
     void onConnect() override {
       io_chanel_type::IOConnection::onConnected();
@@ -158,8 +169,13 @@ template <typename Arg, typename Result> struct Transport {
     };
 
     void onNewMessage(const MessagePtr &d, bool &cancel) override {
-      queries::Message<Result> msg(d);
-      onMessage(msg.msg, cancel);
+      if (d->header()->kind == (network::Message::kind_t)MessageKinds::OK) {
+        queries::Ok okRes(d);
+        _manager->markOperationAsFinished(okRes.id);
+      } else {
+        queries::Message<Result> msg(d);
+        onMessage(msg.msg, cancel);
+      }
     }
 
     void onNetworkError(const MessagePtr &,
@@ -175,10 +191,14 @@ template <typename Arg, typename Result> struct Transport {
       }
     }
 
-    void sendAsync(const Arg message) override {
-      queries::Message<Arg> msg(getNextMessageId(), message);
+    AsyncOperationResult sendAsync(const Arg message) override {
+      auto r = _manager->makeAsyncResult();
+      queries::Message<Arg> msg(getNextMessageId(), r.id, message);
       auto nd = msg.getMessage();
+
       _connection->sendAsync(nd);
+
+      return r;
     }
 
     void start() override {
@@ -214,6 +234,8 @@ template <typename Arg, typename Result> struct Transport {
     std::shared_ptr<NetConnection> _connection;
     Transport::Params _transport_Params;
     std::mutex _locker;
+
+    std::shared_ptr<Manager> _manager;
   };
 };
 } // namespace network

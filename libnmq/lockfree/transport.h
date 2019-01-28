@@ -9,8 +9,8 @@ namespace lockfree {
 
 using boost::asio::io_service;
 
-template <typename Arg, typename Result, class ArgQueue = FixedQueue<std::pair<Id, Arg>>,
-          class ResultQueue = FixedQueue<Result>>
+template <typename Arg, typename Result, class ArgQueue = Queue<std::pair<Id, Arg>>,
+          class ResultQueue = Queue<Result>>
 struct Transport {
   using SelfType = Transport<Arg, Result>;
   using ArgType = Arg;
@@ -59,6 +59,7 @@ struct Transport {
           // c->stopBegin();
           c->onError(ErrorCode(ErrorsKinds::ALL_LISTENERS_STOPED));
           // c->stopComplete();
+          return true;
         });
       }
     }
@@ -77,31 +78,70 @@ struct Transport {
       stopBegin();
       connectionsVisit([](std::shared_ptr<io_chanel_type::IOConnection> c) {
         c->onError(ErrorCode(ErrorsKinds::FULL_STOP));
+        return true;
       });
+
+      waitAllAsyncOperations();
 
       io_chanel_type::IOManager::stop();
       stopComplete();
     }
 
-    bool tryPushArg(Id id, const Arg a) { return _args.tryPush(std::make_pair(id, a)); }
-    bool tryPushResult(const nmq::Id id, const Result a);
+    void pushArgLoop(Id id, const Arg a, Id aor) {
+      if (isStopBegin() || _args.tryPush(std::make_pair(id, a))) {
+        this->markOperationAsFinished(aor);
+        return;
+      } else {
+        auto self = shared_from_this();
+        post([self, id, a, aor]() {
+          dynamic_cast<Manager *>(self.get())->pushArgLoop(id, a, aor);
+        });
+      }
+    }
+
+    void pushResulLoop(const nmq::Id id, const Result a, Id aor);
+
+    void pushArg(Id id, const Arg a, Id aor) {
+      auto self = shared_from_this();
+      post([self, id, a, aor]() {
+        dynamic_cast<Manager *>(self.get())->pushArgLoop(id, a, aor);
+      });
+    }
+
+    void pushResult(const nmq::Id id, const Result a, Id aor) {
+      auto self = shared_from_this();
+      post([self, id, a, aor]() {
+        dynamic_cast<Manager *>(self.get())->pushResulLoop(id, a, aor);
+      });
+    }
 
     void queueWorker() {
       auto self = shared_from_this();
-      while (!_args.empty()) {
-        auto a = _args.tryPop();
-        if (a.ok) {
-          auto arg = a.result;
 
-          listenersVisit([self, arg](std::shared_ptr<io_chanel_type::IOListener> l) {
-            Sender s{*l, arg.first};
-            auto run = [self, s, l, arg]() {
-              bool cancel = false;
-              l->onMessage(s, arg.second, cancel);
-            };
-            self->post(run);
-          });
-        }
+      if (!_args.empty()) {
+
+        listenersVisit([self](std::shared_ptr<io_chanel_type::IOListener> l) {
+          auto selfPtr = dynamic_cast<Manager *>(self.get());
+          auto tptr = dynamic_cast<typename Transport::Listener *>(l.get());
+
+          if (!tptr->isBusy()) {
+            auto a = selfPtr->_args.tryPop();
+            if (a.ok) {
+              auto arg = a.result;
+
+              Sender s{*l, arg.first};
+              auto run = [self, s, l, arg]() {
+                auto rawPtr = dynamic_cast<typename Transport::Listener *>(l.get());
+                bool cancel = false;
+                rawPtr->run(s, arg.second, cancel);
+              };
+              self->post(run);
+              return true;
+            } else {
+              return false; // break visitors' loop
+            }
+          }
+        });
       }
 
       connectionsVisit([self](std::shared_ptr<io_chanel_type::IOConnection> c) {
@@ -116,10 +156,11 @@ struct Transport {
             }
           };
           self->post(run);
+          return true;
         }
       });
 
-      if (!isStopped()) {
+      if (!isStopBegin()) {
         post([self]() { dynamic_cast<Manager *>(self.get())->queueWorker(); });
       }
     }
@@ -151,8 +192,10 @@ struct Transport {
 
     bool onClient(const Sender &) override { return true; }
 
-    void sendAsync(const nmq::Id id, const Result message) override {
-      _manager->tryPushResult(id, message);
+    AsyncOperationResult sendAsync(const nmq::Id id, const Result message) override {
+      auto r = _manager->makeAsyncResult();
+      _manager->pushResult(id, message, r.id);
+      return r;
     }
 
     void startListener() override {
@@ -171,8 +214,19 @@ struct Transport {
 
     void stop() { stopListener(); }
 
+    bool isBusy() { return _is_busy; }
+
+    void run(const Sender &i, const Arg d, bool &cancel) {
+      ENSURE(!_is_busy);
+      _is_busy = true;
+      onMessage(i, d, cancel);
+      _is_busy = false;
+    }
+
   private:
     std::shared_ptr<Manager> _manager;
+
+    bool _is_busy = false;
   };
 
   class Connection : public io_chanel_type::IOConnection {
@@ -199,7 +253,11 @@ struct Transport {
 
     void onConnected() override { io_chanel_type::IOConnection::onConnected(); }
 
-    void sendAsync(const Arg message) override { _manager->tryPushArg(getId(), message); }
+    AsyncOperationResult sendAsync(const Arg message) override {
+      auto r = _manager->makeAsyncResult();
+      _manager->pushArg(getId(), message, r.id);
+      return r;
+    }
 
     void startConnection() {
       startBegin();
@@ -229,15 +287,24 @@ struct Transport {
 };
 
 template <class Arg, class Result, class ArgQueue, class ResultQueue>
-bool Transport<Arg, Result, ArgQueue, ResultQueue>::Manager::tryPushResult(
-    const nmq::Id id, const Result a) {
+void Transport<Arg, Result, ArgQueue, ResultQueue>::Manager::pushResulLoop(
+    const nmq::Id id, const Result a, Id aor) {
   auto target = getConnection(id);
-  if (target == nullptr) { // TODO notofy about it.
-    return false;
+  if (target == nullptr) { // TODO notify about it.
+    this->markOperationAsFinished(aor);
+    return;
   }
   auto tptr = dynamic_cast<typename Transport::Connection *>(target.get());
   ENSURE(tptr != nullptr);
-  return tptr->_results.tryPush(a);
+  if (tptr->isStopBegin() || this->isStopBegin() || tptr->_results.tryPush(a)) {
+    this->markOperationAsFinished(aor);
+    return;
+  }
+  auto self = shared_from_this();
+  this->post([=]() {
+    auto clbk = [=]() { dynamic_cast<Manager *>(self.get())->pushResulLoop(id, a, aor); };
+    dynamic_cast<Manager *>(self.get())->post(clbk);
+  });
 }
 
 } // namespace lockfree

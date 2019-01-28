@@ -16,10 +16,10 @@ template <class T> struct Result {
   static Result<T> Ok(T t) { return Result{true, t}; }
 };
 
-template <class T, class Cont = std::vector<T>> class FixedQueue {
+template <class T, class Cont = std::vector<T>> class Queue {
 public:
-  using Callback = std::function<void()>;
-  FixedQueue(size_t capacity) : _position(-1), _values(capacity) {
+
+  Queue(size_t capacity) : _position(-1), _values(capacity) {
     static_assert(std::is_default_constructible_v<T>,
                   "T is not std::is_default_constructible_v");
     static_assert(std::is_copy_constructible_v<T>,

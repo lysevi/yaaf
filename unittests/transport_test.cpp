@@ -99,9 +99,13 @@ template <class TestType> struct TransportTester {
       };
       void onMessage(const MockTrasport::io_chanel_type::Sender &s, const MockMessage d,
                      bool &) override {
+        
         if (isStopBegin()) {
           return;
         }
+
+		EXPECT_FALSE(is_bysy_test_flag);
+        is_bysy_test_flag=true;
         logger_info("<=id:", d.id, " msg:", d.msg);
         _locker.lock();
         _q.insert(std::make_pair(d.id, d.msg));
@@ -117,12 +121,15 @@ template <class TestType> struct TransportTester {
           return;
         }
 
-        this->sendAsync(s.id, answer);
+        this->sendAsync(s.id, answer).wait();
+        is_bysy_test_flag=false;
       }
 
       std::mutex _locker;
       std::map<uint64_t, std::string> _q;
       bool full_stop_flag = false;
+
+	  bool is_bysy_test_flag=false;
     };
 
     struct MockTransportClient : public MockTrasport::Connection {
@@ -132,13 +139,14 @@ template <class TestType> struct TransportTester {
 
       void onConnected() override { MockTrasport::Connection::onConnected(); }
 
-      void sendQuery() {
+      nmq::AsyncOperationResult sendQuery() {
         MockMessage m;
         m.id = msg_id++;
         m.client_id = id;
         m.msg = "msg_" + std::to_string(m.id);
         logger_info("=>id:", m.id, " msg:", m.msg);
-        this->sendAsync(m);
+        auto aor = this->sendAsync(m);
+		return aor;
       }
 
       void onError(const ErrorCode &er) override {
@@ -150,13 +158,15 @@ template <class TestType> struct TransportTester {
         }
         MockTrasport::Connection::onError(er);
       };
+
       void onMessage(const MockResultMessage d, bool &) override {
         logger_info("<=id:", d.id, " length:", d.length);
         _locker.lock();
         _q.insert(std::make_pair(d.id, d.length));
         _locker.unlock();
         EXPECT_EQ(d.client_id, d.client_id);
-        sendQuery();
+        auto aor=sendQuery();
+//        aor.wait();
       }
 
       size_t qSize() const {
@@ -278,10 +288,10 @@ TEMPLATE_TEST_CASE("transport.2x1", "", networkTransport, lockfreeTransport) {
   TransportTester<TestType>::run(size_t(2), size_t(1));
 }
 
-//TEMPLATE_TEST_CASE("transport.10x2", "", networkTransport, lockfreeTransport) {
+// TEMPLATE_TEST_CASE("transport.10x2", "", networkTransport, lockfreeTransport) {
 //  TransportTester<TestType>::run(size_t(10), size_t(2));
 //}
 //
-//TEMPLATE_TEST_CASE("transport.10x1", "", lockfreeTransport) {
+// TEMPLATE_TEST_CASE("transport.10x1", "", lockfreeTransport) {
 //  TransportTester<TestType>::run(size_t(10), size_t(1));
 //}

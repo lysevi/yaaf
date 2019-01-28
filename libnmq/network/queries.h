@@ -1,5 +1,6 @@
 #pragma once
 
+#include <libnmq/types.h>
 #include <libnmq/network/kinds.h>
 #include <libnmq/network/message.h>
 #include <libnmq/serialization/serialization.h>
@@ -97,29 +98,31 @@ struct LoginFailed {
 
 template <typename T> struct Message {
   uint64_t id;
+  Id asyncOperationId;
   T msg;
-  using BinaryRW = serialization::BinaryReaderWriter<uint64_t>;
+  using BinaryRW = serialization::BinaryReaderWriter<uint64_t, Id>;
 
-  Message(uint64_t id_, const T &msg_) {
+  Message(uint64_t id_, Id asyncOperationId_, const T &msg_) {
     id = id_;
     msg = msg_;
+    asyncOperationId = asyncOperationId_;
   }
 
   Message(const network::MessagePtr &nd) {
     auto iterator = nd->value();
-    BinaryRW::read(iterator, id);
-    msg = serialization::ObjectScheme<T>::unpack(iterator + BinaryRW::capacity(id));
+    BinaryRW::read(iterator, id, asyncOperationId);
+    msg = serialization::ObjectScheme<T>::unpack(iterator + BinaryRW::capacity(id, asyncOperationId));
   }
 
   network::MessagePtr getMessage() const {
-    auto self_size = BinaryRW::capacity(id);
+    auto self_size = BinaryRW::capacity(id, asyncOperationId);
     network::Message::size_t neededSize = static_cast<network::Message::size_t>(
         self_size + serialization::ObjectScheme<T>::capacity(msg));
 
     auto nd = std::make_shared<network::Message>(
         neededSize, (network::Message::kind_t)MessageKinds::MSG);
 
-    BinaryRW::write(nd->value(), id);
+    BinaryRW::write(nd->value(), id, asyncOperationId);
     serialization::ObjectScheme<T>::pack(nd->value() + self_size, msg);
     return nd;
   }

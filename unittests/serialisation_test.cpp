@@ -121,12 +121,13 @@ TEST_CASE("serialization.message") {
   SchemeTestObject msg_inner{std::numeric_limits<uint64_t>::max(),
                              std::string("test_login")};
 
-  queries::Message<SchemeTestObject> lg{uint64_t(1), msg_inner};
+  queries::Message<SchemeTestObject> lg{uint64_t(1), nmq::Id(1), msg_inner};
   auto nd = lg.getMessage();
   EXPECT_EQ(nd->header()->kind, (network::Message::kind_t)MessageKinds::MSG);
 
   auto repacked = queries::Message<SchemeTestObject>(nd);
   EXPECT_EQ(repacked.id, lg.id);
+  EXPECT_EQ(repacked.asyncOperationId, nmq::Id(1));
 
   EXPECT_EQ(repacked.msg.id, msg_inner.id);
   EXPECT_EQ(repacked.msg.login, msg_inner.login);
