@@ -258,7 +258,7 @@ template <typename Arg, typename Result> struct BaseIOChanel {
     std::shared_ptr<IOManager> getManager() const { return _manager; }
 
     virtual void onError(const Sender &i, const ErrorCode &err) = 0;
-    virtual void onMessage(const Sender &i, const Arg d, bool &cancel) = 0;
+    virtual void onMessage(const Sender &i, const Arg d) = 0;
     /**
     result - true for accept, false for failed.
     */
@@ -292,7 +292,7 @@ template <typename Arg, typename Result> struct BaseIOChanel {
 
     virtual void onConnected() { startComplete(); }
     virtual void onError(const ErrorCode &err) { UNUSED(err); };
-    virtual void onMessage(const Result d, bool &cancel) = 0;
+    virtual void onMessage(const Result d) = 0;
     virtual AsyncOperationResult sendAsync(const Arg message) = 0;
 
     virtual void startConnection() { _id = _manager->addConnection(shared_from_this()); }

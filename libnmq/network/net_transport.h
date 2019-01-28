@@ -53,7 +53,9 @@ template <typename Arg, typename Result> struct Transport {
     Params _params;
   };
 
-  class Listener : public io_chanel_type::IOListener, public NetListenerConsumer, public AsyncOperationsProcess {
+  class Listener : public io_chanel_type::IOListener,
+                   public NetListenerConsumer,
+                   public AsyncOperationsProcess {
   public:
     using io_chanel_type::IOListener::isStartBegin;
     using io_chanel_type::IOListener::isStopBegin;
@@ -93,12 +95,13 @@ template <typename Arg, typename Result> struct Transport {
     }
 
     void onNewMessage(ListenerClientPtr i, const MessagePtr &d, bool &cancel) override {
+      UNUSED(cancel);
       queries::Message<Arg> msg(d);
       // if (!isStopBegin())
       auto okMsg = queries::Ok(msg.asyncOperationId).getMessage();
       sendTo(i->get_id(), okMsg);
 
-      { onMessage(Sender{*this, i->get_id()}, msg.msg, cancel); }
+      { onMessage(Sender{*this, i->get_id()}, msg.msg); }
     }
 
     bool onClient(const Sender &) override { return true; }
@@ -175,8 +178,11 @@ template <typename Arg, typename Result> struct Transport {
         queries::Ok okRes(d);
         markOperationAsFinished(okRes.id);
       } else {
-        queries::Message<Result> msg(d);
-        onMessage(msg.msg, cancel);
+        //this->_manager->post([=]() 
+		{
+          queries::Message<Result> msg(d);
+          onMessage(msg.msg);
+        }//);
       }
     }
 

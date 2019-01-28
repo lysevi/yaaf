@@ -99,8 +99,7 @@ template <class TestType> struct TransportTester {
         }
       };
 
-      void onMessage(const MockTrasport::io_chanel_type::Sender &s, const MockMessage d,
-                     bool &) override {
+      void onMessage(const MockTrasport::io_chanel_type::Sender &s, const MockMessage d) override {
 
         if (isStopBegin()) {
           return;
@@ -161,7 +160,7 @@ template <class TestType> struct TransportTester {
         MockTrasport::Connection::onError(er);
       };
 
-      void onMessage(const MockResultMessage d, bool &) override {
+      void onMessage(const MockResultMessage d) override {
         if (!isStopBegin()) {
           logger_info("<=id:", d.id, " length:", d.length);
           _locker.lock();
@@ -170,9 +169,9 @@ template <class TestType> struct TransportTester {
           ENSURE(d.client_id == getId());
           if (qSize() < TestableQSize) {
             auto aor = sendQuery();
+            //aor.wait();
           }
         }
-        // aor.wait();
       }
 
       size_t qSize() const {

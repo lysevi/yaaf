@@ -48,7 +48,7 @@ struct MockTransportListener : public MockTrasport::Listener {
     UNUSED(er);
   };
   void onMessage(const typename MockTrasport::io_chanel_type::Sender &s,
-                 typename const MockTrasport::ArgType d, bool &) override {
+                 typename const MockTrasport::ArgType d) override {
     nmq::logger("<= d", d);
     _count++;
 
@@ -71,7 +71,7 @@ struct MockTransportClient : public MockTrasport::Connection {
   void sendQuery() { this->sendAsync(toSend); }
 
   void onError(const nmq::ErrorCode &er) override { UNUSED(er); };
-  void onMessage(const typename MockTrasport::ResultType d, bool &) override {
+  void onMessage(const typename MockTrasport::ResultType d) override {
     UNUSED(d);
     sendQuery();
   }

@@ -131,30 +131,13 @@ struct Transport {
 
               Sender s{*l, arg.first};
               auto rawPtr = dynamic_cast<typename Transport::Listener *>(l.get());
-              bool cancel = false;
-              rawPtr->run(s, arg.second, cancel);
+              rawPtr->run(s, arg.second);
               return true;
             }
           }
           return false; // break visitors' loop
         });
       }
-
-      connectionsVisit([self](std::shared_ptr<io_chanel_type::IOConnection> c) {
-        auto tptr = dynamic_cast<typename Transport::Connection *>(c.get());
-        ENSURE(tptr != nullptr);
-        if (!tptr->_results.empty()) {
-          auto run = [self, c, tptr]() {
-            auto arg = tptr->_results.tryPop();
-            if (arg.ok) {
-              bool cancel = false;
-              c->onMessage(arg.result, cancel);
-            }
-          };
-          self->post(run);
-        }
-        return true;
-      });
 
       if (!isStopBegin()) {
         post([self]() { dynamic_cast<Manager *>(self.get())->queueWorker(); });
@@ -212,16 +195,15 @@ struct Transport {
 
     bool isBusy() { return _is_busy; }
 
-    void run(const Sender &i, const Arg d, bool &cancel) {
+    void run(const Sender &i, const Arg d) {
       ENSURE(!_is_busy);
       _is_busy = true;
-      onMessage(i, d, cancel);
+      onMessage(i, d);
       _is_busy = false;
     }
 
   private:
     std::shared_ptr<Manager> _manager;
-
     bool _is_busy = false;
   };
 
@@ -258,6 +240,17 @@ struct Transport {
     void startConnection() {
       startBegin();
       io_chanel_type::IOConnection::startConnection();
+      auto self = shared_from_this();
+
+      _manager->post([self]() {
+        auto tptr = dynamic_cast<Connection *>(self.get());
+        tptr->queueWorker();
+      });
+    }
+
+    void run(const Result d) {
+      onMessage(d);
+      _is_busy.clear(std::memory_order_release);
     }
 
     void stopConnection() { io_chanel_type::IOConnection::stopConnection(); }
@@ -275,10 +268,31 @@ struct Transport {
 
     friend Manager;
 
+  protected:
+    void queueWorker() {
+      auto self = shared_from_this();
+      if (self->isStopBegin()) {
+        return;
+      }
+      auto tptr = dynamic_cast<Connection *>(self.get());
+      if (!tptr->_results.empty() &&
+          tptr->_is_busy.test_and_set(std::memory_order_acquire)) {
+        auto run = [self, tptr]() {
+          auto arg = tptr->_results.tryPop();
+          if (arg.ok) {
+            tptr->run(arg.result);
+          }
+        };
+        tptr->_manager->post(run);
+      }
+      _manager->post([self, tptr]() { tptr->queueWorker(); });
+    }
+
   private:
     std::shared_ptr<Manager> _manager;
 
     ResultQueue _results;
+    std::atomic_flag _is_busy{ATOMIC_FLAG_INIT};
   };
 };
 
