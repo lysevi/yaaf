@@ -7,6 +7,7 @@
 
 #include <iterator>
 #include <vector>
+#include <algorithm>
 
 using namespace nmq;
 using namespace nmq::utils;
@@ -99,7 +100,8 @@ template <class TestType> struct TransportTester {
         }
       };
 
-      void onMessage(const MockTrasport::io_chanel_type::Sender &s, const MockMessage d) override {
+      void onMessage(const MockTrasport::io_chanel_type::Sender &s,
+                     const MockMessage d) override {
 
         if (isStopBegin()) {
           return;
@@ -122,7 +124,8 @@ template <class TestType> struct TransportTester {
           return;
         }
 
-        this->sendAsync(s.id, answer).wait();
+        auto aor = this->sendAsync(s.id, answer);
+        aor.wait();
         is_bysy_test_flag = false;
       }
 
@@ -167,10 +170,6 @@ template <class TestType> struct TransportTester {
           _q.insert(std::make_pair(d.id, d.length));
           _locker.unlock();
           ENSURE(d.client_id == getId());
-          if (qSize() < TestableQSize) {
-            auto aor = sendQuery();
-            //aor.wait();
-          }
         }
       }
 
@@ -190,7 +189,7 @@ template <class TestType> struct TransportTester {
     MockTrasport::Params p;
 
     fillParams(p);
-    p.threads_count = (listenersCount + clientsCount);
+    p.threads_count = (listenersCount + clientsCount) + 3;
     auto manager = std::make_shared<MockTrasport::Manager>(p);
 
     manager->start();
@@ -224,14 +223,20 @@ template <class TestType> struct TransportTester {
       newClient->sendQuery();
     }
 
-    for (auto client : clients) {
-      client->sendQuery();
-    }
+    auto checkF = [](std::shared_ptr<MockTransportClient> c) {
+      return c->_q.size() > TestableQSize;
+    };
 
-    for (auto client : clients) {
-      while (client->qSize() < TestableQSize) {
-        logger("transport: client->_q.size() != 10 :", client->_q.size());
-        std::this_thread::yield();
+    for (;;) {
+
+      for (auto client : clients) {
+        auto aor = client->sendQuery();
+        aor.wait();
+      }
+
+      auto check = std::all_of(clients.begin(), clients.end(), checkF);
+      if (check) {
+        break;
       }
     }
 
@@ -291,10 +296,10 @@ TEMPLATE_TEST_CASE("transport.2x1", "", networkTransport, lockfreeTransport) {
   TransportTester<TestType>::run(size_t(2), size_t(1));
 }
 
-TEMPLATE_TEST_CASE("transport.5x1", "", networkTransport, lockfreeTransport) {
-  TransportTester<TestType>::run(size_t(5), size_t(1));
-}
+// TEMPLATE_TEST_CASE("transport.5x1", "", networkTransport, lockfreeTransport) {
+//  TransportTester<TestType>::run(size_t(5), size_t(1));
+//}
 //
 // TEMPLATE_TEST_CASE("transport.10x1", "", lockfreeTransport) {
-//  TransportTester<TestType>::run(size_t(10), size_t(1));
+//  TransportTester<TestType>::run(size_t(1), size_t(1));
 //}

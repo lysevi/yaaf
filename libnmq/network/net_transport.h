@@ -178,11 +178,11 @@ template <typename Arg, typename Result> struct Transport {
         queries::Ok okRes(d);
         markOperationAsFinished(okRes.id);
       } else {
-        //this->_manager->post([=]() 
+        this->_manager->post([=]() 
 		{
           queries::Message<Result> msg(d);
           onMessage(msg.msg);
-        }//);
+        });
       }
     }
 
