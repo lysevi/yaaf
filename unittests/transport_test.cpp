@@ -165,8 +165,10 @@ template <class TestType> struct TransportTester {
         _locker.lock();
         _q.insert(std::make_pair(d.id, d.length));
         _locker.unlock();
-        ENSURE(d.client_id==getId());
-        auto aor = sendQuery();
+        ENSURE(d.client_id == getId());
+        if (!isStopBegin()) {
+          auto aor = sendQuery();
+        }
         // aor.wait();
       }
 
@@ -181,7 +183,6 @@ template <class TestType> struct TransportTester {
       std::map<uint64_t, size_t> _q;
       bool full_stop_flag = false;
       bool all_listeners__stoped_flag = false;
-
     };
 
     MockTrasport::Params p;
