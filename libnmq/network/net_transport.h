@@ -101,7 +101,7 @@ template <typename Arg, typename Result> struct Transport {
       auto okMsg = queries::Ok(msg.asyncOperationId).getMessage();
       sendTo(i->get_id(), okMsg);
 
-      { onMessage(Sender{*this, i->get_id()}, msg.msg); }
+      onMessage(Sender{*this, i->get_id()}, msg.msg);
     }
 
     bool onClient(const Sender &) override { return true; }
@@ -178,10 +178,10 @@ template <typename Arg, typename Result> struct Transport {
         queries::Ok okRes(d);
         markOperationAsFinished(okRes.id);
       } else {
-        this->_manager->post([=]() 
-		{
+        auto self = shared_from_this();
+        this->_manager->post([self, d]() {
           queries::Message<Result> msg(d);
-          onMessage(msg.msg);
+          self->onMessage(msg.msg);
         });
       }
     }
