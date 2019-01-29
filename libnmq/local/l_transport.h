@@ -125,17 +125,10 @@ struct Transport {
           auto tptr = dynamic_cast<typename Transport::Listener *>(l.get());
 
           if (!tptr->isBusy()) {
-            auto a = selfPtr->_args.tryPop();
-            if (a.ok) {
-              auto arg = a.result;
-
-              Sender s{*l, arg.first};
-              auto rawPtr = dynamic_cast<typename Transport::Listener *>(l.get());
-              rawPtr->run(s, arg.second);
-              return true;
-            }
+            auto rawPtr = dynamic_cast<typename Transport::Listener *>(l.get());
+            return rawPtr->run(selfPtr->_args);
           }
-          return false; // break visitors' loop
+          return true; // break visitors' loop
         });
       }
 
@@ -195,11 +188,21 @@ struct Transport {
 
     bool isBusy() { return _is_busy; }
 
-    void run(const Sender &i, const Arg d) {
-      ENSURE(!_is_busy);
-      _is_busy = true;
-      onMessage(i, d);
-      _is_busy = false;
+    bool run(ArgQueue &args) {
+      if (!_is_busy) { // TODO make thread safety
+        auto a = args.tryPop();
+        if (a.ok) {
+          auto arg = a.result;
+
+          Sender s{*l, arg.first};
+          _is_busy = true;
+          // TODO run on _manager->post
+          onMessage(i, arg.result);
+          _is_busy = false;
+          return true;
+        }
+      }
+      return false;
     }
 
   private:
