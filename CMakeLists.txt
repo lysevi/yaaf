@@ -83,7 +83,7 @@ endif(NMQ_ENABLE_TESTS)
 
 #########
 
-SET(NMQ_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} CACHE STRING "nmq include dir.")
+SET(NMQ_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_BINARY_DIR} CACHE STRING "nmq include dir.")
 
 add_subdirectory (libnmq)
 
