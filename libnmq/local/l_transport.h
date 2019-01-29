@@ -41,6 +41,11 @@ struct Transport {
       ENSURE(_params.result_queue_size > 0);
     }
 
+    std::shared_ptr<Manager> shared_self() {
+      auto self = shared_from_this();
+      return std::dynamic_pointer_cast<Manager>(self);
+    }
+
     Id addListener(std::shared_ptr<typename io_chanel_type::IOListener> l) override {
       auto res = io_chanel_type::IOManager::addListener(l);
       return res;
@@ -69,8 +74,8 @@ struct Transport {
     void start() override {
       startBegin();
       io_chanel_type::IOManager::start();
-      auto self = shared_from_this();
-      post([self]() { dynamic_cast<Manager *>(self.get())->queueWorker(); });
+      auto self = shared_self();
+      post([self]() { self.get()->queueWorker(); });
       startComplete();
     }
 
@@ -92,48 +97,40 @@ struct Transport {
         this->markOperationAsFinished(aor);
         return;
       } else {
-        auto self = shared_from_this();
-        post([self, id, a, aor]() {
-          dynamic_cast<Manager *>(self.get())->pushArgLoop(id, a, aor);
-        });
+        auto self = shared_self();
+        post([self, id, a, aor]() { self.get()->pushArgLoop(id, a, aor); });
       }
     }
 
     void pushResulLoop(const nmq::Id id, const Result a, Id aor);
 
     void pushArg(Id id, const Arg a, Id aor) {
-      auto self = shared_from_this();
-      post([self, id, a, aor]() {
-        dynamic_cast<Manager *>(self.get())->pushArgLoop(id, a, aor);
-      });
+      auto self = shared_self();
+      post([self, id, a, aor]() { self->pushArgLoop(id, a, aor); });
     }
 
     void pushResult(const nmq::Id id, const Result a, Id aor) {
-      auto self = shared_from_this();
-      post([self, id, a, aor]() {
-        dynamic_cast<Manager *>(self.get())->pushResulLoop(id, a, aor);
-      });
+      auto self = shared_self();
+      post([self, id, a, aor]() { self->pushResulLoop(id, a, aor); });
     }
 
     void queueWorker() {
-      auto self = shared_from_this();
+      auto self = shared_self();
 
       if (!_args.empty()) {
 
         listenersVisit([self](std::shared_ptr<io_chanel_type::IOListener> l) {
-          auto selfPtr = dynamic_cast<Manager *>(self.get());
-          auto tptr = dynamic_cast<typename Transport::Listener *>(l.get());
+          auto tptr = std::dynamic_pointer_cast<typename Transport::Listener>(l);
 
           if (!tptr->isBusy()) {
-            auto rawPtr = dynamic_cast<typename Transport::Listener *>(l.get());
-            return rawPtr->run(selfPtr->_args);
+            return tptr->run(self->_args);
           }
           return true; // break visitors' loop
         });
       }
 
       if (!isStopBegin()) {
-        post([self]() { dynamic_cast<Manager *>(self.get())->queueWorker(); });
+        post([self]() { self->queueWorker(); });
       }
     }
 
@@ -228,6 +225,11 @@ struct Transport {
       _manager = manager;
     }
 
+    std::shared_ptr<Connection> shared_self() {
+      auto self = shared_from_this();
+      return std::dynamic_pointer_cast<Connection>(self);
+    }
+
     void onError(const ErrorCode &err) override {
       io_chanel_type::IOConnection::onError(err);
     }
@@ -243,12 +245,9 @@ struct Transport {
     void startConnection() {
       startBegin();
       io_chanel_type::IOConnection::startConnection();
-      auto self = shared_from_this();
+      auto self = shared_self();
 
-      _manager->post([self]() {
-        auto tptr = dynamic_cast<Connection *>(self.get());
-        tptr->queueWorker();
-      });
+      _manager->post([self]() { self->queueWorker(); });
     }
 
     void run(ResultQueue &q) {
@@ -278,16 +277,15 @@ struct Transport {
 
   protected:
     void queueWorker() {
-      auto self = shared_from_this();
+      auto self = shared_self();
       if (self->isStopBegin()) {
         return;
       }
-      auto tptr = dynamic_cast<Connection *>(self.get());
-      if (!tptr->_results.empty()) {
-        auto run = [self, tptr]() { tptr->run(tptr->_results); };
-        tptr->_manager->post(run);
+      if (!self->_results.empty()) {
+        auto run = [self]() { self->run(self->_results); };
+        self->_manager->post(run);
       }
-      _manager->post([self, tptr]() { tptr->queueWorker(); });
+      _manager->post([self]() { self->queueWorker(); });
     }
 
   private:
@@ -307,17 +305,17 @@ void Transport<Arg, Result, ArgQueue, ResultQueue>::Manager::pushResulLoop(
     return;
   }
 
-  auto tptr = dynamic_cast<typename Transport::Connection *>(target.get());
+  auto tptr = std::dynamic_pointer_cast<typename Transport::Connection>(target);
   ENSURE(tptr != nullptr);
   ENSURE(tptr->getId() == id);
   if (tptr->isStopBegin() || this->isStopBegin() || tptr->_results.tryPush(a)) {
     this->markOperationAsFinished(aor);
     return;
   }
-  auto self = shared_from_this();
+  auto self = shared_self();
   this->post([=]() {
-    auto clbk = [=]() { dynamic_cast<Manager *>(self.get())->pushResulLoop(id, a, aor); };
-    dynamic_cast<Manager *>(self.get())->post(clbk);
+    auto clbk = [=]() { self->pushResulLoop(id, a, aor); };
+    self->post(clbk);
   });
 }
 
