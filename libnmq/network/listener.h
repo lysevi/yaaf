@@ -18,18 +18,17 @@ public:
 
   virtual void onNetworkError(ListenerClientPtr i, const network::MessagePtr &d,
                               const boost::system::error_code &err) = 0;
-  virtual void onNewMessage(ListenerClientPtr i, const network::MessagePtr &d,
+  virtual void onNewMessage(ListenerClientPtr i, network::MessagePtr &&d,
                             bool &cancel) = 0;
   virtual bool onNewConnection(ListenerClientPtr i) = 0;
   virtual void onDisconnect(const ListenerClientPtr &i) = 0;
 
-  EXPORT void setListener(const std::shared_ptr<Listener> &lstnr, Id id);
+  EXPORT void setListener(const std::shared_ptr<Listener> &lstnr);
   EXPORT bool isListenerExists() const { return _lstnr != nullptr; }
   EXPORT void sendTo(Id id, network::MessagePtr &d);
 
 private:
   std::shared_ptr<Listener> _lstnr;
-  Id _id;
 };
 
 using IListenerConsumerPtr = IListenerConsumer *;
@@ -55,7 +54,7 @@ public:
   EXPORT void eraseClientDescription(const ListenerClientPtr client);
   EXPORT void addConsumer(const IListenerConsumerPtr &c);
 
-  EXPORT void eraseConsumer(Id id);
+  EXPORT void eraseConsumer();
 
   friend ListenerClient;
 
@@ -64,7 +63,7 @@ protected:
 
   void onNetworkError(ListenerClientPtr i, const network::MessagePtr &d,
                       const boost::system::error_code &err);
-  void onNewMessage(ListenerClientPtr i, const network::MessagePtr &d, bool &cancel);
+  void onNewMessage(ListenerClientPtr i, network::MessagePtr &&d, bool &cancel);
 
 private:
   void startAsyncAccept(network::AsyncIOPtr aio);
@@ -78,9 +77,7 @@ protected:
   std::shared_ptr<boost::asio::ip::tcp::acceptor> _acc = nullptr;
   std::atomic_int _next_id;
 
-  std::mutex _locker_consumers;
-  std::atomic_int _cnext_consumer_id;
-  std::unordered_map<Id, IListenerConsumerPtr> _consumers;
+  IListenerConsumerPtr _consumer;
 
   std::mutex _locker_connections;
   std::list<ListenerClientPtr> _connections;

@@ -34,7 +34,7 @@ struct MockListener : public nmq::network::IListenerConsumer {
                       const network::MessagePtr & /*d*/,
                       const boost::system::error_code & /*err*/) override {}
 
-  void onNewMessage(nmq::network::ListenerClientPtr i, const network::MessagePtr & /*d*/,
+  void onNewMessage(nmq::network::ListenerClientPtr i, network::MessagePtr && /*d*/,
                     bool & /*cancel*/) override {}
 
   void onDisconnect(const nmq::network::ListenerClientPtr & /*i*/) override {
@@ -48,7 +48,7 @@ struct MockConnection : public nmq::network::IConnectionConsumer {
   MockConnection() {}
 
   void onConnect() override { mock_is_connected = true; };
-  void onNewMessage(const nmq::network::MessagePtr &, bool &) override {}
+  void onNewMessage(nmq::network::MessagePtr &&, bool &) override {}
   void onNetworkError(const nmq::network::MessagePtr &,
                       const boost::system::error_code &err) override {
     bool isError = err == boost::asio::error::operation_aborted ||

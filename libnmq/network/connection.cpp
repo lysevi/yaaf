@@ -6,7 +6,7 @@ using namespace nmq;
 using namespace nmq::network;
 
 IConnectionConsumer ::~IConnectionConsumer() {
-  _connection->eraseConsumer(_id);
+  _connection->eraseConsumer();
 }
 
 bool IConnectionConsumer::isConnected() const {
@@ -17,15 +17,12 @@ bool IConnectionConsumer::isStoped() const {
   return _connection->isStopBegin();
 }
 
-void IConnectionConsumer::addConnection(std::shared_ptr<Connection> c, nmq::Id id) {
+void IConnectionConsumer::addConnection(std::shared_ptr<Connection> c) {
   _connection = c;
-  _id = id;
 }
 
 Connection::Connection(boost::asio::io_service *service, const Params &params)
-    : _service(service), _params(params) {
-  _next_consumer_id.store(0);
-}
+    : _service(service), _params(params) {}
 
 Connection::~Connection() {
   disconnect();
@@ -43,12 +40,12 @@ void Connection::reconnectOnError(const MessagePtr &d,
                                   const boost::system::error_code &err) {
 
   {
-    std::lock_guard<std::mutex> lg(_locker_consumers);
-    for (auto kv : _consumers)
-      kv.second->onNetworkError(d, err);
+    if (_consumers != nullptr) {
+      _consumers->onNetworkError(d, err);
+    }
   }
 
-  if (!isStopBegin()  && !isStoped() && _params.auto_reconnection) {
+  if (!isStopBegin() && !isStoped() && _params.auto_reconnection) {
     this->startAsyncConnection();
   }
 }
@@ -89,7 +86,7 @@ void Connection::startAsyncConnection() {
       if (self->_async_io->socket().is_open()) {
         logger_info("client: connected.");
         AsyncIO::data_handler_t on_d = [self](auto d, auto cancel) {
-          self->onDataReceive(d, cancel);
+          self->onDataReceive(std::move(d), cancel);
         };
         AsyncIO::error_handler_t on_n = [self](auto d, auto err) {
           self->reconnectOnError(d, err);
@@ -97,11 +94,8 @@ void Connection::startAsyncConnection() {
 
         self->_async_io->start(on_d, on_n);
 
-        {
-          std::lock_guard<std::mutex> lg(self->_locker_consumers);
-          for (auto kv : self->_consumers) {
-            kv.second->onConnect();
-          }
+        if (self->_consumers != nullptr) {
+          self->_consumers->onConnect();
         }
         self->startComplete();
       }
@@ -109,13 +103,10 @@ void Connection::startAsyncConnection() {
   });
 }
 
-void Connection::onDataReceive(const MessagePtr &d, bool &cancel) {
+void Connection::onDataReceive(MessagePtr &&d, bool &cancel) {
   {
-    std::lock_guard<std::mutex> lg(_locker_consumers);
-    for (auto kv : _consumers) {
-      bool cncl = false;
-      kv.second->onNewMessage(d, cncl);
-      cancel = cancel && cncl;
+    if (_consumers != nullptr) {
+      _consumers->onNewMessage(std::move(d), cancel);
     }
   }
 }
@@ -127,13 +118,10 @@ void Connection::sendAsync(const MessagePtr &d) {
 }
 
 void Connection::addConsumer(const IConnectionConsumerPtr &c) {
-  std::lock_guard<std::mutex> lg(_locker_consumers);
-  auto id = _next_consumer_id.fetch_add(1);
-  _consumers[id] = c;
-  c->addConnection(shared_from_this(), id);
+  _consumers = c;
+  c->addConnection(shared_from_this());
 }
 
-void Connection::eraseConsumer(nmq::Id id) {
-  std::lock_guard<std::mutex> lg(_locker_consumers);
-  _consumers.erase(id);
+void Connection::eraseConsumer() {
+  _consumers = nullptr;
 }

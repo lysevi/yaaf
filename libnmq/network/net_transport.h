@@ -94,9 +94,9 @@ template <typename Arg, typename Result> struct Transport {
       onError(Sender{*this, i->get_id()}, ErrorCode{err});
     }
 
-    void onNewMessage(ListenerClientPtr i, const MessagePtr &d, bool &cancel) override {
+    void onNewMessage(ListenerClientPtr i, MessagePtr &&d, bool &cancel) override {
       UNUSED(cancel);
-      queries::Message<Arg> msg(d);
+      queries::Message<Arg> msg(std::move(d));
       // if (!isStopBegin())
       auto okMsg = queries::Ok(msg.asyncOperationId).getMessage();
       sendTo(i->get_id(), okMsg);
@@ -173,15 +173,15 @@ template <typename Arg, typename Result> struct Transport {
       this->onConnected();
     };
 
-    void onNewMessage(const MessagePtr &d, bool &cancel) override {
+    void onNewMessage(MessagePtr &&d, bool &cancel) override {
       UNUSED(cancel);
       if (d->header()->kind == (network::Message::kind_t)MessageKinds::OK) {
-        queries::Ok okRes(d);
+        queries::Ok okRes(std::move(d));
         markOperationAsFinished(okRes.id);
       } else {
         auto self = shared_from_this();
         this->_manager->post([self, d]() {
-          queries::Message<Result> msg(d);
+          queries::Message<Result> msg(std::move(d));
           self->onMessage(std::move(msg.msg));
         });
       }

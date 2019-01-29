@@ -12,33 +12,28 @@
 namespace nmq {
 namespace serialization {
 
-template <class T> struct getSize {
+struct getSize {
+  template <class T>
   static std::enable_if_t<std::is_pod_v<T>, size_t> size(const T &) noexcept {
     return sizeof(T);
   }
-};
 
-template <> struct getSize<std::string> {
   static size_t size(const std::string &s) noexcept {
     return sizeof(uint32_t) + s.length();
   }
-};
-
-template <class T> struct getSize<std::vector<T>> {
-  static size_t size(const std::vector<T> &s) noexcept {
+  template <class T> static size_t size(const std::vector<T &&> &s) noexcept {
     static_assert(std::is_pod<T>::value, "T is not a POD object");
     return sizeof(uint32_t) + s.size() * sizeof(T);
   }
 };
 
-template <typename S> struct Writer {
+struct Writer {
+  template <typename S>
   static std::enable_if_t<std::is_pod_v<S>, size_t> write(uint8_t *it, const S &s) {
     std::memcpy(it, &s, sizeof(s));
     return sizeof(s);
   }
-};
 
-template <> struct Writer<std::string> {
   static size_t write(uint8_t *it, const std::string &s) {
     auto len = static_cast<uint32_t>(s.size());
     auto ptr = it;
@@ -46,10 +41,8 @@ template <> struct Writer<std::string> {
     std::memcpy(ptr + sizeof(uint32_t), s.data(), s.size());
     return sizeof(uint32_t) + s.size();
   }
-};
 
-template <class T> struct Writer<std::vector<T>> {
-  static size_t write(uint8_t *it, const std::vector<T> &s) {
+  template <class T> static size_t write(uint8_t *it, const std::vector<T &&> &s) {
     static_assert(std::is_pod<T>::value, "T is not a POD object");
     auto len = static_cast<uint32_t>(s.size());
     auto ptr = it;
@@ -59,15 +52,14 @@ template <class T> struct Writer<std::vector<T>> {
   }
 };
 
-template <typename S> struct Reader {
+struct Reader {
+  template <typename S>
   static std::enable_if_t<std::is_pod_v<S>, size_t> read(uint8_t *it, S &s) {
     auto ptr = it;
     std::memcpy(&s, ptr, sizeof(s));
     return sizeof(s);
   }
-};
 
-template <> struct Reader<std::string> {
   static size_t read(uint8_t *it, std::string &s) {
     uint32_t len = 0;
     auto ptr = it;
@@ -76,10 +68,7 @@ template <> struct Reader<std::string> {
     std::memcpy(&s[0], ptr + sizeof(uint32_t), size_t(len));
     return sizeof(uint32_t) + len;
   }
-};
-
-template <class T> struct Reader<std::vector<T>> {
-  static size_t read(uint8_t *it, std::vector<T> &s) {
+  template <class T> static size_t read(uint8_t *it, std::vector<T &&> &s) {
     static_assert(std::is_pod<T>::value, "S is not a POD value");
     uint32_t len = 0;
     auto ptr = it;
@@ -92,39 +81,38 @@ template <class T> struct Reader<std::vector<T>> {
 
 template <class... T> class BinaryReaderWriter {
   template <typename Head>
-  static void calculateSize(size_t &result, const Head &&head) noexcept {
-    result += getSize<Head>::size(head);
+  static void calculateSize(size_t &result, Head &&head) noexcept {
+    result += getSize::size(head);
   }
 
   template <typename Head, typename... Tail>
-  static void calculateSize(size_t &result, const Head &&head,
-                            const Tail &&... t) noexcept {
-    result += getSize<Head>::size(std::forward<const Head>(head));
-    calculateSize(result, std::forward<const Tail>(t)...);
+  static void calculateSize(size_t &result, Head &&head, Tail &&... t) noexcept {
+    result += getSize::size(std::forward<Head>(head));
+    calculateSize(result, std::forward<Tail>(t)...);
   }
 
-  template <typename Head> static void writeArgs(uint8_t *it, const Head &head) noexcept {
-    auto szofcur = Writer<Head>::write(it, head);
-    it += szofcur;
-  }
-
-  template <typename Head, typename... Tail>
-  static void writeArgs(uint8_t *it, const Head &head, const Tail &... t) noexcept {
-    auto szofcur = Writer<Head>::write(it, head);
-    it += szofcur;
-    writeArgs(it, std::forward<const Tail>(t)...);
-  }
-
-  template <typename Head> static void readArgs(uint8_t *it, Head &&head) noexcept {
-    auto szofcur = Reader<Head>::read(it, head);
+  template <typename Head> static void writeArgs(uint8_t *it, Head &&head) noexcept {
+    auto szofcur = Writer::write(it, head);
     it += szofcur;
   }
 
   template <typename Head, typename... Tail>
-  static void readArgs(uint8_t *it, Head &&head, Tail &&... t) noexcept {
-    auto szofcur = Reader<Head>::read(it, head);
+  static void writeArgs(uint8_t *it, Head &&head, Tail &&... t) noexcept {
+    auto szofcur = Writer::write(it, head);
     it += szofcur;
-    readArgs(it, std::forward<Tail>(t)...);
+    writeArgs(it, std::forward<Tail>(t)...);
+  }
+
+  template <typename Head> static void readArgs(uint8_t *it, Head &head) noexcept {
+    auto szofcur = Reader::read(it, head);
+    it += szofcur;
+  }
+
+  template <typename Head, typename... Tail>
+  static void readArgs(uint8_t *it, Head &head, Tail &... t) noexcept {
+    auto szofcur = Reader::read(it, head);
+    it += szofcur;
+    readArgs(it, t...);
   }
 
 public:
@@ -134,22 +122,38 @@ public:
     return result;
   }
 
+  static size_t capacity(T &&... args) noexcept {
+    size_t result = 0;
+    calculateSize(result, std::move(args)...);
+    return result;
+  }
+
   static void write(uint8_t *it, const T &... t) noexcept {
     writeArgs(it, std::forward<const T>(t)...);
   }
 
-  static void read(uint8_t *it, T &... t) noexcept {
-    readArgs(it, std::forward<T>(t)...);
-  }
+  static void write(uint8_t *it, T &&... t) noexcept { writeArgs(it, std::move(t)...); }
+
+  static void read(uint8_t *it, T &... t) noexcept { readArgs(it, t...); }
 };
 
 template <typename T> struct ObjectScheme {
   static size_t capacity(const T &t) noexcept {
     return BinaryReaderWriter<T>::capacity(t);
   }
-  template <class Iterator> static void pack(Iterator it, const T t) noexcept {
+
+  static size_t capacity(T &&t) noexcept {
+    return BinaryReaderWriter<T>::capacity(std::move(t));
+  }
+
+  template <class Iterator> static void pack(Iterator it, const T &t) noexcept {
     return BinaryReaderWriter<T>::write(it, t);
   }
+
+  template <class Iterator> static void pack(Iterator it, T &&t) noexcept {
+    return BinaryReaderWriter<T>::write(it, std::move(t));
+  }
+
   static T unpack(uint8_t *it) noexcept {
     T result = empty();
     BinaryReaderWriter<T>::read(it, result);

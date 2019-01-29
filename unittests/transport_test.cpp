@@ -5,9 +5,9 @@
 
 #include <catch.hpp>
 
+#include <algorithm>
 #include <iterator>
 #include <vector>
-#include <algorithm>
 
 using namespace nmq;
 using namespace nmq::utils;
@@ -107,7 +107,10 @@ template <class TestType> struct TransportTester {
           return;
         }
 
-        EXPECT_FALSE(is_bysy_test_flag);
+        if (std::is_same_v<MockTrasport, localTransport>) {
+          EXPECT_FALSE(is_bysy_test_flag);
+        }
+
         is_bysy_test_flag = true;
         logger_info("<=id:", d.id, " msg:", d.msg);
         _locker.lock();

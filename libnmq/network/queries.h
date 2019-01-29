@@ -1,9 +1,9 @@
 #pragma once
 
-#include <libnmq/types.h>
 #include <libnmq/network/kinds.h>
 #include <libnmq/network/message.h>
 #include <libnmq/serialization/serialization.h>
+#include <libnmq/types.h>
 #include <libnmq/utils/utils.h>
 #include <cstdint>
 #include <cstring>
@@ -20,6 +20,8 @@ struct Ok {
   Ok(uint64_t id_) { id = id_; }
 
   Ok(const network::MessagePtr &nd) { BinaryRW::read(nd->value(), id); }
+
+  Ok(network::MessagePtr &&nd) { BinaryRW::read(nd->value(), id); }
 
   network::MessagePtr getMessage() const {
     network::Message::size_t neededSize =
@@ -103,14 +105,24 @@ template <typename T> struct Message {
   T msg;
   using BinaryRW = serialization::BinaryReaderWriter<uint64_t, Id, Id>;
 
-  Message(uint64_t id_, Id asyncOperationId_,  Id client, const T &msg_) {
+  Message(uint64_t id_, Id asyncOperationId_, Id client, const T &msg_) {
     id = id_;
     msg = msg_;
-    clientId=client,
-    asyncOperationId = asyncOperationId_;
+    clientId = client, asyncOperationId = asyncOperationId_;
   }
 
+  Message(uint64_t id_, Id asyncOperationId_, Id client, T &&msg_)
+      : id(id_), msg(std::move(msg_)), clientId(client),
+        asyncOperationId(asyncOperationId_) {}
+
   Message(const network::MessagePtr &nd) {
+    auto iterator = nd->value();
+    BinaryRW::read(iterator, id, asyncOperationId, clientId);
+    msg = serialization::ObjectScheme<T>::unpack(
+        iterator + BinaryRW::capacity(id, asyncOperationId, clientId));
+  }
+
+  Message(network::MessagePtr &&nd) {
     auto iterator = nd->value();
     BinaryRW::read(iterator, id, asyncOperationId, clientId);
     msg = serialization::ObjectScheme<T>::unpack(

@@ -14,19 +14,18 @@ class IConnectionConsumer {
 public:
   EXPORT virtual ~IConnectionConsumer();
   virtual void onConnect() = 0;
-  virtual void onNewMessage(const MessagePtr &d, bool &cancel) = 0;
+  virtual void onNewMessage(MessagePtr &&d, bool &cancel) = 0;
   virtual void onNetworkError(const MessagePtr &d,
                               const boost::system::error_code &err) = 0;
 
   EXPORT bool isConnected() const;
   EXPORT bool isStoped() const;
 
-  EXPORT void addConnection(std::shared_ptr<Connection> c, Id id);
+  EXPORT void addConnection(std::shared_ptr<Connection> c);
   EXPORT bool isConnectionExists() const { return _connection != nullptr; }
 
 private:
   std::shared_ptr<Connection> _connection;
-  Id _id;
 };
 using IConnectionConsumerPtr = IConnectionConsumer *;
 
@@ -48,20 +47,18 @@ public:
   EXPORT void disconnect();
   EXPORT void startAsyncConnection();
   EXPORT void reconnectOnError(const MessagePtr &d, const boost::system::error_code &err);
-  EXPORT void onDataReceive(const MessagePtr &d, bool &cancel);
+  EXPORT void onDataReceive(MessagePtr &&d, bool &cancel);
   EXPORT void sendAsync(const MessagePtr &d);
 
   EXPORT void addConsumer(const IConnectionConsumerPtr &c);
-  EXPORT void eraseConsumer(Id id);
+  EXPORT void eraseConsumer();
 
 protected:
   std::shared_ptr<AsyncIO> _async_io = nullptr;
   boost::asio::io_service *_service = nullptr;
   Params _params;
 
-  std::mutex _locker_consumers;
-  std::atomic_int _next_consumer_id;
-  std::unordered_map<Id, IConnectionConsumerPtr> _consumers;
+  IConnectionConsumerPtr _consumers;
 };
 
 } // namespace network

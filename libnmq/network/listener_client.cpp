@@ -24,8 +24,8 @@ void ListenerClient::start() {
   startBegin();
   auto self = shared_from_this();
 
-  AsyncIO::data_handler_t on_d = [self](const MessagePtr &d, bool &cancel) {
-    self->onDataRecv(d, cancel);
+  AsyncIO::data_handler_t on_d = [self](MessagePtr &&d, bool &cancel) {
+    self->onDataRecv(std::move(d), cancel);
   };
 
   AsyncIO::error_handler_t on_n = [self](auto d, auto err) {
@@ -53,8 +53,8 @@ void ListenerClient::onNetworkError(const MessagePtr &d,
   this->_listener->onNetworkError(this->shared_from_this(), d, err);
 }
 
-void ListenerClient::onDataRecv(const MessagePtr &d, bool &cancel) {
-  _listener->onNewMessage(this->shared_from_this(), d, cancel);
+void ListenerClient::onDataRecv(MessagePtr &&d, bool &cancel) {
+  _listener->onNewMessage(this->shared_from_this(), std::move(d), cancel);
 }
 
 void ListenerClient::sendData(const MessagePtr &d) {

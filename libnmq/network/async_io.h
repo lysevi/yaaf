@@ -17,7 +17,7 @@ class AsyncIO : public std::enable_shared_from_this<AsyncIO> {
 public:
   /// if method set 'cancel' to true, then read loop stoping.
   /// if dont_free_memory, then free NetData_ptr is in client side.
-  using data_handler_t = std::function<void(const MessagePtr &d, bool &cancel)>;
+  using data_handler_t = std::function<void(MessagePtr &&d, bool &cancel)>;
   using error_handler_t =
       std::function<void(const MessagePtr &d, const boost::system::error_code &err)>;
 

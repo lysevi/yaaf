@@ -99,7 +99,7 @@ void AsyncIO::readNextAsync() {
                                 read_bytes))
       bool cancel_flag = false;
       try {
-        self->_on_recv_hadler(d, cancel_flag);
+        self->_on_recv_hadler(std::move(d), cancel_flag);
       } catch (std::exception &ex) {
         THROW_EXCEPTION("exception on async readNextAsync::on_read_message. - ",
                         ex.what());

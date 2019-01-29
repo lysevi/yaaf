@@ -14,12 +14,11 @@ using namespace nmq;
 using namespace nmq::network;
 
 IListenerConsumer ::~IListenerConsumer() {
-  _lstnr->eraseConsumer(_id);
+  _lstnr->eraseConsumer();
 }
 
-void IListenerConsumer::setListener(const std::shared_ptr<Listener> &lstnr, nmq::Id id) {
+void IListenerConsumer::setListener(const std::shared_ptr<Listener> &lstnr) {
   _lstnr = lstnr;
-  _id = id;
 }
 
 void IListenerConsumer::sendTo(Id id, network::MessagePtr &d) {
@@ -31,7 +30,6 @@ void IListenerConsumer::sendTo(Id id, network::MessagePtr &d) {
 Listener::Listener(boost::asio::io_service *service, Listener::Params p)
     : _service(service), _params(p) {
   _next_id.store(0);
-  _cnext_consumer_id.store(0);
 }
 
 Listener::~Listener() {
@@ -43,13 +41,10 @@ void Listener::start() {
   tcp::endpoint ep(tcp::v4(), _params.port);
   auto aio = std::make_shared<network::AsyncIO>(_service);
   _acc = std::make_shared<boost::asio::ip::tcp::acceptor>(*_service, ep);
-  {
-    std::lock_guard<std::mutex> lg(_locker_consumers);
-    for (auto c : _consumers) {
-      c.second->startBegin();
-    }
-  }
 
+  if (_consumer != nullptr) {
+    _consumer->startBegin();
+  }
   startAsyncAccept(aio);
 }
 
@@ -61,11 +56,8 @@ void Listener::startAsyncAccept(network::AsyncIOPtr aio) {
     return;
   }
   startComplete();
-  {
-    std::lock_guard<std::mutex> lg(_locker_consumers);
-    for (auto c : _consumers) {
-      c.second->startComplete();
-    }
+  if (_consumer != nullptr) {
+    _consumer->startComplete();
   }
 }
 
@@ -94,14 +86,8 @@ void Listener::OnAcceptHandler(std::shared_ptr<Listener> self, network::AsyncIOP
       self->_next_id.fetch_add(1);
     }
     bool connectionAccepted = false;
-    {
-      std::lock_guard<std::mutex> lg(self->_locker_consumers);
-      for (auto c : self->_consumers) {
-        if (c.second->onNewConnection(new_client)) {
-          connectionAccepted = true;
-          break;
-        }
-      }
+    if (self->_consumer != nullptr) {
+      connectionAccepted = self->_consumer->onNewConnection(new_client);
     }
     if (true == connectionAccepted) {
       logger_info("server: connection was accepted.");
@@ -128,11 +114,9 @@ void Listener::stop() {
     stopBegin();
     logger("Listener::stop()");
 
-    _locker_consumers.lock();
-    for (auto c : _consumers) {
-      c.second->stopBegin();
+    if (_consumer != nullptr) {
+      _consumer->stopBegin();
     }
-    _locker_consumers.unlock();
 
     auto local_copy = [this]() {
       std::lock_guard<std::mutex> lg(_locker_connections);
@@ -144,9 +128,8 @@ void Listener::stop() {
       con->close();
     }
 
-    std::lock_guard<std::mutex> consumersLockG(_locker_consumers);
-    for (auto c : _consumers) {
-      c.second->stopComplete();
+    if (_consumer != nullptr) {
+      _consumer->stopComplete();
     }
 
     _acc->close();
@@ -162,11 +145,8 @@ void Listener::eraseClientDescription(const ListenerClientPtr client) {
   if (it == _connections.cend()) {
     THROW_EXCEPTION("delete error");
   }
-  {
-    std::lock_guard<std::mutex> consumersLockG(_locker_consumers);
-    for (auto c : _consumers) {
-      c.second->onDisconnect(client->shared_from_this());
-    }
+  if (_consumer != nullptr) {
+    _consumer->onDisconnect(client->shared_from_this());
   }
   _connections.erase(it);
   if (locked_localy) {
@@ -196,31 +176,24 @@ void Listener::sendOk(ListenerClientPtr i, uint64_t messageId) {
 }
 
 void Listener::addConsumer(const IListenerConsumerPtr &c) {
-  std::lock_guard<std::mutex> lg(_locker_consumers);
-  auto id = _cnext_consumer_id.fetch_add(1);
-  _consumers[id] = c;
-  c->setListener(shared_from_this(), id);
+  _consumer = c;
+  c->setListener(shared_from_this());
 }
 
-void Listener::eraseConsumer(Id id) {
-  std::lock_guard<std::mutex> lg(_locker_consumers);
-  _consumers.erase(id);
+void Listener::eraseConsumer() {
+  _consumer = nullptr;
 }
 
 void Listener::onNetworkError(ListenerClientPtr i, const network::MessagePtr &d,
                               const boost::system::error_code &err) {
-  std::lock_guard<std::mutex> lg(_locker_consumers);
-  for (auto c : _consumers) {
-    c.second->onNetworkError(i, d, err);
+  if (_consumer != nullptr) {
+    _consumer->onNetworkError(i, d, err);
   }
 }
 
-void Listener::onNewMessage(ListenerClientPtr i, const network::MessagePtr &d,
+void Listener::onNewMessage(ListenerClientPtr i, network::MessagePtr&&d,
                             bool &cancel) {
-  std::lock_guard<std::mutex> lg(_locker_consumers);
-  for (auto c : _consumers) {
-    bool cncl = false;
-    c.second->onNewMessage(i, d, cncl);
-    cancel = cancel & cncl;
+  if (_consumer != nullptr) {
+    _consumer->onNewMessage(i, std::move(d), cancel);
   }
 }

@@ -17,7 +17,7 @@ public:
   EXPORT void start();
   EXPORT void close();
   EXPORT void onNetworkError(const MessagePtr &d, const boost::system::error_code &err);
-  EXPORT void onDataRecv(const MessagePtr &d, bool &cancel);
+  EXPORT void onDataRecv(MessagePtr &&d, bool &cancel);
   EXPORT void sendData(const MessagePtr &d);
   EXPORT Id get_id() const { return id; }
 
