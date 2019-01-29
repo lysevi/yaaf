@@ -101,7 +101,7 @@ template <typename Arg, typename Result> struct Transport {
       auto okMsg = queries::Ok(msg.asyncOperationId).getMessage();
       sendTo(i->get_id(), okMsg);
 
-      onMessage(Sender{*this, i->get_id()}, msg.msg);
+      onMessage(Sender{*this, i->get_id()}, std::move(msg.msg));
     }
 
     bool onClient(const Sender &) override { return true; }
@@ -182,7 +182,7 @@ template <typename Arg, typename Result> struct Transport {
         auto self = shared_from_this();
         this->_manager->post([self, d]() {
           queries::Message<Result> msg(d);
-          self->onMessage(msg.msg);
+          self->onMessage(std::move(msg.msg));
         });
       }
     }

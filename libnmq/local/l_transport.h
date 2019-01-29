@@ -194,7 +194,7 @@ struct Transport {
           Sender s{*this, arg.first};
           _is_busy = true;
           // TODO run on _manager->post
-          onMessage(s, arg.second);
+          onMessage(s, std::move(arg.second));
           _is_busy = false;
           return true;
         }
@@ -254,7 +254,7 @@ struct Transport {
       if (_is_busy.test_and_set(std::memory_order_acquire)) {
         auto d = q.tryPop();
         if (d.ok) {
-          onMessage(d.result);
+          onMessage(std::move(d.result));
         }
         _is_busy.clear(std::memory_order_release);
       }
