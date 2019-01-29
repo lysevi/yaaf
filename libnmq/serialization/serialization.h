@@ -4,7 +4,6 @@
 #include <libnmq/utils/utils.h>
 #include <cstddef>
 #include <cstring>
-#include <type_traits>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -14,17 +13,19 @@ namespace nmq {
 namespace serialization {
 
 template <class T> struct getSize {
-  static std::enable_if_t<std::is_pod_v<T>, size_t> size(const T &) {
+  static std::enable_if_t<std::is_pod_v<T>, size_t> size(const T &) noexcept {
     return sizeof(T);
   }
 };
 
 template <> struct getSize<std::string> {
-  static size_t size(const std::string &s) { return sizeof(uint32_t) + s.length(); }
+  static size_t size(const std::string &s) noexcept {
+    return sizeof(uint32_t) + s.length();
+  }
 };
 
 template <class T> struct getSize<std::vector<T>> {
-  static size_t size(const std::vector<T> &s) {
+  static size_t size(const std::vector<T> &s) noexcept {
     static_assert(std::is_pod<T>::value, "T is not a POD object");
     return sizeof(uint32_t) + s.size() * sizeof(T);
   }
@@ -90,60 +91,66 @@ template <class T> struct Reader<std::vector<T>> {
 };
 
 template <class... T> class BinaryReaderWriter {
-  template <typename Head> static void calculateSize(size_t &result, const Head &&head) {
+  template <typename Head>
+  static void calculateSize(size_t &result, const Head &&head) noexcept {
     result += getSize<Head>::size(head);
   }
 
   template <typename Head, typename... Tail>
-  static void calculateSize(size_t &result, const Head &&head, const Tail &&... t) {
+  static void calculateSize(size_t &result, const Head &&head,
+                            const Tail &&... t) noexcept {
     result += getSize<Head>::size(std::forward<const Head>(head));
     calculateSize(result, std::forward<const Tail>(t)...);
   }
 
-  template <typename Head> static void writeArgs(uint8_t *it, const Head &head) {
+  template <typename Head> static void writeArgs(uint8_t *it, const Head &head) noexcept {
     auto szofcur = Writer<Head>::write(it, head);
     it += szofcur;
   }
 
   template <typename Head, typename... Tail>
-  static void writeArgs(uint8_t *it, const Head &head, const Tail &... t) {
+  static void writeArgs(uint8_t *it, const Head &head, const Tail &... t) noexcept {
     auto szofcur = Writer<Head>::write(it, head);
     it += szofcur;
     writeArgs(it, std::forward<const Tail>(t)...);
   }
 
-  template <typename Head> static void readArgs(uint8_t *it, Head &&head) {
+  template <typename Head> static void readArgs(uint8_t *it, Head &&head) noexcept {
     auto szofcur = Reader<Head>::read(it, head);
     it += szofcur;
   }
 
   template <typename Head, typename... Tail>
-  static void readArgs(uint8_t *it, Head &&head, Tail &&... t) {
+  static void readArgs(uint8_t *it, Head &&head, Tail &&... t) noexcept {
     auto szofcur = Reader<Head>::read(it, head);
     it += szofcur;
     readArgs(it, std::forward<Tail>(t)...);
   }
 
 public:
-  static size_t capacity(const T &... args) {
+  static size_t capacity(const T &... args) noexcept {
     size_t result = 0;
     calculateSize(result, std::forward<const T>(args)...);
     return result;
   }
 
-  static void write(uint8_t *it, const T &... t) {
+  static void write(uint8_t *it, const T &... t) noexcept {
     writeArgs(it, std::forward<const T>(t)...);
   }
 
-  static void read(uint8_t *it, T &... t) { readArgs(it, std::forward<T>(t)...); }
+  static void read(uint8_t *it, T &... t) noexcept {
+    readArgs(it, std::forward<T>(t)...);
+  }
 };
 
 template <typename T> struct ObjectScheme {
-  static size_t capacity(const T &t) { return BinaryReaderWriter<T>::capacity(t); }
-  template <class Iterator> static void pack(Iterator it, const T t) {
+  static size_t capacity(const T &t) noexcept {
+    return BinaryReaderWriter<T>::capacity(t);
+  }
+  template <class Iterator> static void pack(Iterator it, const T t) noexcept {
     return BinaryReaderWriter<T>::write(it, t);
   }
-  static T unpack(uint8_t *it) {
+  static T unpack(uint8_t *it) noexcept {
     T result = empty();
     BinaryReaderWriter<T>::read(it, result);
     return result;

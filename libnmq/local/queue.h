@@ -19,7 +19,7 @@ template <class T, class Cont = std::vector<T>> class Queue {
 public:
   Queue(size_t capacity) : _values(capacity) { _cap = capacity; }
 
-  bool tryPush(T v) {
+  bool tryPush(T v) noexcept {
     std::lock_guard<std::shared_mutex> lg(_locker);
     if (_pos == _cap) {
       return false;
@@ -29,7 +29,7 @@ public:
     }
   }
 
-  Result<T> tryPop() {
+  Result<T> tryPop() noexcept {
     std::lock_guard<std::shared_mutex> lg(_locker);
     if (_pos == 0) {
       return Result<T>::False();
@@ -39,9 +39,9 @@ public:
     }
   }
 
-  size_t capacity() const { return (size_t)(_cap); }
+  size_t capacity() const noexcept { return (size_t)(_cap); }
 
-  bool empty() const {
+  bool empty() const noexcept {
     std::shared_lock<std::shared_mutex> slg(_locker);
     return _pos == 0;
   }

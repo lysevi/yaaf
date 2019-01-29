@@ -192,12 +192,12 @@ struct Transport {
       if (!_is_busy) { // TODO make thread safety
         auto a = args.tryPop();
         if (a.ok) {
-          auto arg = a.result;
+          std::pair<Id, Arg> arg = a.result;
 
-          Sender s{*l, arg.first};
+          Sender s{*this, arg.first};
           _is_busy = true;
           // TODO run on _manager->post
-          onMessage(i, arg.result);
+          onMessage(s, arg.second);
           _is_busy = false;
           return true;
         }

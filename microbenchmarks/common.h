@@ -5,7 +5,7 @@ class BenchmarkLogger : public nmq::utils::ILogger {
 public:
   BenchmarkLogger() {}
   ~BenchmarkLogger() {}
-  void message(nmq::utils::LOG_MESSAGE_KIND, const std::string &) {}
+  void message(nmq::utils::LOG_MESSAGE_KIND, const std::string &) noexcept {}
 };
 
 void replace_std_logger();

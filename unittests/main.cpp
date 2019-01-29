@@ -12,7 +12,7 @@ public:
   UnitTestLogger() {}
   ~UnitTestLogger() {}
 
-  void message(nmq::utils::LOG_MESSAGE_KIND kind, const std::string &msg) {
+  void message(nmq::utils::LOG_MESSAGE_KIND kind, const std::string &msg) noexcept {
     std::stringstream ss;
     switch (kind) {
     case nmq::utils::LOG_MESSAGE_KIND::FATAL:

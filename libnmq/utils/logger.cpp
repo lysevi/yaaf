@@ -20,7 +20,7 @@ void LogManager::stop() {
   _instance = nullptr;
 }
 
-LogManager *LogManager::instance() {
+LogManager *LogManager::instance() noexcept {
   auto tmp = _instance.get();
   if (tmp == nullptr) {
     std::lock_guard<locker> lock(_locker);
@@ -38,12 +38,12 @@ LogManager::LogManager(ILogger_ptr &logger) {
   _logger = logger;
 }
 
-void LogManager::message(LOG_MESSAGE_KIND kind, const std::string &msg) {
+void LogManager::message(LOG_MESSAGE_KIND kind, const std::string &msg) noexcept {
   std::lock_guard<utils::async::locker> lg(_msg_locker);
   _logger->message(kind, msg);
 }
 
-void ConsoleLogger::message(LOG_MESSAGE_KIND kind, const std::string &msg) {
+void ConsoleLogger::message(LOG_MESSAGE_KIND kind, const std::string &msg) noexcept {
   if (LogManager::verbose == Verbose::Quiet) {
     return;
   }
@@ -62,7 +62,7 @@ void ConsoleLogger::message(LOG_MESSAGE_KIND kind, const std::string &msg) {
   }
 }
 
-void QuietLogger::message(LOG_MESSAGE_KIND kind, const std::string &msg) {
+void QuietLogger::message(LOG_MESSAGE_KIND kind, const std::string &msg) noexcept {
   UNUSED(kind);
   UNUSED(msg);
 }

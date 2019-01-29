@@ -21,14 +21,15 @@ EXPORT std::string to_string(const char *_Val);
 EXPORT std::string to_string(const std::string &_Val);
 
 template <class Head>
-void args_as_string(std::list<std::string> &s, size_t &sz, Head &&head) {
+void args_as_string(std::list<std::string> &s, size_t &sz, Head &&head) noexcept {
   auto str = to_string(std::forward<Head>(head));
   sz += str.size();
   s.push_back(str);
 }
 
 template <class Head, class... Tail>
-void args_as_string(std::list<std::string> &s, size_t &sz, Head &&head, Tail &&... tail) {
+void args_as_string(std::list<std::string> &s, size_t &sz, Head &&head,
+                    Tail &&... tail) noexcept {
   auto str = to_string(std::forward<Head>(head));
   sz += str.size();
   s.push_back(str);
@@ -36,7 +37,7 @@ void args_as_string(std::list<std::string> &s, size_t &sz, Head &&head, Tail &&.
 }
 } // namespace inner
 
-template <class... Args> std::string args_to_string(Args &&... args) {
+template <class... Args> std::string args_to_string(Args &&... args) noexcept {
   std::list<std::string> ss;
   size_t sz = 0;
   inner::args_as_string(ss, sz, std::forward<Args>(args)...);
