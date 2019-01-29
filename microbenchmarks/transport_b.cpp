@@ -1,4 +1,4 @@
-#include <libnmq/lockfree/l_transport.h>
+#include <libnmq/local/l_transport.h>
 #include <libnmq/network/net_transport.h>
 #include <benchmark/benchmark.h>
 
@@ -7,7 +7,7 @@
 namespace inner {
 
 template <class T> using networkTransport = nmq::network::Transport<T, size_t>;
-template <class T> using lockfreeTransport = nmq::lockfree::Transport<T, size_t>;
+template <class T> using localTransport = nmq::local::Transport<T, size_t>;
 
 template <typename Tr> struct ParamFiller {
 
@@ -25,7 +25,7 @@ template <typename Tr> struct ParamFiller {
   template <class Q = Tr>
   static typename std::enable_if<
       std::is_same<typename Q::Params,
-                   typename lockfreeTransport<typename Q::ArgType>::Params>::value,
+                   typename localTransport<typename Q::ArgType>::Params>::value,
       bool>::type
   fillParams(typename Q::Params &t) {
     UNUSED(t);
@@ -126,7 +126,7 @@ BENCHMARK_TEMPLATE_F(TransportTester, NetUint8, inner::networkTransport<uint8_t>
   st.counters["messages"] = (double)listener->_count.load();
 }
 
-BENCHMARK_TEMPLATE_F(TransportTester, LockfreeUint64, inner::lockfreeTransport<uint8_t>)
+BENCHMARK_TEMPLATE_F(TransportTester, LockfreeUint64, inner::localTransport<uint8_t>)
 (benchmark::State &st) {
   while (st.KeepRunning()) {
   }

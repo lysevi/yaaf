@@ -1,10 +1,10 @@
-#include <libnmq/lockfree/queue.h>
+#include <libnmq/local/queue.h>
 #include <benchmark/benchmark.h>
 
 using namespace nmq;
-using namespace nmq::lockfree;
+using namespace nmq::local;
 
-class Lockfree : public benchmark::Fixture {
+class Local : public benchmark::Fixture {
   virtual void SetUp(const ::benchmark::State &) {}
 
   virtual void TearDown(const ::benchmark::State &) {}
@@ -12,7 +12,7 @@ class Lockfree : public benchmark::Fixture {
 public:
 };
 
-BENCHMARK_DEFINE_F(Lockfree, FixedQueuePush)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(Local, FixedQueuePush)(benchmark::State &state) {
   for (auto _ : state) {
     Queue<int> fq(1024);
     for (int i = 0; i < 1024; ++i) {
@@ -23,4 +23,4 @@ BENCHMARK_DEFINE_F(Lockfree, FixedQueuePush)(benchmark::State &state) {
     }
   }
 }
-BENCHMARK_REGISTER_F(Lockfree, FixedQueuePush);
+BENCHMARK_REGISTER_F(Local, FixedQueuePush);

@@ -1,11 +1,11 @@
 #pragma once
 
 #include <libnmq/chanel.h>
-#include <libnmq/lockfree/queue.h>
+#include <libnmq/local/queue.h>
 #include <boost/asio.hpp>
 
 namespace nmq {
-namespace lockfree {
+namespace local {
 
 using boost::asio::io_service;
 
@@ -318,5 +318,5 @@ void Transport<Arg, Result, ArgQueue, ResultQueue>::Manager::pushResulLoop(
   });
 }
 
-} // namespace lockfree
+} // namespace local
 } // namespace nmq

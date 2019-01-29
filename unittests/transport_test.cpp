@@ -1,6 +1,6 @@
 #include "helpers.h"
 
-#include <libnmq/lockfree/l_transport.h>
+#include <libnmq/local/l_transport.h>
 #include <libnmq/network/net_transport.h>
 
 #include <catch.hpp>
@@ -68,7 +68,7 @@ template <> struct ObjectScheme<MockResultMessage> {
 namespace {
 const size_t TestableQSize = 10;
 using networkTransport = nmq::network::Transport<MockMessage, MockResultMessage>;
-using lockfreeTransport = nmq::lockfree::Transport<MockMessage, MockResultMessage>;
+using localTransport = nmq::local::Transport<MockMessage, MockResultMessage>;
 
 template <typename T>
 std::enable_if_t<std::is_same_v<T, networkTransport::Params>, void> fillParams(T &t) {
@@ -77,7 +77,7 @@ std::enable_if_t<std::is_same_v<T, networkTransport::Params>, void> fillParams(T
 }
 
 template <typename T>
-std::enable_if_t<std::is_same_v<T, lockfreeTransport::Params>, void> fillParams(T &t) {
+std::enable_if_t<std::is_same_v<T, localTransport::Params>, void> fillParams(T &t) {
   t.result_queue_size = 10;
   t.result_queue_size = 10;
 }
@@ -259,7 +259,7 @@ template <class TestType> struct TransportTester {
       if (client == nullptr) {
         continue;
       }
-      if (std::is_same_v<MockTrasport, lockfreeTransport>) {
+      if (std::is_same_v<MockTrasport, localTransport>) {
 
         while (!client->all_listeners__stoped_flag) {
           logger("transport: client->full_stop_flag");
@@ -277,7 +277,7 @@ template <class TestType> struct TransportTester {
     manager->stop();
     manager->waitStoping();
     logger("manager->stop();");
-    if (std::is_same_v<MockTrasport, lockfreeTransport>) {
+    if (std::is_same_v<MockTrasport, localTransport>) {
       logger("check full_stop_flag");
       for (auto client : clients) {
         if (client != nullptr) {
@@ -288,18 +288,18 @@ template <class TestType> struct TransportTester {
   }
 };
 
-TEMPLATE_TEST_CASE("transport.1", "", networkTransport, lockfreeTransport) {
+TEMPLATE_TEST_CASE("transport.1", "", networkTransport, localTransport) {
   TransportTester<TestType>::run(size_t(1), size_t(1));
 }
 
-TEMPLATE_TEST_CASE("transport.2x1", "", networkTransport, lockfreeTransport) {
+TEMPLATE_TEST_CASE("transport.2x1", "", networkTransport, localTransport) {
   TransportTester<TestType>::run(size_t(2), size_t(1));
 }
 
-// TEMPLATE_TEST_CASE("transport.5x1", "", networkTransport, lockfreeTransport) {
+// TEMPLATE_TEST_CASE("transport.5x1", "", networkTransport, localTransport) {
 //  TransportTester<TestType>::run(size_t(5), size_t(1));
 //}
 //
-// TEMPLATE_TEST_CASE("transport.10x1", "", lockfreeTransport) {
+// TEMPLATE_TEST_CASE("transport.10x1", "", localTransport) {
 //  TransportTester<TestType>::run(size_t(1), size_t(1));
 //}

@@ -5,7 +5,7 @@
 #include <vector>
 
 namespace nmq {
-namespace lockfree {
+namespace local {
 
 template <class T> struct Result {
   bool ok;
@@ -17,7 +17,7 @@ template <class T> struct Result {
 
 template <class T, class Cont = std::vector<T>> class Queue {
 public:
-  Queue(size_t capacity) : _values(capacity) { _cap = int64_t(capacity); }
+  Queue(size_t capacity) : _values(capacity) { _cap = capacity; }
 
   bool tryPush(T v) {
     std::lock_guard<std::shared_mutex> lg(_locker);
@@ -48,9 +48,9 @@ public:
 
 private:
   mutable std::shared_mutex _locker;
-  int64_t _cap;
+  size_t _cap;
   size_t _pos = 0;
   Cont _values;
 };
-} // namespace lockfree
+} // namespace local
 } // namespace nmq

@@ -1,11 +1,11 @@
-#include <libnmq/lockfree/queue.h>
+#include <libnmq/local/queue.h>
 
 #include "helpers.h"
 #include <catch.hpp>
 
-TEST_CASE("lockfree.queue") {
+TEST_CASE("local.queue") {
   const size_t test_queue_cap = 3;
-  nmq::lockfree::Queue<int> q{test_queue_cap};
+  nmq::local::Queue<int> q{test_queue_cap};
 
   EXPECT_TRUE(q.empty());
 
