@@ -248,9 +248,14 @@ struct Transport {
       });
     }
 
-    void run(const Result d) {
-      onMessage(d);
-      _is_busy.clear(std::memory_order_release);
+    void run(ResultQueue &q) {
+      if (_is_busy.test_and_set(std::memory_order_acquire)) {
+        auto d = q.tryPop();
+        if (d.ok) {
+          onMessage(d.result);
+        }
+        _is_busy.clear(std::memory_order_release);
+      }
     }
 
     void stopConnection() { io_chanel_type::IOConnection::stopConnection(); }
@@ -275,14 +280,8 @@ struct Transport {
         return;
       }
       auto tptr = dynamic_cast<Connection *>(self.get());
-      if (!tptr->_results.empty() &&
-          tptr->_is_busy.test_and_set(std::memory_order_acquire)) {
-        auto run = [self, tptr]() {
-          auto arg = tptr->_results.tryPop();
-          if (arg.ok) {
-            tptr->run(arg.result);
-          }
-        };
+      if (!tptr->_results.empty()) {
+        auto run = [self, tptr]() { tptr->run(tptr->_results); };
         tptr->_manager->post(run);
       }
       _manager->post([self, tptr]() { tptr->queueWorker(); });
