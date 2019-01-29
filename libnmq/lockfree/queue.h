@@ -1,9 +1,8 @@
 #pragma once
 
-#include <atomic>
 #include <cstdint>
-#include <functional>
-#include <type_traits>
+#include <shared_mutex>
+#include <vector>
 
 namespace nmq {
 namespace lockfree {
@@ -18,52 +17,39 @@ template <class T> struct Result {
 
 template <class T, class Cont = std::vector<T>> class Queue {
 public:
-
-  Queue(size_t capacity) : _position(-1), _values(capacity) {
-    static_assert(std::is_default_constructible_v<T>,
-                  "T is not std::is_default_constructible_v");
-    static_assert(std::is_copy_constructible_v<T>,
-                  "T is not std::is_copy_constructible_v");
-    _cap = int64_t(capacity);
-  }
+  Queue(size_t capacity) : _values(capacity) { _cap = int64_t(capacity); }
 
   bool tryPush(T v) {
-    for (;;) {
-      auto i = _position.load();
-
-      if (i < _cap - 1) {
-
-        auto new_i = i + 1;
-        if (_position.compare_exchange_strong(i, new_i)) {
-          _values[new_i] = v;
-          return true;
-        }
-      } else {
-        return false;
-      }
+    std::lock_guard<std::shared_mutex> lg(_locker);
+    if (_pos == _cap) {
+      return false;
+    } else {
+      _values[_pos++] = v;
+      return true;
     }
   }
 
   Result<T> tryPop() {
-    auto i = _position.load();
-    while (i >= 0) {
-      i = _position.load();
-      T result{_values[i]};
-      auto new_i = i - 1;
-      if (i >= 0 && _position.compare_exchange_strong(i, new_i)) {
-        return Result<T>::Ok(result);
-      }
+    std::lock_guard<std::shared_mutex> lg(_locker);
+    if (_pos == 0) {
+      return Result<T>::False();
+    } else {
+      _pos--;
+      return Result<T>::Ok(_values[_pos]);
     }
-    return Result<T>::False();
   }
 
   size_t capacity() const { return (size_t)(_cap); }
 
-  bool empty() const { return !(_position.load() >= 0); }
+  bool empty() const {
+    std::shared_lock<std::shared_mutex> slg(_locker);
+    return _pos == 0;
+  }
 
 private:
-  std::atomic_int64_t _position;
+  mutable std::shared_mutex _locker;
   int64_t _cap;
+  size_t _pos = 0;
   Cont _values;
 };
 } // namespace lockfree

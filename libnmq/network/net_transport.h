@@ -174,6 +174,7 @@ template <typename Arg, typename Result> struct Transport {
     };
 
     void onNewMessage(const MessagePtr &d, bool &cancel) override {
+      UNUSED(cancel);
       if (d->header()->kind == (network::Message::kind_t)MessageKinds::OK) {
         queries::Ok okRes(d);
         markOperationAsFinished(okRes.id);
