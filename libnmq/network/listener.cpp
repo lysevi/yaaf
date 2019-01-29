@@ -128,30 +128,25 @@ void Listener::stop() {
     stopBegin();
     logger("Listener::stop()");
 
-    {
-      std::lock_guard<std::mutex> consumersLockG(_locker_consumers);
-      for (auto c : _consumers) {
-        c.second->stopBegin();
-      }
+    _locker_consumers.lock();
+    for (auto c : _consumers) {
+      c.second->stopBegin();
+    }
+    _locker_consumers.unlock();
+
+    auto local_copy = [this]() {
+      std::lock_guard<std::mutex> lg(_locker_connections);
+      return std::vector<std::shared_ptr<ListenerClient>>(_connections.begin(),
+                                                          _connections.end());
+    }();
+
+    for (auto con : local_copy) {
+      con->close();
     }
 
-    if (!_connections.empty()) {
-      std::vector<std::shared_ptr<ListenerClient>> local_copy;
-      {
-        std::lock_guard<std::mutex> lg(_locker_connections);
-        local_copy = std::vector<std::shared_ptr<ListenerClient>>(_connections.begin(),
-                                                                  _connections.end());
-      }
-      for (auto con : local_copy) {
-        con->close();
-      }
-    }
-
-    {
-      std::lock_guard<std::mutex> consumersLockG(_locker_consumers);
-      for (auto c : _consumers) {
-        c.second->stopComplete();
-      }
+    std::lock_guard<std::mutex> consumersLockG(_locker_consumers);
+    for (auto c : _consumers) {
+      c.second->stopComplete();
     }
 
     _acc->close();
@@ -162,9 +157,9 @@ void Listener::stop() {
 
 void Listener::eraseClientDescription(const ListenerClientPtr client) {
   bool locked_localy = _locker_connections.try_lock();
-  auto it = std::find_if(_connections.begin(), _connections.end(),
+  auto it = std::find_if(_connections.cbegin(), _connections.cend(),
                          [client](auto c) { return c->get_id() == client->get_id(); });
-  if (it == _connections.end()) {
+  if (it == _connections.cend()) {
     THROW_EXCEPTION("delete error");
   }
   {
@@ -186,7 +181,7 @@ void Listener::sendTo(ListenerClientPtr i, MessagePtr &d) {
 
 void Listener::sendTo(Id id, MessagePtr &d) {
   std::lock_guard<std::mutex> lg(this->_locker_connections);
-  for (auto c : _connections) {
+  for (const auto &c : _connections) {
     if (c->get_id() == id) {
       sendTo(c, d);
       return;
