@@ -21,10 +21,7 @@ using namespace nmq::utils;
 
 namespace listener_test {
 
-struct MockListener : public nmq::network::IListenerConsumer {
-  MockListener() {}
-
-  
+struct Listener : public nmq::network::IListenerConsumer {
   bool onNewConnection(nmq::network::ListenerClientPtr) override {
     connections.fetch_add(1);
     return true;
@@ -44,9 +41,7 @@ struct MockListener : public nmq::network::IListenerConsumer {
   std::atomic_int16_t connections = 0;
 };
 
-struct MockConnection : public nmq::network::IConnectionConsumer {
-  MockConnection() {}
-
+struct Connection : public nmq::network::IConnectionConsumer {
   void onConnect() override { mock_is_connected = true; };
   void onNewMessage(nmq::network::MessagePtr &&, bool &) override {}
   void onNetworkError(const nmq::network::MessagePtr &,
@@ -67,7 +62,7 @@ struct MockConnection : public nmq::network::IConnectionConsumer {
 
 bool server_stop = false;
 std::shared_ptr<nmq::network::Listener> server = nullptr;
-std::shared_ptr<MockListener> lstnr = nullptr;
+std::shared_ptr<Listener> lstnr = nullptr;
 boost::asio::io_service *service;
 
 void server_thread() {
@@ -76,7 +71,7 @@ void server_thread() {
   service = new boost::asio::io_service();
 
   server = std::make_shared<nmq::network::Listener>(service, p);
-  lstnr = std::make_shared<MockListener>();
+  lstnr = std::make_shared<Listener>();
   server->addConsumer(lstnr.get());
 
   server->start();
@@ -104,10 +99,10 @@ void testForConnection(const size_t clients_count) {
   }
 
   std::vector<std::shared_ptr<network::Connection>> clients(clients_count);
-  std::vector<std::shared_ptr<MockConnection>> consumers(clients_count);
+  std::vector<std::shared_ptr<Connection>> consumers(clients_count);
   for (size_t i = 0; i < clients_count; i++) {
     clients[i] = std::make_shared<network::Connection>(service, p);
-    consumers[i] = std::make_shared<MockConnection>();
+    consumers[i] = std::make_shared<Connection>();
     clients[i]->addConsumer(consumers[i].get());
     clients[i]->startAsyncConnection();
   }

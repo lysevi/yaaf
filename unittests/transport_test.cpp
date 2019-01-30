@@ -87,9 +87,8 @@ template <class TestType> struct TransportTester {
   static void run(size_t clientsCount, size_t listenersCount) {
     using MockTrasport = TestType;
 
-    struct MockTransportListener : public MockTrasport::Listener {
-      MockTransportListener(std::shared_ptr<MockTrasport::Manager> &manager,
-                            MockTrasport::Params &p)
+    struct Listener : public MockTrasport::Listener {
+      Listener(std::shared_ptr<MockTrasport::Manager> &manager, MockTrasport::Params &p)
           : MockTrasport::Listener(manager, p) {}
 
       void onError(const MockTrasport::io_chanel_type::Sender &,
@@ -139,9 +138,9 @@ template <class TestType> struct TransportTester {
       bool is_bysy_test_flag = false;
     };
 
-    struct MockTransportClient : public MockTrasport::Connection {
-      MockTransportClient(std::shared_ptr<MockTrasport::Manager> &manager,
-                          const MockTrasport::Params &p)
+    struct Client : public MockTrasport::Connection {
+      Client(std::shared_ptr<MockTrasport::Manager> &manager,
+             const MockTrasport::Params &p)
           : MockTrasport::Connection(manager, p) {}
 
       void onConnected() override { MockTrasport::Connection::onConnected(); }
@@ -198,9 +197,9 @@ template <class TestType> struct TransportTester {
     manager->start();
     manager->waitStarting();
 
-    std::vector<std::shared_ptr<MockTransportListener>> listeners(listenersCount);
+    std::vector<std::shared_ptr<Listener>> listeners(listenersCount);
     for (size_t i = 0; i < listenersCount; ++i) {
-      auto listener = std::make_shared<MockTransportListener>(manager, p);
+      auto listener = std::make_shared<Listener>(manager, p);
       listeners[i] = listener;
       listener->start();
 
@@ -210,10 +209,10 @@ template <class TestType> struct TransportTester {
       }
     }
 
-    std::vector<std::shared_ptr<MockTransportClient>> clients(clientsCount);
+    std::vector<std::shared_ptr<Client>> clients(clientsCount);
 
     for (size_t i = 0; i < clientsCount; ++i) {
-      auto newClient = std::make_shared<MockTransportClient>(manager, p);
+      auto newClient = std::make_shared<Client>(manager, p);
       clients[i] = newClient;
 
       newClient->start();
@@ -226,9 +225,7 @@ template <class TestType> struct TransportTester {
       newClient->sendQuery();
     }
 
-    auto checkF = [](std::shared_ptr<MockTransportClient> c) {
-      return c->_q.size() > TestableQSize;
-    };
+    auto checkF = [](std::shared_ptr<Client> c) { return c->_q.size() > TestableQSize; };
 
     for (;;) {
 
@@ -237,8 +234,7 @@ template <class TestType> struct TransportTester {
         aor.wait();
       }
 
-      auto check = std::all_of(clients.begin(), clients.end(), checkF);
-      if (check) {
+      if (std::all_of(clients.begin(), clients.end(), checkF)) {
         break;
       }
     }
