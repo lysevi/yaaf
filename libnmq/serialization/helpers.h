@@ -26,12 +26,12 @@ template <class T> size_t size(const std::vector<T &&> &s) noexcept {
 /// write
 
 template <typename S>
-std::enable_if_t<std::is_pod_v<S>, size_t> write(uint8_t *it, const S &s) {
+std::enable_if_t<std::is_pod_v<S>, size_t> write(uint8_t *it, const S &s) noexcept {
   std::memcpy(it, &s, sizeof(s));
   return sizeof(s);
 }
 
-inline size_t write(uint8_t *it, const std::string &s) {
+inline size_t write(uint8_t *it, const std::string &s) noexcept {
   auto len = static_cast<uint32_t>(s.size());
   auto ptr = it;
   std::memcpy(ptr, &len, sizeof(uint32_t));
@@ -39,7 +39,7 @@ inline size_t write(uint8_t *it, const std::string &s) {
   return sizeof(uint32_t) + s.size();
 }
 
-template <class T> size_t write(uint8_t *it, const std::vector<T &&> &s) {
+template <class T> size_t write(uint8_t *it, const std::vector<T &&> &s) noexcept {
   static_assert(std::is_pod<T>::value, "T is not a POD object");
   auto len = static_cast<uint32_t>(s.size());
   auto ptr = it;
@@ -50,13 +50,14 @@ template <class T> size_t write(uint8_t *it, const std::vector<T &&> &s) {
 
 /// Read
 
-template <typename S> std::enable_if_t<std::is_pod_v<S>, size_t> read(uint8_t *it, S &s) {
+template <typename S>
+std::enable_if_t<std::is_pod_v<S>, size_t> read(uint8_t *it, S &s) noexcept {
   auto ptr = it;
   std::memcpy(&s, ptr, sizeof(s));
   return sizeof(s);
 }
 
-inline static size_t read(uint8_t *it, std::string &s) {
+inline static size_t read(uint8_t *it, std::string &s) noexcept {
   uint32_t len = 0;
   auto ptr = it;
   std::memcpy(&len, ptr, sizeof(uint32_t));
@@ -64,7 +65,7 @@ inline static size_t read(uint8_t *it, std::string &s) {
   std::memcpy(&s[0], ptr + sizeof(uint32_t), size_t(len));
   return sizeof(uint32_t) + len;
 }
-template <class T> size_t read(uint8_t *it, std::vector<T &&> &s) {
+template <class T> size_t read(uint8_t *it, std::vector<T &&> &s) noexcept {
   static_assert(std::is_pod<T>::value, "S is not a POD value");
   uint32_t len = 0;
   auto ptr = it;

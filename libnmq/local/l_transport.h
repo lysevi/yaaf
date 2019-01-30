@@ -29,7 +29,7 @@ struct Transport {
   class Connection;
   class Listener;
 
-  class Manager : public io_chanel_type::IOManager, public AsyncOperationsProcess {
+  class Manager : public io_chanel_type::IOManager, public AsyncOperationsStorage {
   public:
     using io_chanel_type::IOManager::shared_from_this;
 

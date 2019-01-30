@@ -26,9 +26,9 @@ struct AsyncOperationResult {
   }
 };
 
-class AsyncOperationsProcess {
+class AsyncOperationsStorage {
 public:
-  AsyncOperationsProcess() = default;
+  AsyncOperationsStorage() = default;
 
   AsyncOperationResult makeAsyncResult() {
     std::lock_guard<std::shared_mutex> lg(_asyncOperations_locker);

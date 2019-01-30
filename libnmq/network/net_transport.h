@@ -55,7 +55,7 @@ template <typename Arg, typename Result> struct Transport {
 
   class Listener : public io_chanel_type::IOListener,
                    public NetListenerConsumer,
-                   public AsyncOperationsProcess {
+                   public AsyncOperationsStorage {
   public:
     using io_chanel_type::IOListener::isStartBegin;
     using io_chanel_type::IOListener::isStopBegin;
@@ -156,7 +156,7 @@ template <typename Arg, typename Result> struct Transport {
 
   class Connection : public io_chanel_type::IOConnection,
                      public NetConnectionConsumer,
-                     public AsyncOperationsProcess {
+                     public AsyncOperationsStorage {
   public:
     Connection() = delete;
     Connection(const Connection &) = delete;
