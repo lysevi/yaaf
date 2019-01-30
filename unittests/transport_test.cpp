@@ -221,8 +221,6 @@ template <class TestType> struct TransportTester {
         logger("transport: !newClient->is_started_flag");
         std::this_thread::yield();
       }
-
-      newClient->sendQuery();
     }
 
     auto checkF = [](std::shared_ptr<Client> c) { return c->_q.size() > TestableQSize; };

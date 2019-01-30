@@ -61,9 +61,7 @@ struct Transport {
 
       if (listeners_count() == 0) {
         connectionsVisit([](std::shared_ptr<io_chanel_type::IOConnection> c) {
-          // c->stopBegin();
           c->onError(ErrorCode(ErrorsKinds::ALL_LISTENERS_STOPED));
-          // c->stopComplete();
           return true;
         });
       }
@@ -102,7 +100,7 @@ struct Transport {
       }
     }
 
-    void pushResulLoop(const nmq::Id id, const Result a, Id aor);
+    void pushToResultLoop(const nmq::Id id, const Result a, Id aor);
 
     void pushArg(Id id, const Arg a, Id aor) {
       auto self = shared_self();
@@ -111,7 +109,7 @@ struct Transport {
 
     void pushResult(const nmq::Id id, const Result a, Id aor) {
       auto self = shared_self();
-      post([self, id, a, aor]() { self->pushResulLoop(id, a, aor); });
+      post([self, id, a, aor]() { self->pushToResultLoop(id, a, aor); });
     }
 
     void queueWorker() {
@@ -258,6 +256,8 @@ struct Transport {
         }
         _is_busy.clear(std::memory_order_release);
       }
+      auto self = shared_self();
+      _manager->post([self]() { self->queueWorker(); });
     }
 
     void stopConnection() { io_chanel_type::IOConnection::stopConnection(); }
@@ -284,8 +284,9 @@ struct Transport {
       if (!self->_results.empty()) {
         auto run = [self]() { self->run(self->_results); };
         self->_manager->post(run);
+      } else {
+        _manager->post([self]() { self->queueWorker(); });
       }
-      _manager->post([self]() { self->queueWorker(); });
     }
 
   private:
@@ -297,7 +298,7 @@ struct Transport {
 };
 
 template <class Arg, class Result, class ArgQueue, class ResultQueue>
-void Transport<Arg, Result, ArgQueue, ResultQueue>::Manager::pushResulLoop(
+void Transport<Arg, Result, ArgQueue, ResultQueue>::Manager::pushToResultLoop(
     const nmq::Id id, const Result a, Id aor) {
   auto target = getConnection(id);
   if (target == nullptr) { // TODO notify about it.
@@ -314,7 +315,7 @@ void Transport<Arg, Result, ArgQueue, ResultQueue>::Manager::pushResulLoop(
   }
   auto self = shared_self();
   this->post([=]() {
-    auto clbk = [=]() { self->pushResulLoop(id, a, aor); };
+    auto clbk = [=]() { self->pushToResultLoop(id, a, aor); };
     self->post(clbk);
   });
 }
