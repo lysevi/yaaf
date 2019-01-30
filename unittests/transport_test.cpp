@@ -299,10 +299,10 @@ TEMPLATE_TEST_CASE("transport.2x1", "", networkTransport, localTransport) {
   TransportTester<TestType>::run(size_t(2), size_t(1));
 }
 
-// TEMPLATE_TEST_CASE("transport.5x1", "", networkTransport, localTransport) {
-//  TransportTester<TestType>::run(size_t(5), size_t(1));
-//}
-//
-// TEMPLATE_TEST_CASE("transport.10x1", "", localTransport) {
-//  TransportTester<TestType>::run(size_t(1), size_t(1));
-//}
+TEMPLATE_TEST_CASE("transport.2x2", "", localTransport) {
+  TransportTester<TestType>::run(size_t(2), size_t(2));
+}
+
+TEMPLATE_TEST_CASE("transport.3x3", "", localTransport) {
+  TransportTester<TestType>::run(size_t(3), size_t(3));
+}
