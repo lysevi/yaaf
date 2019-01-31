@@ -13,9 +13,6 @@
 #include <string>
 #include <thread>
 
-using namespace std::placeholders;
-using namespace boost::asio;
-
 using namespace nmq;
 using namespace nmq::utils;
 

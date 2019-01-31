@@ -6,7 +6,6 @@
 #include <functional>
 #include <string>
 
-using namespace std::placeholders;
 using namespace boost::asio;
 using namespace boost::asio::ip;
 

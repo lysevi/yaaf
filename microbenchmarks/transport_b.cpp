@@ -92,16 +92,16 @@ template <class Tr> struct TransportTester : public benchmark::Fixture {
     manager = std::make_shared<typename Tr::Manager>(p);
 
     manager->start();
+    manager->waitStarting();
 
     listener = std::make_shared<MockTransportListener<Tr>>(manager, p);
 
     listener->start();
-
-    while (!listener->isStarted()) {
-    }
+    listener->waitStarting();
 
     client = std::make_shared<MockTransportClient<Tr>>(manager, p);
     client->start();
+    client->waitStarting();
     for (; !client->isStarted();) {
       std::this_thread::yield();
     }

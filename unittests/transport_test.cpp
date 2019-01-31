@@ -216,11 +216,7 @@ template <class TestType> struct TransportTester {
       clients[i] = newClient;
 
       newClient->start();
-
-      while (!newClient->isStarted()) {
-        logger("transport: !newClient->is_started_flag");
-        std::this_thread::yield();
-      }
+      newClient->waitStarting();
     }
 
     auto checkF = [](std::shared_ptr<Client> c) { return c->_q.size() > TestableQSize; };
@@ -241,6 +237,7 @@ template <class TestType> struct TransportTester {
       auto end = (size_t)(clientsCount / 2);
       for (size_t i = 0; i < end; ++i) {
         clients[i]->stop();
+        clients[i]->waitStoping();
         clients[i] = nullptr;
       }
     }

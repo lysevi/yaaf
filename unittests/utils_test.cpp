@@ -4,13 +4,24 @@
 #include "helpers.h"
 #include <catch.hpp>
 
+#include <numeric>
+
 TEST_CASE("utils.split") {
+  std::array<int, 8> tst_a;
+  std::iota(tst_a.begin(), tst_a.end(), 1);
+
   std::string str = "1 2 3 4 5 6 7 8";
-  auto splitted = nmq::utils::strings::tokens(str);
+  auto splitted_s = nmq::utils::strings::tokens(str);
+
+  std::vector<int> splitted(splitted_s.size());
+  std::transform(splitted_s.begin(), splitted_s.end(), splitted.begin(),
+                 [](const std::string &s) { return std::stoi(s); });
+
   EXPECT_EQ(splitted.size(), size_t(8));
 
-  splitted = nmq::utils::strings::split(str, ' ');
-  EXPECT_EQ(splitted.size(), size_t(8));
+  bool is_equal =
+      std::equal(tst_a.begin(), tst_a.end(), splitted.begin(), splitted.end());
+  EXPECT_TRUE(is_equal);
 }
 
 TEST_CASE("utils.to_upper") {
@@ -81,12 +92,11 @@ TEST_CASE("utils.waitable") {
     EXPECT_TRUE(parent_w.isStoped());
     EXPECT_FALSE(parent_w.isStarted());
   };
-  
+
   std::thread chldStoper(chld_stoper);
 
   child_w.waitStoping();
 
-  
   parent_w.stopComplete();
   chldStoper.join();
 }
