@@ -6,7 +6,31 @@
 
 #include <numeric>
 
+template <class A, class R> struct Query {
+  using Arg_t = A;
+  using Result_t = R;
+};
+
+template <class Q> struct Functor {
+  virtual typename Q::Result_t onMessage(typename Q::Arg_t) = 0;
+};
+
+template <class... Q> struct Transport : public Functor<Q>... {};
+
+using QueryIF = Query<int, float>;
+using QuerySI = Query<std::string, int>;
+
+struct MockT : public Transport<QueryIF, QuerySI> {
+  float Functor<QueryIF>::onMessage(int) { return 0.0; }
+  int Functor<QuerySI>::onMessage(std::string) { return 0; }
+};
+
+TEST_CASE("utils.experiment") {
+  MockT t;
+}
+
 TEST_CASE("utils.split") {
+
   std::array<int, 8> tst_a;
   std::iota(tst_a.begin(), tst_a.end(), 1);
 
