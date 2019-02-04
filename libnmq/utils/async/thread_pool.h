@@ -65,8 +65,9 @@ struct task_result {
 
 using task_result_ptr = std::shared_ptr<task_result>;
 
-/// return true if need recall.
-using async_task = std::function<bool(const thread_info &)>;
+enum class RUN_STRATEGY { SINGLE, REPEAT };
+
+using async_task = std::function<RUN_STRATEGY(const thread_info &)>;
 
 class async_task_wrapper {
 public:
@@ -74,14 +75,14 @@ public:
                             const std::string &file, int line);
   EXPORT async_task_wrapper(async_task &t, const std::string &_function,
                             const std::string &file, int line, TASK_PRIORITY p);
-  EXPORT bool apply(const thread_info &ti);
+  EXPORT RUN_STRATEGY apply(const thread_info &ti);
   EXPORT task_result_ptr result() const;
 
   TASK_PRIORITY priority;
 
 private:
   /// return true if need recall.
-  bool worker();
+  RUN_STRATEGY worker();
 
 private:
   thread_info _tinfo;

@@ -22,20 +22,19 @@ async_task_wrapper::async_task_wrapper(async_task &t, const std::string &_functi
   this->priority = p;
 }
 
-bool async_task_wrapper::apply(const thread_info &ti) {
+RUN_STRATEGY async_task_wrapper::apply(const thread_info &ti) {
   _tinfo.kind = ti.kind;
   _tinfo.thread_number = ti.thread_number;
 
-  if (!worker()) {
+  if (worker() == RUN_STRATEGY::SINGLE) {
     _result->unlock();
-    return false;
+    return RUN_STRATEGY::SINGLE;
   }
-  /// need recall.
-  return true;
+
+  return RUN_STRATEGY::REPEAT;
 }
 
-/// return true if need recall.
-bool async_task_wrapper::worker() {
+RUN_STRATEGY async_task_wrapper::worker() {
   try {
     return _task(this->_tinfo);
   } catch (std::exception &ex) {
@@ -149,7 +148,7 @@ void threads_pool::_pool_logic(size_t num) {
     // if queue is empty and task is coroutine, it will be run in cycle.
     while (true) {
       auto need_continue = task->apply(ti);
-      if (!need_continue) {
+      if (need_continue == RUN_STRATEGY::SINGLE) {
         break;
       }
       _queue_mutex.lock_shared();

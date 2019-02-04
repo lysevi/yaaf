@@ -128,7 +128,7 @@ TEST_CASE("utils.threads_pool") {
         INFO("(tk != ti.kind)");
         throw MAKE_EXCEPTION("(tk != ti.kind)");
       }
-      return false;
+      return RUN_STRATEGY::SINGLE;
     };
     for (size_t i = 0; i < tasks_count; ++i) {
       tp.post(AT(at));
@@ -150,7 +150,7 @@ TEST_CASE("utils.threads_pool") {
         INFO("(tk != ti.kind)");
         throw MAKE_EXCEPTION("(tk != ti.kind)");
       }
-      return false;
+      return RUN_STRATEGY::SINGLE;
     };
     for (size_t i = 0; i < tasks_count; ++i) {
       tp.post(AT(at));
@@ -178,15 +178,15 @@ TEST_CASE("utils.threads_manager") {
     uint64_t inf_calls = 0;
     async_task infinite_worker = [&inf_calls](const thread_info &) {
       ++inf_calls;
-      return true;
+      return RUN_STRATEGY::REPEAT;
     };
 
     async_task at_while = [&called](const thread_info &) {
       if (called < 10) {
         ++called;
-        return true;
+        return RUN_STRATEGY::REPEAT;
       }
-      return false;
+      return RUN_STRATEGY::SINGLE;
     };
     async_task at1 = [tk1](const thread_info &ti) {
       if (tk1 != ti.kind) {
@@ -194,7 +194,7 @@ TEST_CASE("utils.threads_manager") {
         nmq::utils::sleep_mls(400);
         throw MAKE_EXCEPTION("(tk1 != ti.kind)");
       }
-      return false;
+      return RUN_STRATEGY::SINGLE;
     };
     async_task at2 = [tk2](const thread_info &ti) {
       if (tk2 != ti.kind) {
@@ -202,7 +202,7 @@ TEST_CASE("utils.threads_manager") {
         nmq::utils::sleep_mls(400);
         throw MAKE_EXCEPTION("(tk2 != ti.kind)");
       }
-      return false;
+      return RUN_STRATEGY::SINGLE;
     };
     t_manager.post(
         tk1, AT_PRIORITY(infinite_worker, nmq::utils::async::TASK_PRIORITY::WORKER));
