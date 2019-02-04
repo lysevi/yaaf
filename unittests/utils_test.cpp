@@ -1,6 +1,8 @@
 #include <libnmq/utils/initialized_resource.h>
 #include <libnmq/utils/strings.h>
 #include <libnmq/utils/utils.h>
+#include <libnmq/utils/async/thread_manager.h>
+#include <libnmq/utils/async/thread_pool.h>
 
 #include "helpers.h"
 #include <catch.hpp>
@@ -101,4 +103,125 @@ TEST_CASE("utils.initialized_resource") {
 
   parent_w.stopping_completed();
   chldStoper.join();
+}
+
+TEST_CASE("utils.threads_pool") {
+  using namespace nmq::utils::async;
+
+  const thread_kind_t tk = 1;
+  {
+    const size_t threads_count = 2;
+    threads_pool tp(threads_pool::params_t(threads_count, tk));
+
+    EXPECT_EQ(tp.threads_count(), threads_count);
+    EXPECT_TRUE(!tp.is_stopped());
+    tp.stop();
+    EXPECT_TRUE(tp.is_stopped());
+  }
+
+  {
+    const size_t threads_count = 2;
+    threads_pool tp(threads_pool::params_t(threads_count, tk));
+    const size_t tasks_count = 100;
+    async_task at = [tk](const thread_info &ti) {
+      if (tk != ti.kind) {
+        INFO("(tk != ti.kind)");
+        throw MAKE_EXCEPTION("(tk != ti.kind)");
+      }
+      return false;
+    };
+    for (size_t i = 0; i < tasks_count; ++i) {
+      tp.post(AT(at));
+    }
+    tp.flush();
+
+    auto lock = tp.post(AT(at));
+    lock->wait();
+
+    tp.stop();
+  }
+
+  { // without flush
+    const size_t threads_count = 2;
+    threads_pool tp(threads_pool::params_t(threads_count, tk));
+    const size_t tasks_count = 100;
+    async_task at = [tk](const thread_info &ti) {
+      if (tk != ti.kind) {
+        INFO("(tk != ti.kind)");
+        throw MAKE_EXCEPTION("(tk != ti.kind)");
+      }
+      return false;
+    };
+    for (size_t i = 0; i < tasks_count; ++i) {
+      tp.post(AT(at));
+    }
+
+    tp.stop();
+  }
+}
+
+TEST_CASE("utils.threads_manager") {
+  using namespace nmq::utils::async;
+
+  const thread_kind_t tk1 = 1;
+  const thread_kind_t tk2 = 2;
+  size_t threads_count = 2;
+  threads_pool::params_t tp1(threads_count, tk1);
+  threads_pool::params_t tp2(threads_count, tk2);
+
+  thread_manager::params_t tpm_params(std::vector<threads_pool::params_t>{tp1, tp2});
+  {
+    EXPECT_TRUE(thread_manager::instance() == nullptr);
+    thread_manager::start(tpm_params);
+    EXPECT_TRUE(thread_manager::instance() != nullptr);
+    thread_manager::stop();
+    EXPECT_TRUE(thread_manager::instance() == nullptr);
+  }
+
+  {
+    const size_t tasks_count = 10;
+    thread_manager::start(tpm_params);
+    int called = 0;
+    uint64_t inf_calls = 0;
+    async_task infinite_worker = [&inf_calls](const thread_info &) {
+      ++inf_calls;
+      return true;
+    };
+
+    async_task at_while = [&called](const thread_info &) {
+      if (called < 10) {
+        ++called;
+        return true;
+      }
+      return false;
+    };
+    async_task at1 = [tk1](const thread_info &ti) {
+      if (tk1 != ti.kind) {
+        INFO("(tk != ti.kind)");
+        nmq::utils::sleep_mls(400);
+        throw MAKE_EXCEPTION("(tk1 != ti.kind)");
+      }
+      return false;
+    };
+    async_task at2 = [tk2](const thread_info &ti) {
+      if (tk2 != ti.kind) {
+        INFO("(tk != ti.kind)");
+        nmq::utils::sleep_mls(400);
+        throw MAKE_EXCEPTION("(tk2 != ti.kind)");
+      }
+      return false;
+    };
+    thread_manager::instance()->post(
+        tk1, AT_PRIORITY(infinite_worker, nmq::utils::async::TASK_PRIORITY::WORKER));
+    auto at_while_res = thread_manager::instance()->post(tk1, AT(at_while));
+    for (size_t i = 0; i < tasks_count; ++i) {
+      thread_manager::instance()->post(tk1, AT(at1));
+      thread_manager::instance()->post(tk2, AT(at2));
+    }
+    // EXPECT_GT(ThreadManager::instance()->active_works(), size_t(0));
+    at_while_res->wait();
+    EXPECT_EQ(called, int(10));
+    thread_manager::instance()->flush();
+    thread_manager::instance()->stop();
+  }
 }
