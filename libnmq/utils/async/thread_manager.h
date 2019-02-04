@@ -16,10 +16,7 @@ public:
     std::vector<threads_pool::params_t> pools;
     params_t(std::vector<threads_pool::params_t> _pools) { pools = _pools; }
   };
-  EXPORT static void start(const params_t &params);
-  EXPORT static void stop();
-  EXPORT static thread_manager *instance();
-
+  EXPORT thread_manager(const params_t &params);
   EXPORT ~thread_manager();
   EXPORT void flush();
   task_result_ptr post(const THREAD_KINDS kind,
@@ -37,10 +34,8 @@ public:
   }
 
 private:
-  thread_manager(const params_t &params);
-
+  
 private:
-  static thread_manager *_instance;
   bool _stoped;
   params_t _params;
   std::unordered_map<thread_kind_t, std::shared_ptr<threads_pool>> _pools;

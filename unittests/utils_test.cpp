@@ -171,16 +171,9 @@ TEST_CASE("utils.threads_manager") {
 
   thread_manager::params_t tpm_params(std::vector<threads_pool::params_t>{tp1, tp2});
   {
-    EXPECT_TRUE(thread_manager::instance() == nullptr);
-    thread_manager::start(tpm_params);
-    EXPECT_TRUE(thread_manager::instance() != nullptr);
-    thread_manager::stop();
-    EXPECT_TRUE(thread_manager::instance() == nullptr);
-  }
-
-  {
     const size_t tasks_count = 10;
-    thread_manager::start(tpm_params);
+
+    thread_manager  t_manager(tpm_params);
     int called = 0;
     uint64_t inf_calls = 0;
     async_task infinite_worker = [&inf_calls](const thread_info &) {
@@ -211,17 +204,16 @@ TEST_CASE("utils.threads_manager") {
       }
       return false;
     };
-    thread_manager::instance()->post(
+    t_manager.post(
         tk1, AT_PRIORITY(infinite_worker, nmq::utils::async::TASK_PRIORITY::WORKER));
-    auto at_while_res = thread_manager::instance()->post(tk1, AT(at_while));
+    auto at_while_res = t_manager.post(tk1, AT(at_while));
     for (size_t i = 0; i < tasks_count; ++i) {
-      thread_manager::instance()->post(tk1, AT(at1));
-      thread_manager::instance()->post(tk2, AT(at2));
+      t_manager.post(tk1, AT(at1));
+      t_manager.post(tk2, AT(at2));
     }
     // EXPECT_GT(ThreadManager::instance()->active_works(), size_t(0));
     at_while_res->wait();
     EXPECT_EQ(called, int(10));
-    thread_manager::instance()->flush();
-    thread_manager::instance()->stop();
+    t_manager.flush();
   }
 }

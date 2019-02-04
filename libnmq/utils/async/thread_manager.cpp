@@ -3,23 +3,6 @@
 
 using namespace nmq::utils::async;
 
-thread_manager *thread_manager::_instance = nullptr;
-
-void thread_manager::start(const thread_manager::params_t &params) {
-  if (_instance == nullptr) {
-    _instance = new thread_manager(params);
-  }
-}
-
-void thread_manager::stop() {
-  delete _instance;
-  _instance = nullptr;
-}
-
-thread_manager *thread_manager::instance() {
-  return _instance;
-}
-
 thread_manager::thread_manager(const thread_manager::params_t &params) : _params(params) {
   for (const auto &kv : _params.pools) {
     _pools[kv.kind] = std::make_shared<threads_pool>(kv);
