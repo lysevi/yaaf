@@ -14,41 +14,42 @@
 #include <thread>
 
 using namespace nmq;
+using namespace nmq::utils::logging;
 using namespace nmq::utils;
 
 namespace listener_test {
 
-struct Listener : public nmq::network::IListenerConsumer {
-  bool onNewConnection(nmq::network::ListenerClientPtr) override {
+struct Listener : public nmq::network::abstract_listener_consumer {
+  bool on_new_connection(nmq::network::listener_client_ptr) override {
     connections.fetch_add(1);
     return true;
   }
 
-  void onNetworkError(nmq::network::ListenerClientPtr i,
-                      const network::MessagePtr & /*d*/,
+  void on_network_error(nmq::network::listener_client_ptr i,
+                      const network::message_ptr & /*d*/,
                       const boost::system::error_code & /*err*/) override {}
 
-  void onNewMessage(nmq::network::ListenerClientPtr i, network::MessagePtr && /*d*/,
+  void on_new_message(nmq::network::listener_client_ptr i, network::message_ptr && /*d*/,
                     bool & /*cancel*/) override {}
 
-  void onDisconnect(const nmq::network::ListenerClientPtr & /*i*/) override {
+  void on_disconnect(const nmq::network::listener_client_ptr & /*i*/) override {
     connections.fetch_sub(1);
   }
 
   std::atomic_int16_t connections = 0;
 };
 
-struct Connection : public nmq::network::IConnectionConsumer {
-  void onConnect() override { mock_is_connected = true; };
-  void onNewMessage(nmq::network::MessagePtr &&, bool &) override {}
-  void onNetworkError(const nmq::network::MessagePtr &,
+struct Connection : public nmq::network::abstract_connection_consumer {
+  void on_connect() override { mock_is_connected = true; };
+  void on_new_message(nmq::network::message_ptr &&, bool &) override {}
+  void on_network_error(const nmq::network::message_ptr &,
                       const boost::system::error_code &err) override {
     bool isError = err == boost::asio::error::operation_aborted ||
                    err == boost::asio::error::connection_reset ||
                    err == boost::asio::error::eof;
-    if (isError && !isStoped()) {
+    if (isError && !is_stoped()) {
       auto msg = err.message();
-      logger_fatal(msg);
+      nmq::utils::logging::logger_fatal(msg);
       EXPECT_FALSE(true);
     }
   }
@@ -58,18 +59,18 @@ struct Connection : public nmq::network::IConnectionConsumer {
 };
 
 bool server_stop = false;
-std::shared_ptr<nmq::network::Listener> server = nullptr;
+std::shared_ptr<nmq::network::listener> server = nullptr;
 std::shared_ptr<Listener> lstnr = nullptr;
 boost::asio::io_service *service;
 
 void server_thread() {
-  network::Listener::Params p;
+  network::listener::params p;
   p.port = 4040;
   service = new boost::asio::io_service();
 
-  server = std::make_shared<nmq::network::Listener>(service, p);
+  server = std::make_shared<nmq::network::listener>(service, p);
   lstnr = std::make_shared<Listener>();
-  server->addConsumer(lstnr.get());
+  server->add_consumer(lstnr.get());
 
   server->start();
   while (!server_stop) {
@@ -86,22 +87,22 @@ void server_thread() {
 }
 
 void testForConnection(const size_t clients_count) {
-  network::Connection::Params p("localhost", 4040);
+  network::connection::params p("localhost", 4040);
 
   server_stop = false;
   std::thread t(server_thread);
-  while (server == nullptr || !server->isStarted()) {
+  while (server == nullptr || !server->is_started()) {
     logger("listener.client.testForConnection. !server->is_started serverIsNull? ",
            server == nullptr);
   }
 
-  std::vector<std::shared_ptr<network::Connection>> clients(clients_count);
+  std::vector<std::shared_ptr<network::connection>> clients(clients_count);
   std::vector<std::shared_ptr<Connection>> consumers(clients_count);
   for (size_t i = 0; i < clients_count; i++) {
-    clients[i] = std::make_shared<network::Connection>(service, p);
+    clients[i] = std::make_shared<network::connection>(service, p);
     consumers[i] = std::make_shared<Connection>();
-    clients[i]->addConsumer(consumers[i].get());
-    clients[i]->startAsyncConnection();
+    clients[i]->add_consumer(consumers[i].get());
+    clients[i]->start_async_connection();
   }
 
   for (auto &c : consumers) {
@@ -110,13 +111,13 @@ void testForConnection(const size_t clients_count) {
     }
   }
 
-  while (!lstnr->isStarted() && lstnr->connections != clients_count) {
+  while (!lstnr->is_started() && lstnr->connections != clients_count) {
     logger("listener.client.testForConnection. not all clients was loggined");
   }
 
   for (auto &c : clients) {
     c->disconnect();
-    while (!c->isStoped()) {
+    while (!c->is_stoped()) {
       logger("listener.client.testForConnection. client is still connected");
     }
   }

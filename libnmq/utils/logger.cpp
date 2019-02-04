@@ -2,67 +2,67 @@
 #include <libnmq/utils/utils.h>
 #include <iostream>
 
-using namespace nmq::utils;
+using namespace nmq::utils::logging;
 using namespace nmq::utils::async;
 
-std::shared_ptr<LogManager> LogManager::_instance = nullptr;
-nmq::utils::async::locker LogManager::_locker;
+std::shared_ptr<logger_manager> logger_manager::_instance = nullptr;
+nmq::utils::async::locker logger_manager::_locker;
 
-Verbose LogManager::verbose = Verbose::Debug;
+verbose logger_manager::verbose = verbose::debug;
 
-void LogManager::start(ILogger_ptr &logger) {
+void logger_manager::start(abstract_logger_ptr &logger) {
   if (_instance == nullptr) {
-    _instance = std::shared_ptr<LogManager>{new LogManager(logger)};
+    _instance = std::shared_ptr<logger_manager>{new logger_manager(logger)};
   }
 }
 
-void LogManager::stop() {
+void logger_manager::stop() {
   _instance = nullptr;
 }
 
-LogManager *LogManager::instance() noexcept {
+logger_manager *logger_manager::instance() noexcept {
   auto tmp = _instance.get();
   if (tmp == nullptr) {
     std::lock_guard<locker> lock(_locker);
     tmp = _instance.get();
     if (tmp == nullptr) {
-      ILogger_ptr l = std::make_shared<ConsoleLogger>();
-      _instance = std::make_shared<LogManager>(l);
+      abstract_logger_ptr l = std::make_shared<console_logger>();
+      _instance = std::make_shared<logger_manager>(l);
       tmp = _instance.get();
     }
   }
   return tmp;
 }
 
-LogManager::LogManager(ILogger_ptr &logger) {
+logger_manager::logger_manager(abstract_logger_ptr &logger) {
   _logger = logger;
 }
 
-void LogManager::message(LOG_MESSAGE_KIND kind, const std::string &msg) noexcept {
+void logger_manager::message(message_kind kind, const std::string &msg) noexcept {
   std::lock_guard<utils::async::locker> lg(_msg_locker);
   _logger->message(kind, msg);
 }
 
-void ConsoleLogger::message(LOG_MESSAGE_KIND kind, const std::string &msg) noexcept {
-  if (LogManager::verbose == Verbose::Quiet) {
+void console_logger::message(message_kind kind, const std::string &msg) noexcept {
+  if (logger_manager::verbose == verbose::quiet) {
     return;
   }
   switch (kind) {
-  case LOG_MESSAGE_KIND::FATAL:
+  case message_kind::fatal:
     std::cerr << "[err] " << msg << std::endl;
     break;
-  case LOG_MESSAGE_KIND::INFO:
+  case message_kind::info:
     std::cout << "[inf] " << msg << std::endl;
     break;
-  case LOG_MESSAGE_KIND::MESSAGE:
-    if (LogManager::verbose == Verbose::Debug) {
+  case message_kind::message:
+    if (logger_manager::verbose == verbose::debug) {
       std::cout << "[dbg] " << msg << std::endl;
     }
     break;
   }
 }
 
-void QuietLogger::message(LOG_MESSAGE_KIND kind, const std::string &msg) noexcept {
+void quiet_logger::message(message_kind kind, const std::string &msg) noexcept {
   UNUSED(kind);
   UNUSED(msg);
 }

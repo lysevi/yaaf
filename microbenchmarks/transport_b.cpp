@@ -4,19 +4,21 @@
 
 #include <type_traits>
 
+using namespace nmq::utils::logging;
+
 namespace inner {
 
-template <class T> using networkTransport = nmq::network::Transport<T, size_t>;
-template <class T> using localTransport = nmq::local::Transport<T, size_t>;
+template <class T> using networkTransport = nmq::network::transport<T, size_t>;
+template <class T> using localTransport = nmq::local::transport<T, size_t>;
 
 template <typename Tr> struct ParamFiller {
 
   template <class Q = Tr>
   static typename std::enable_if<
-      std::is_same<typename Q::Params,
-                   typename networkTransport<typename Q::ArgType>::Params>::value,
+      std::is_same<typename Q::params,
+                   typename networkTransport<typename Q::arg_t>::params>::value,
       bool>::type
-  fillParams(typename Q::Params &t) {
+  fillParams(typename Q::params &t) {
     t.host = "localhost";
     t.port = 4040;
     return true;
@@ -24,10 +26,10 @@ template <typename Tr> struct ParamFiller {
 
   template <class Q = Tr>
   static typename std::enable_if<
-      std::is_same<typename Q::Params,
-                   typename localTransport<typename Q::ArgType>::Params>::value,
+      std::is_same<typename Q::params,
+                   typename localTransport<typename Q::arg_t>::params>::value,
       bool>::type
-  fillParams(typename Q::Params &t) {
+  fillParams(typename Q::params &t) {
     UNUSED(t);
     return true;
   }
@@ -36,84 +38,84 @@ template <typename Tr> struct ParamFiller {
 } // namespace inner
 
 template <class MockTrasport>
-struct MockTransportListener : public MockTrasport::Listener {
-  MockTransportListener(std::shared_ptr<typename MockTrasport::Manager> &manager,
-                        typename MockTrasport::Params &p)
-      : MockTrasport::Listener(manager, p) {
+struct MockTransportListener : public MockTrasport::listener {
+  MockTransportListener(std::shared_ptr<typename MockTrasport::manager> &manager,
+                        typename MockTrasport::params &p)
+      : MockTrasport::listener(manager, p) {
     _count.store(0);
   }
 
-  void onError(const typename MockTrasport::io_chanel_type::Sender &,
-               const nmq::ErrorCode &er) override {
+  void on_error(const typename MockTrasport::io_chanel_t::sender &,
+               const nmq::ecode &er) override {
     UNUSED(er);
   };
-  void onMessage(const typename MockTrasport::io_chanel_type::Sender &s,
-                 typename const MockTrasport::ArgType &&d) override {
-    nmq::logger("<= d", d);
+  void on_message(const typename MockTrasport::io_chanel_t::sender &s,
+                 typename const MockTrasport::arg_t &&d) override {
+    logger("<= d", d);
     _count++;
 
-    if (this->isStoped()) {
+    if (this->is_stoped()) {
       return;
     }
 
-    this->sendAsync(s.id, _count.load());
+    this->send_async(s.id, _count.load());
   }
 
   std::atomic_size_t _count;
 };
 
 template <class MockTrasport>
-struct MockTransportClient : public MockTrasport::Connection {
-  MockTransportClient(std::shared_ptr<typename MockTrasport::Manager> &manager,
-                      typename MockTrasport::Params &p)
-      : toSend(), MockTrasport::Connection(manager, p) {}
+struct MockTransportClient : public MockTrasport::connection {
+  MockTransportClient(std::shared_ptr<typename MockTrasport::manager> &manager,
+                      typename MockTrasport::params &p)
+      : to_send(), MockTrasport::connection(manager, p) {}
 
-  void sendQuery() { this->sendAsync(toSend); }
+  void send_query() { this->send_async(to_send); }
 
-  void onError(const nmq::ErrorCode &er) override { UNUSED(er); };
-  void onMessage(const typename MockTrasport::ResultType&&d) override {
+  void on_error(const nmq::ecode &er) override { UNUSED(er); };
+  void on_message(const typename MockTrasport::result_t &&d) override {
     UNUSED(d);
-    sendQuery();
+    send_query();
   }
 
-  typename MockTrasport::ArgType toSend;
+  typename MockTrasport::arg_t to_send;
 };
 
 template <class Tr> struct TransportTester : public benchmark::Fixture {
-  std::shared_ptr<typename Tr::Manager> manager;
+  std::shared_ptr<typename Tr::manager> manager;
   std::shared_ptr<MockTransportListener<Tr>> listener;
   std::shared_ptr<MockTransportClient<Tr>> client;
 
   void SetUp(const ::benchmark::State &) override {
-    Tr::Params p;
+    Tr::params p;
 
     inner::ParamFiller<Tr>::fillParams(p);
 
-    manager = std::make_shared<typename Tr::Manager>(p);
+    manager = std::make_shared<typename Tr::manager>(p);
 
     manager->start();
-    manager->waitStarting();
+    manager->wait_starting();
 
     listener = std::make_shared<MockTransportListener<Tr>>(manager, p);
 
     listener->start();
-    listener->waitStarting();
+    listener->wait_starting();
 
     client = std::make_shared<MockTransportClient<Tr>>(manager, p);
     client->start();
-    client->waitStarting();
-    for (; !client->isStarted();) {
+    client->wait_starting();
+    for (; !client->is_started();) {
       std::this_thread::yield();
     }
-    client->sendQuery();
+    client->send_query();
   }
 
   void TearDown(const ::benchmark::State &) override {
     client->stop();
-    client->waitStoping();
+    client->wait_stoping();
 
     listener->stop();
-    listener->waitStoping();
+    listener->wait_stoping();
 
     manager->stop();
   }

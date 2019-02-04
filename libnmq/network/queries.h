@@ -12,133 +12,134 @@ namespace nmq {
 namespace network {
 namespace queries {
 
-struct Ok {
+struct ok {
   uint64_t id;
 
-  using BinaryRW = serialization::BinaryReaderWriter<uint64_t>;
+  using BinaryRW = serialization::binary_io<uint64_t>;
 
-  Ok(uint64_t id_) { id = id_; }
+  ok(uint64_t id_) { id = id_; }
 
-  Ok(const network::MessagePtr &nd) { BinaryRW::read(nd->value(), id); }
+  ok(const network::message_ptr &nd) { BinaryRW::read(nd->value(), id); }
 
-  Ok(network::MessagePtr &&nd) { BinaryRW::read(nd->value(), id); }
+  ok(network::message_ptr &&nd) { BinaryRW::read(nd->value(), id); }
 
-  network::MessagePtr getMessage() const {
-    network::Message::size_t neededSize =
-        static_cast<network::Message::size_t>(BinaryRW::capacity(id));
+  network::message_ptr get_message() const {
+    network::message::size_t neededSize =
+        static_cast<network::message::size_t>(BinaryRW::capacity(id));
 
-    auto nd = std::make_shared<network::Message>(
-        neededSize, (network::Message::kind_t)MessageKinds::OK);
+    auto nd = std::make_shared<network::message>(
+        neededSize, (network::message::kind_t)messagekinds::OK);
 
     BinaryRW::write(nd->value(), id);
     return nd;
   }
 };
 
-struct Login {
-  std::string login;
+struct login {
+  std::string login_str;
 
-  using BinaryRW = serialization::BinaryReaderWriter<std::string>;
+  using BinaryRW = serialization::binary_io<std::string>;
 
-  Login(const std::string &login_) { login = login_; }
+  login(const std::string &login_) { login_str = login_; }
 
-  Login(const network::MessagePtr &nd) { BinaryRW::read(nd->value(), login); }
+  login(const network::message_ptr &nd) { BinaryRW::read(nd->value(), login_str); }
 
-  network::MessagePtr getMessage() const {
-    network::Message::size_t neededSize =
-        static_cast<network::Message::size_t>(BinaryRW::capacity(login));
+  network::message_ptr get_message() const {
+    network::message::size_t neededSize =
+        static_cast<network::message::size_t>(BinaryRW::capacity(login_str));
 
-    auto nd = std::make_shared<network::Message>(
-        neededSize, (network::Message::kind_t)MessageKinds::LOGIN);
+    auto nd = std::make_shared<network::message>(
+        neededSize, (network::message::kind_t)messagekinds::LOGIN);
 
-    BinaryRW::write(nd->value(), login);
+    BinaryRW::write(nd->value(), login_str);
     return nd;
   }
 };
 
-struct LoginConfirm {
+struct login_confirm {
   uint64_t id;
 
-  using BinaryRW = serialization::BinaryReaderWriter<uint64_t>;
+  using BinaryRW = serialization::binary_io<uint64_t>;
 
-  LoginConfirm(uint64_t id_) { id = id_; }
+  login_confirm(uint64_t id_) { id = id_; }
 
-  LoginConfirm(const network::MessagePtr &nd) { BinaryRW::read(nd->value(), id); }
+  login_confirm(const network::message_ptr &nd) { BinaryRW::read(nd->value(), id); }
 
-  network::MessagePtr getMessage() const {
-    network::Message::size_t neededSize =
-        static_cast<network::Message::size_t>(BinaryRW::capacity(id));
+  network::message_ptr get_message() const {
+    network::message::size_t neededSize =
+        static_cast<network::message::size_t>(BinaryRW::capacity(id));
 
-    auto nd = std::make_shared<network::Message>(
-        neededSize, (network::Message::kind_t)MessageKinds::LOGIN_CONFIRM);
+    auto nd = std::make_shared<network::message>(
+        neededSize, (network::message::kind_t)messagekinds::LOGIN_CONFIRM);
 
     BinaryRW::write(nd->value(), id);
     return nd;
   }
 };
 
-struct LoginFailed {
+struct login_failed {
   uint64_t id;
 
-  using BinaryRW = serialization::BinaryReaderWriter<uint64_t>;
+  using BinaryRW = serialization::binary_io<uint64_t>;
 
-  LoginFailed(uint64_t id_) { id = id_; }
+  login_failed(uint64_t id_) { id = id_; }
 
-  LoginFailed(const network::MessagePtr &nd) { BinaryRW::read(nd->value(), id); }
+  login_failed(const network::message_ptr &nd) { BinaryRW::read(nd->value(), id); }
 
-  network::MessagePtr getMessage() const {
-    network::Message::size_t neededSize =
-        static_cast<network::Message::size_t>(BinaryRW::capacity(id));
+  network::message_ptr get_message() const {
+    network::message::size_t neededSize =
+        static_cast<network::message::size_t>(BinaryRW::capacity(id));
 
-    auto nd = std::make_shared<network::Message>(
-        neededSize, (network::Message::kind_t)MessageKinds::LOGIN_FAILED);
+    auto nd = std::make_shared<network::message>(
+        neededSize, (network::message::kind_t)messagekinds::LOGIN_FAILED);
 
     BinaryRW::write(nd->value(), id);
     return nd;
   }
 };
 
-template <typename T> struct Message {
+template <typename T> struct packed_message {
   uint64_t id;
-  Id asyncOperationId;
-  Id clientId;
+  uint64_t asyncOperationid;
+  uint64_t clientid;
   T msg;
-  using BinaryRW = serialization::BinaryReaderWriter<uint64_t, Id, Id>;
+  using BinaryRW = serialization::binary_io<uint64_t, uint64_t, uint64_t>;
 
-  Message(uint64_t id_, Id asyncOperationId_, Id client, const T &msg_) {
+  packed_message(uint64_t id_, id_t asyncOperationid_, id_t client, const T &msg_) {
     id = id_;
     msg = msg_;
-    clientId = client, asyncOperationId = asyncOperationId_;
+    clientid = client.value;
+    asyncOperationid = asyncOperationid_.value;
   }
 
-  Message(uint64_t id_, Id asyncOperationId_, Id client, T &&msg_)
-      : id(id_), msg(std::move(msg_)), clientId(client),
-        asyncOperationId(asyncOperationId_) {}
+  packed_message(uint64_t id_, id_t asyncOperationid_, id_t client, T &&msg_)
+      : id(id_), msg(std::move(msg_)), clientid(client.value),
+        asyncOperationid(asyncOperationid_.value) {}
 
-  Message(const network::MessagePtr &nd) {
+  packed_message(const network::message_ptr &nd) {
     auto iterator = nd->value();
-    BinaryRW::read(iterator, id, asyncOperationId, clientId);
-    msg = serialization::ObjectScheme<T>::unpack(
-        iterator + BinaryRW::capacity(id, asyncOperationId, clientId));
+    BinaryRW::read(iterator, id, asyncOperationid, clientid);
+    msg = serialization::object_packer<T>::unpack(
+        iterator + BinaryRW::capacity(id, asyncOperationid, clientid));
   }
 
-  Message(network::MessagePtr &&nd) {
+  packed_message(network::message_ptr &&nd) {
     auto iterator = nd->value();
-    BinaryRW::read(iterator, id, asyncOperationId, clientId);
-    msg = serialization::ObjectScheme<T>::unpack(
-        iterator + BinaryRW::capacity(id, asyncOperationId, clientId));
+    BinaryRW::read(iterator, id, asyncOperationid, clientid);
+    msg = serialization::object_packer<T>::unpack(
+        iterator + BinaryRW::capacity(id, asyncOperationid, clientid));
   }
 
-  network::MessagePtr getMessage() const {
-    auto self_size = BinaryRW::capacity(id, asyncOperationId, clientId);
-    network::Message::size_t neededSize = static_cast<network::Message::size_t>(
-        self_size + serialization::ObjectScheme<T>::capacity(msg));
+  network::message_ptr get_message() const {
+    auto self_size = BinaryRW::capacity(id, asyncOperationid, clientid);
+    network::message::size_t neededSize = static_cast<network::message::size_t>(
+        self_size + serialization::object_packer<T>::capacity(msg));
 
-    auto nd = std::make_shared<network::Message>(
-        neededSize, (network::Message::kind_t)MessageKinds::MSG);
+    auto nd = std::make_shared<network::message>(
+        neededSize, (network::message::kind_t)messagekinds::MSG);
 
-    BinaryRW::write(nd->value(), id, asyncOperationId, clientId);
-    serialization::ObjectScheme<T>::pack(nd->value() + self_size, msg);
+    BinaryRW::write(nd->value(), id, asyncOperationid, clientid);
+    serialization::object_packer<T>::pack(nd->value() + self_size, msg);
     return nd;
   }
 };

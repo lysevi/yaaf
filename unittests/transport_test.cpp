@@ -11,6 +11,7 @@
 
 using namespace nmq;
 using namespace nmq::utils;
+using namespace nmq::utils::logging;
 
 struct MockMessage {
   uint64_t id;
@@ -30,8 +31,8 @@ struct MockResultMessage {
 
 namespace nmq {
 namespace serialization {
-template <> struct ObjectScheme<MockMessage> {
-  using BinaryRW = nmq::serialization::BinaryReaderWriter<uint64_t, size_t, std::string>;
+template <> struct object_packer<MockMessage> {
+  using BinaryRW = nmq::serialization::binary_io<uint64_t, size_t, std::string>;
 
   static size_t capacity(const MockMessage &t) {
     return BinaryRW::capacity(t.id, t.client_id, t.msg);
@@ -46,9 +47,9 @@ template <> struct ObjectScheme<MockMessage> {
   }
 };
 
-template <> struct ObjectScheme<MockResultMessage> {
+template <> struct object_packer<MockResultMessage> {
   using BinaryRW =
-      nmq::serialization::BinaryReaderWriter<uint64_t, size_t, size_t, std::string>;
+      nmq::serialization::binary_io<uint64_t, size_t, size_t, std::string>;
 
   static size_t capacity(const MockResultMessage &t) {
     return BinaryRW::capacity(t.id, t.client_id, t.length, t.msg);
@@ -67,17 +68,17 @@ template <> struct ObjectScheme<MockResultMessage> {
 
 namespace {
 const size_t TestableQSize = 10;
-using networkTransport = nmq::network::Transport<MockMessage, MockResultMessage>;
-using localTransport = nmq::local::Transport<MockMessage, MockResultMessage>;
+using networkTransport = nmq::network::transport<MockMessage, MockResultMessage>;
+using localTransport = nmq::local::transport<MockMessage, MockResultMessage>;
 
 template <typename T>
-std::enable_if_t<std::is_same_v<T, networkTransport::Params>, void> fillParams(T &t) {
+std::enable_if_t<std::is_same_v<T, networkTransport::params>, void> fillparams(T &t) {
   t.host = "localhost";
   t.port = 4040;
 }
 
 template <typename T>
-std::enable_if_t<std::is_same_v<T, localTransport::Params>, void> fillParams(T &t) {
+std::enable_if_t<std::is_same_v<T, localTransport::params>, void> fillparams(T &t) {
   t.result_queue_size = 10;
   t.result_queue_size = 10;
 }
@@ -87,22 +88,22 @@ template <class TestType> struct TransportTester {
   static void run(size_t clientsCount, size_t listenersCount) {
     using MockTrasport = TestType;
 
-    struct Listener : public MockTrasport::Listener {
-      Listener(std::shared_ptr<MockTrasport::Manager> &manager, MockTrasport::Params &p)
-          : MockTrasport::Listener(manager, p) {}
+    struct listener : public MockTrasport::listener {
+      listener(std::shared_ptr<MockTrasport::manager> &manager, MockTrasport::params &p)
+          : MockTrasport::listener(manager, p) {}
 
-      void onError(const MockTrasport::io_chanel_type::Sender &,
-                   const ErrorCode &er) override {
+      void on_error(const MockTrasport::io_chanel_t::sender &,
+                   const ecode &er) override {
 
-        if (er.inner_error == nmq::ErrorsKinds::FULL_STOP) {
+        if (er.inner_error == nmq::errors_kinds::FULL_STOP) {
           full_stop_flag = true;
         }
       };
 
-      void onMessage(const MockTrasport::io_chanel_type::Sender &s,
+      void on_message(const MockTrasport::io_chanel_t::sender &s,
                      const MockMessage &&d) override {
 
-        if (isStopBegin()) {
+        if (is_stop_begin()) {
           return;
         }
 
@@ -122,11 +123,11 @@ template <class TestType> struct TransportTester {
         answer.msg = d.msg + " " + d.msg;
         answer.length = answer.msg.size();
 
-        if (this->isStoped()) {
+        if (this->is_stoped()) {
           return;
         }
 
-        auto aor = this->sendAsync(s.id, answer);
+        auto aor = this->send_async(s.id, answer);
         aor.wait();
         is_bysy_test_flag = false;
       }
@@ -138,40 +139,40 @@ template <class TestType> struct TransportTester {
       bool is_bysy_test_flag = false;
     };
 
-    struct Client : public MockTrasport::Connection {
-      Client(std::shared_ptr<MockTrasport::Manager> &manager,
-             const MockTrasport::Params &p)
-          : MockTrasport::Connection(manager, p) {}
+    struct Client : public MockTrasport::connection {
+      Client(std::shared_ptr<MockTrasport::manager> &manager,
+             const MockTrasport::params &p)
+          : MockTrasport::connection(manager, p) {}
 
-      void onConnected() override { MockTrasport::Connection::onConnected(); }
+      void on_connected() override { MockTrasport::connection::on_connected(); }
 
-      nmq::AsyncOperationResult sendQuery() {
+      nmq::async_operation_handler send_query() {
         MockMessage m;
         m.id = msg_id++;
-        m.client_id = getId();
+        m.client_id = get_id().value;
         m.msg = "msg_" + std::to_string(m.id);
         logger_info("=>id:", m.id, " msg:", m.msg);
-        auto aor = this->sendAsync(m);
+        auto aor = this->send_async(m);
         return aor;
       }
 
-      void onError(const ErrorCode &er) override {
-        if (er.inner_error == nmq::ErrorsKinds::ALL_LISTENERS_STOPED) {
+      void on_error(const ecode &er) override {
+        if (er.inner_error == nmq::errors_kinds::ALL_LISTENERS_STOPED) {
           all_listeners__stoped_flag = true;
         }
-        if (er.inner_error == nmq::ErrorsKinds::FULL_STOP) {
+        if (er.inner_error == nmq::errors_kinds::FULL_STOP) {
           full_stop_flag = true;
         }
-        MockTrasport::Connection::onError(er);
+        MockTrasport::connection::on_error(er);
       };
 
-      void onMessage(const MockResultMessage &&d) override {
-        if (!isStopBegin()) {
+      void on_message(const MockResultMessage &&d) override {
+        if (!is_stop_begin()) {
           logger_info("<=id:", d.id, " length:", d.length);
           _locker.lock();
           _q.insert(std::make_pair(d.id, d.length));
           _locker.unlock();
-          ENSURE(d.client_id == getId());
+          ENSURE(d.client_id == get_id().value);
         }
       }
 
@@ -188,22 +189,22 @@ template <class TestType> struct TransportTester {
       bool all_listeners__stoped_flag = false;
     };
 
-    MockTrasport::Params p;
+    MockTrasport::params p;
 
-    fillParams(p);
+    fillparams(p);
     p.threads_count = (listenersCount + clientsCount) + 3;
-    auto manager = std::make_shared<MockTrasport::Manager>(p);
+    auto manager = std::make_shared<MockTrasport::manager>(p);
 
     manager->start();
-    manager->waitStarting();
+    manager->wait_starting();
 
-    std::vector<std::shared_ptr<Listener>> listeners(listenersCount);
+    std::vector<std::shared_ptr<listener>> listeners(listenersCount);
     for (size_t i = 0; i < listenersCount; ++i) {
-      auto listener = std::make_shared<Listener>(manager, p);
-      listeners[i] = listener;
-      listener->start();
+      auto l = std::make_shared<listener>(manager, p);
+      listeners[i] = l;
+      l->start();
 
-      while (!listener->isStarted()) {
+      while (!l->is_started()) {
         logger("transport: !listener->is_started_flag");
         std::this_thread::yield();
       }
@@ -216,7 +217,7 @@ template <class TestType> struct TransportTester {
       clients[i] = newClient;
 
       newClient->start();
-      newClient->waitStarting();
+      newClient->wait_starting();
     }
 
     auto checkF = [](std::shared_ptr<Client> c) { return c->_q.size() > TestableQSize; };
@@ -224,7 +225,7 @@ template <class TestType> struct TransportTester {
     for (;;) {
 
       for (auto client : clients) {
-        auto aor = client->sendQuery();
+        auto aor = client->send_query();
         aor.wait();
       }
 
@@ -237,7 +238,7 @@ template <class TestType> struct TransportTester {
       auto end = (size_t)(clientsCount / 2);
       for (size_t i = 0; i < end; ++i) {
         clients[i]->stop();
-        clients[i]->waitStoping();
+        clients[i]->wait_stoping();
         clients[i] = nullptr;
       }
     }
@@ -261,15 +262,15 @@ template <class TestType> struct TransportTester {
         }
 
       } else {
-        while (!client->isStoped()) {
-          logger("transport: client->isStoped");
+        while (!client->is_stoped()) {
+          logger("transport: client->is_stoped");
           std::this_thread::yield();
         }
       }
     }
 
     manager->stop();
-    manager->waitStoping();
+    manager->wait_stoping();
     logger("manager->stop();");
     if (std::is_same_v<MockTrasport, localTransport>) {
       logger("check full_stop_flag");

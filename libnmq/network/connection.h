@@ -9,56 +9,56 @@
 namespace nmq {
 namespace network {
 
-class Connection;
-class IConnectionConsumer {
+class connection;
+class abstract_connection_consumer {
 public:
-  EXPORT virtual ~IConnectionConsumer();
-  virtual void onConnect() = 0;
-  virtual void onNewMessage(MessagePtr &&d, bool &cancel) = 0;
-  virtual void onNetworkError(const MessagePtr &d,
+  EXPORT virtual ~abstract_connection_consumer();
+  virtual void on_connect() = 0;
+  virtual void on_new_message(message_ptr &&d, bool &cancel) = 0;
+  virtual void on_network_error(const message_ptr &d,
                               const boost::system::error_code &err) = 0;
 
-  EXPORT bool isConnected() const;
-  EXPORT bool isStoped() const;
+  EXPORT bool is_connected() const;
+  EXPORT bool is_stoped() const;
 
-  EXPORT void addConnection(std::shared_ptr<Connection> c);
-  EXPORT bool isConnectionExists() const { return _connection != nullptr; }
+  EXPORT void add_connection(std::shared_ptr<connection> c);
+  EXPORT bool is_connection_exists() const { return _connection != nullptr; }
 
 private:
-  std::shared_ptr<Connection> _connection;
+  std::shared_ptr<connection> _connection;
 };
-using IConnectionConsumerPtr = IConnectionConsumer *;
+using abstract_connection_consumerPtr = abstract_connection_consumer *;
 
-class Connection : public std::enable_shared_from_this<Connection>,
-                   public utils::Waitable {
+class connection : public std::enable_shared_from_this<connection>,
+                   public utils::waitable {
 public:
-  struct Params {
-    Params(std::string host_, unsigned short port_, bool auto_reconnection_ = true)
+  struct params {
+    params(std::string host_, unsigned short port_, bool auto_reconnection_ = true)
         : host(host_), port(port_), auto_reconnection(auto_reconnection_) {}
     std::string host;
     unsigned short port;
     bool auto_reconnection = true;
   };
-  Connection() = delete;
-  Params getParams() const { return _params; }
+  connection() = delete;
+  params get_params() const { return _params; }
 
-  EXPORT Connection(boost::asio::io_service *service, const Params &_parms);
-  EXPORT virtual ~Connection();
+  EXPORT connection(boost::asio::io_service *service, const params &_parms);
+  EXPORT virtual ~connection();
   EXPORT void disconnect();
-  EXPORT void startAsyncConnection();
-  EXPORT void reconnectOnError(const MessagePtr &d, const boost::system::error_code &err);
-  EXPORT void onDataReceive(MessagePtr &&d, bool &cancel);
-  EXPORT void sendAsync(const MessagePtr &d);
+  EXPORT void start_async_connection();
+  EXPORT void reconnecton_error(const message_ptr &d, const boost::system::error_code &err);
+  EXPORT void on_data_receive(message_ptr &&d, bool &cancel);
+  EXPORT void send_async(const message_ptr &d);
 
-  EXPORT void addConsumer(const IConnectionConsumerPtr &c);
-  EXPORT void eraseConsumer();
+  EXPORT void add_consumer(const abstract_connection_consumerPtr &c);
+  EXPORT void erase_consumer();
 
 protected:
-  std::shared_ptr<AsyncIO> _async_io = nullptr;
+  std::shared_ptr<async_io> _async_io = nullptr;
   boost::asio::io_service *_service = nullptr;
-  Params _params;
+  params _params;
 
-  IConnectionConsumerPtr _consumers;
+  abstract_connection_consumerPtr _consumers;
 };
 
 } // namespace network

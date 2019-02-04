@@ -37,67 +37,67 @@ TEST_CASE("utils.to_lower") {
   EXPECT_EQ(res, "upper string");
 }
 
-TEST_CASE("utils.longProcess") {
-  nmq::utils::LongProcess run(std::string("run"), true);
-  EXPECT_FALSE(run.isStarted());
-  EXPECT_FALSE(run.isComplete());
+TEST_CASE("utils.long_process") {
+  nmq::utils::long_process run(std::string("run"), true);
+  EXPECT_FALSE(run.is_started());
+  EXPECT_FALSE(run.is_complete());
 
   REQUIRE_THROWS(run.complete());
 
   run.start();
-  EXPECT_TRUE(run.isStarted());
-  EXPECT_FALSE(run.isComplete());
+  EXPECT_TRUE(run.is_started());
+  EXPECT_FALSE(run.is_complete());
 
   run.complete();
-  EXPECT_TRUE(run.isStarted());
-  EXPECT_TRUE(run.isComplete());
+  EXPECT_TRUE(run.is_started());
+  EXPECT_TRUE(run.is_complete());
 
   REQUIRE_THROWS(run.complete(true));
 }
 
 TEST_CASE("utils.waitable") {
-  nmq::utils::Waitable child_w, parent_w;
+  nmq::utils::waitable child_w, parent_w;
   {
-    EXPECT_FALSE(child_w.isStartBegin());
+    EXPECT_FALSE(child_w.is_start_begin());
 
-    parent_w.startBegin();
-    child_w.startBegin();
+    parent_w.start_begin();
+    child_w.start_begin();
 
-    REQUIRE_THROWS(child_w.startBegin());
-    REQUIRE_THROWS(parent_w.startBegin());
+    REQUIRE_THROWS(child_w.start_begin());
+    REQUIRE_THROWS(parent_w.start_begin());
 
-    EXPECT_TRUE(child_w.isStartBegin());
+    EXPECT_TRUE(child_w.is_start_begin());
 
     auto chld = [&child_w, &parent_w]() {
-      parent_w.waitStarting();
-      EXPECT_TRUE(parent_w.isStarted());
-      child_w.startComplete();
+      parent_w.wait_starting();
+      EXPECT_TRUE(parent_w.is_started());
+      child_w.start_complete();
     };
 
     std::thread chldT(chld);
 
-    parent_w.startComplete();
-    child_w.waitStarting();
-    EXPECT_TRUE(child_w.isStarted());
+    parent_w.start_complete();
+    child_w.wait_starting();
+    EXPECT_TRUE(child_w.is_started());
 
     chldT.join();
   }
 
-  child_w.stopBegin();
-  parent_w.stopBegin();
+  child_w.stop_begin();
+  parent_w.stop_begin();
   auto chld_stoper = [&parent_w, &child_w]() {
-    child_w.stopComplete();
-    EXPECT_TRUE(child_w.isStoped());
-    EXPECT_FALSE(child_w.isStarted());
-    parent_w.waitStoping();
-    EXPECT_TRUE(parent_w.isStoped());
-    EXPECT_FALSE(parent_w.isStarted());
+    child_w.stop_complete();
+    EXPECT_TRUE(child_w.is_stoped());
+    EXPECT_FALSE(child_w.is_started());
+    parent_w.wait_stoping();
+    EXPECT_TRUE(parent_w.is_stoped());
+    EXPECT_FALSE(parent_w.is_started());
   };
 
   std::thread chldStoper(chld_stoper);
 
-  child_w.waitStoping();
+  child_w.wait_stoping();
 
-  parent_w.stopComplete();
+  parent_w.stop_complete();
   chldStoper.join();
 }

@@ -3,17 +3,17 @@
 #include <boost/system/error_code.hpp>
 
 namespace nmq {
-enum class ErrorsKinds { 
+enum class errors_kinds { 
 	ALL_LISTENERS_STOPED, 
 	FULL_STOP,
 	Ok };
 
-struct ErrorCode {
-  ErrorCode(boost::system::error_code e) : error(e), inner_error(ErrorsKinds::Ok) {}
+struct ecode {
+  ecode(boost::system::error_code e) : error(e), inner_error(errors_kinds::Ok) {}
 
-  ErrorCode(ErrorsKinds e) : inner_error(e) {}
+  ecode(errors_kinds e) : inner_error(e) {}
   boost::system::error_code error;
-  ErrorsKinds inner_error;
+  errors_kinds inner_error;
 };
 
 } // namespace nmq

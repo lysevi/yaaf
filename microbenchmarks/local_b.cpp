@@ -14,9 +14,9 @@ public:
 
 BENCHMARK_DEFINE_F(Local, FixedQueuePush)(benchmark::State &state) {
   for (auto _ : state) {
-    Queue<int> fq(1024);
+    queue<int> fq(1024);
     for (int i = 0; i < 1024; ++i) {
-      bool f = fq.tryPush(i);
+      bool f = fq.try_push(i);
       if (!f) {
         break;
       }

@@ -11,51 +11,51 @@ using namespace boost::asio::ip;
 using namespace nmq;
 using namespace nmq::network;
 
-ListenerClient::ListenerClient(Id id_, network::AsyncIOPtr async_io,
-                               std::shared_ptr<Listener> s)
+listenerClient::listenerClient(id_t id_, network::async_io_ptr async_io,
+                               std::shared_ptr<listener> s)
     : id(id_), _listener(s) {
   _async_connection = async_io;
 }
 
-ListenerClient::~ListenerClient() {}
+listenerClient::~listenerClient() {}
 
-void ListenerClient::start() {
-  startBegin();
+void listenerClient::start() {
+  start_begin();
   auto self = shared_from_this();
 
-  AsyncIO::data_handler_t on_d = [self](MessagePtr &&d, bool &cancel) {
-    self->onDataRecv(std::move(d), cancel);
+  async_io::data_handler_t on_d = [self](message_ptr &&d, bool &cancel) {
+    self->on_data_recv(std::move(d), cancel);
   };
 
-  AsyncIO::error_handler_t on_n = [self](auto d, auto err) {
-    self->onNetworkError(d, err);
+  async_io::error_handler_t on_n = [self](auto d, auto err) {
+    self->on_network_error(d, err);
     self->close();
   };
 
   _async_connection->start(on_d, on_n);
-  startComplete();
+  start_complete();
 }
 
-void ListenerClient::close() {
-  if (!isStopBegin() && !isStoped()) {
-    stopBegin(true);
+void listenerClient::close() {
+  if (!is_stop_begin() && !is_stoped()) {
+    stop_begin(true);
     if (_async_connection != nullptr) {
       _async_connection->fullStop();
       _async_connection = nullptr;
-      this->_listener->eraseClientDescription(this->shared_from_this());
+      this->_listener->erase_client_description(this->shared_from_this());
     }
   }
 }
 
-void ListenerClient::onNetworkError(const MessagePtr &d,
+void listenerClient::on_network_error(const message_ptr &d,
                                     const boost::system::error_code &err) {
-  this->_listener->onNetworkError(this->shared_from_this(), d, err);
+  this->_listener->on_network_error(this->shared_from_this(), d, err);
 }
 
-void ListenerClient::onDataRecv(MessagePtr &&d, bool &cancel) {
-  _listener->onNewMessage(this->shared_from_this(), std::move(d), cancel);
+void listenerClient::on_data_recv(message_ptr &&d, bool &cancel) {
+  _listener->on_new_message(this->shared_from_this(), std::move(d), cancel);
 }
 
-void ListenerClient::sendData(const MessagePtr &d) {
+void listenerClient::send_data(const message_ptr &d) {
   _async_connection->send(d);
 }

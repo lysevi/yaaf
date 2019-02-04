@@ -8,52 +8,52 @@
 namespace nmq {
 namespace serialization {
 
-template <class... T> class BinaryReaderWriter {
+template <class... T> class binary_io {
 
 public:
   static size_t capacity(const T &... args) noexcept {
     size_t result = 0;
-    helpers::calculateSize(result, std::forward<const T>(args)...);
+    helpers::calculate_args_size(result, std::forward<const T>(args)...);
     return result;
   }
 
   static size_t capacity(T &&... args) noexcept {
     size_t result = 0;
-    helpers::calculateSize(result, std::move(args)...);
+    helpers::calculate_args_size(result, std::move(args)...);
     return result;
   }
 
   static void write(uint8_t *it, const T &... t) noexcept {
-    helpers::writeArgs(it, std::forward<const T>(t)...);
+    helpers::write_args(it, std::forward<const T>(t)...);
   }
 
   static void write(uint8_t *it, T &&... t) noexcept {
-    helpers::writeArgs(it, std::move(t)...);
+    helpers::write_args(it, std::move(t)...);
   }
 
-  static void read(uint8_t *it, T &... t) noexcept { helpers::readArgs(it, t...); }
+  static void read(uint8_t *it, T &... t) noexcept { helpers::read_args(it, t...); }
 };
 
-template <typename T> struct ObjectScheme {
+template <typename T> struct object_packer {
   static size_t capacity(const T &t) noexcept {
-    return BinaryReaderWriter<T>::capacity(t);
+    return binary_io<T>::capacity(t);
   }
 
   static size_t capacity(T &&t) noexcept {
-    return BinaryReaderWriter<T>::capacity(std::move(t));
+    return binary_io<T>::capacity(std::move(t));
   }
 
   template <class Iterator> static void pack(Iterator it, const T &t) noexcept {
-    return BinaryReaderWriter<T>::write(it, t);
+    return binary_io<T>::write(it, t);
   }
 
   template <class Iterator> static void pack(Iterator it, T &&t) noexcept {
-    return BinaryReaderWriter<T>::write(it, std::move(t));
+    return binary_io<T>::write(it, std::move(t));
   }
 
   static T unpack(uint8_t *it) noexcept {
     T result = empty();
-    BinaryReaderWriter<T>::read(it, result);
+    binary_io<T>::read(it, result);
     return result;
   }
   static T empty() {

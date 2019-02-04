@@ -12,34 +12,34 @@
 
 namespace nmq {
 
-template <typename Arg, typename Result> struct BaseIOChanel {
-  using ArgType = Arg;
-  using ResultType = Result;
-  struct Sender {
-    Sender(BaseIOChanel<Arg, Result> &bc, nmq::Id id_) : chanel(bc) { id = id_; }
-    BaseIOChanel<Arg, Result> &chanel;
-    nmq::Id id;
+template <typename Arg, typename Result> struct base_io_chanel {
+  using arg_t = Arg;
+  using result_t = Result;
+  struct sender {
+    sender(base_io_chanel<Arg, Result> &bc, nmq::id_t id_) : chanel(bc), id(id_) {}
+    base_io_chanel<Arg, Result> &chanel;
+    nmq::id_t id;
   };
 
-  struct IOListener;
-  struct IOConnection;
+  struct io_listener;
+  struct io_connection;
 
-  struct Params {
-    Params() { threads_count = 1; }
+  struct params {
+    params() { threads_count = 1; }
 
-    Params(size_t threads) {
+    params(size_t threads) {
       ENSURE(threads > 0);
       threads_count = threads;
     }
     size_t threads_count;
   };
 
-  class IOManager : virtual public std::enable_shared_from_this<IOManager>,
-                    public utils::Waitable {
+  class io_manager : virtual public std::enable_shared_from_this<io_manager>,
+                    public utils::waitable {
   public:
-    using io_chanel_type = typename BaseIOChanel<Arg, Result>;
+    using io_chanel_t = typename base_io_chanel<Arg, Result>;
 
-    IOManager(const Params &p) : _params(p) {
+    io_manager(const params &p) : _params(p) {
       ENSURE(_params.threads_count > 0);
       _id.store(0);
     }
@@ -68,8 +68,8 @@ template <typename Arg, typename Result> struct BaseIOChanel {
         t.join();
       }
       _threads.clear();
-      std::vector<std::shared_ptr<IOListener>> lst;
-      std::vector<std::shared_ptr<IOConnection>> cons;
+      std::vector<std::shared_ptr<io_listener>> lst;
+      std::vector<std::shared_ptr<io_connection>> cons;
       {
         std::shared_lock<std::shared_mutex> lg_lst(_lock_listeners);
         for (auto kv : _listeners) {
@@ -84,47 +84,47 @@ template <typename Arg, typename Result> struct BaseIOChanel {
           cons.push_back(kv.second);
         }
       }
-      ErrorCode ec(ErrorsKinds::FULL_STOP);
+      ecode ec(errors_kinds::FULL_STOP);
 
       for (auto l : lst) {
-        Sender s(*l, l->getId());
-        l->onError(s, ec);
-        l->stopListener();
+        sender s(*l, l->get_id());
+        l->on_error(s, ec);
+        l->stop_listener();
       }
 
       for (auto c : cons) {
-        c->stopBegin();
-        c->onError(ec);
-        c->stopConnection();
-        c->stopComplete();
+        c->stop_begin();
+        c->on_error(ec);
+        c->stop_connection();
+        c->stop_complete();
       }
     };
 
-    virtual Id addListener(std::shared_ptr<IOListener> l) {
+    virtual id_t add_listener(std::shared_ptr<io_listener> l) {
       std::lock_guard<std::shared_mutex> lg(_lock_listeners);
       auto id = _id.fetch_add(1);
       _listeners[id] = l;
       return id;
     }
 
-    virtual Id addConnection(std::shared_ptr<IOConnection> c) {
+    virtual id_t add_connection(std::shared_ptr<io_connection> c) {
       std::lock_guard<std::shared_mutex> lg(_lock_connections);
       auto id = _id.fetch_add(1);
       _connections[id] = c;
       return id;
     }
 
-    virtual void rmListener(Id id) {
+    virtual void rm_listener(id_t id) {
       std::lock_guard<std::shared_mutex> lg(_lock_listeners);
       _listeners.erase(id);
     }
 
-    virtual void rmConnection(Id id) {
+    virtual void rm_connection(id_t id) {
       std::lock_guard<std::shared_mutex> lg(_lock_connections);
       _connections.erase(id);
     }
 
-    void listenersVisit(std::function<bool(std::shared_ptr<IOListener>)> visitor) {
+    void listeners_visit(std::function<bool(std::shared_ptr<io_listener>)> visitor) {
       std::shared_lock<std::shared_mutex> sl(_lock_listeners);
       for (auto v : _listeners) {
         auto continueFlag = visitor(v.second);
@@ -134,7 +134,7 @@ template <typename Arg, typename Result> struct BaseIOChanel {
       }
     }
 
-    void connectionsVisit(std::function<bool(std::shared_ptr<IOConnection>)> visitor) {
+    void connections_visit(std::function<bool(std::shared_ptr<io_connection>)> visitor) {
       std::shared_lock<std::shared_mutex> sl(_lock_connections);
       for (auto v : _connections) {
         auto continueFlag = visitor(v.second);
@@ -144,7 +144,7 @@ template <typename Arg, typename Result> struct BaseIOChanel {
       }
     }
 
-    std::shared_ptr<IOConnection> getConnection(const Id id) {
+    std::shared_ptr<io_connection> get_connection(const id_t id) {
       std::shared_lock<std::shared_mutex> sl(_lock_connections);
       auto result = _connections.find(id);
       if (result != _connections.end()) {
@@ -172,14 +172,14 @@ template <typename Arg, typename Result> struct BaseIOChanel {
       return false;
     }
 
-    virtual bool isStopped() const { return _stop_io_service; }
+    virtual bool is_stopped() const { return _stop_io_service; }
 
   private:
-    Params _params;
+    params _params;
     mutable std::shared_mutex _lock_listeners;
-    std::unordered_map<Id, std::shared_ptr<IOListener>> _listeners;
+    std::unordered_map<id_t, std::shared_ptr<io_listener>> _listeners;
     mutable std::shared_mutex _lock_connections;
-    std::unordered_map<Id, std::shared_ptr<IOConnection>> _connections;
+    std::unordered_map<id_t, std::shared_ptr<io_connection>> _connections;
 
     std::atomic_uint64_t _id;
 
@@ -188,73 +188,73 @@ template <typename Arg, typename Result> struct BaseIOChanel {
     bool _stop_io_service = false;
   };
 
-  class IOListener : public BaseIOChanel,
-                     public std::enable_shared_from_this<IOListener>,
-                     public utils ::Waitable {
+  class io_listener : public base_io_chanel,
+                      public std::enable_shared_from_this<io_listener>,
+                     public utils ::waitable {
   public:
-    IOListener(std::shared_ptr<IOManager> manager) : _manager(manager) {}
-    virtual ~IOListener() { stopListener(); }
+    io_listener(std::shared_ptr<io_manager> manager) : _manager(manager) {}
+    virtual ~io_listener() { stop_listener(); }
 
-    Id getId() const { return _id; }
-    std::shared_ptr<IOManager> getManager() const { return _manager; }
+    id_t get_id() const { return _id; }
+    std::shared_ptr<io_manager> getmanager() const { return _manager; }
 
-    virtual void onError(const Sender &i, const ErrorCode &err) = 0;
-    virtual void onMessage(const Sender &i, const Arg&& d) = 0;
+    virtual void on_error(const sender &i, const ecode &err) = 0;
+    virtual void on_message(const sender &i, const Arg &&d) = 0;
     /**
     result - true for accept, false for failed.
     */
-    virtual bool onClient(const Sender &i) = 0;
-    virtual void onClientDisconnect(const Sender &i) { UNUSED(i); };
-    virtual AsyncOperationResult sendAsync(nmq::Id client, const Result message) = 0;
+    virtual bool on_client(const sender &i) = 0;
+    virtual void on_clientDisconnect(const sender &i) { UNUSED(i); };
+    virtual async_operation_handler send_async(nmq::id_t client, const Result message) = 0;
 
-    virtual void startListener() { _id = _manager->addListener(shared_from_this()); }
+    virtual void start_listener() { _id = _manager->add_listener(shared_from_this()); }
 
-    virtual void stopListener() {
-      if (!isStoped()) {
-        _manager->rmListener(_id);
+    virtual void stop_listener() {
+      if (!is_stoped()) {
+        _manager->rm_listener(_id);
       }
     }
 
   private:
-    Id _id;
-    std::shared_ptr<IOManager> _manager; // TODO use std::weak_ptr?
+    id_t _id;
+    std::shared_ptr<io_manager> _manager; // TODO use std::weak_ptr?
   };
 
-  class IOConnection : public BaseIOChanel,
-                       public std::enable_shared_from_this<IOConnection>,
-                       public utils ::Waitable {
+  class io_connection : public base_io_chanel,
+                       public std::enable_shared_from_this<io_connection>,
+                       public utils ::waitable {
   public:
-    IOConnection() = delete;
-    IOConnection(std::shared_ptr<IOManager> manager) : _manager(manager) {}
-    virtual ~IOConnection() { stopConnection(); }
+    io_connection() = delete;
+    io_connection(std::shared_ptr<io_manager> manager) : _manager(manager) {}
+    virtual ~io_connection() { stop_connection(); }
 
-    Id getId() const { return _id; }
-    std::shared_ptr<IOManager> getManager() const { return _manager; }
+    id_t get_id() const { return _id; }
+    std::shared_ptr<io_manager> getmanager() const { return _manager; }
 
-    virtual void onConnected() { startComplete(); }
-    virtual void onError(const ErrorCode &err) { UNUSED(err); };
-    virtual void onMessage(const Result&&d) = 0;
-    virtual AsyncOperationResult sendAsync(const Arg message) = 0;
+    virtual void on_connected() { start_complete(); }
+    virtual void on_error(const ecode &err) { UNUSED(err); };
+    virtual void on_message(const result_t &&d) = 0;
+    virtual async_operation_handler send_async(const Arg message) = 0;
 
-    virtual void startConnection() { _id = _manager->addConnection(shared_from_this()); }
+    virtual void start_connection() { _id = _manager->add_connection(shared_from_this()); }
 
-    virtual void stopConnection() {
-      if (!isStoped()) {
-        _manager->rmConnection(_id);
+    virtual void stop_connection() {
+      if (!is_stoped()) {
+        _manager->rm_connection(_id);
       }
     }
 
   private:
-    Id _id;
-    std::shared_ptr<IOManager> _manager;
+    id_t _id;
+    std::shared_ptr<io_manager> _manager;
   };
 
-  BaseIOChanel() { _next_message_id = 0; }
+  base_io_chanel() { _next_message_id = 0; }
 
   virtual void start() = 0;
   virtual void stop() = 0;
 
-  uint64_t getNextMessageId() { return _next_message_id.fetch_add(1); }
+  uint64_t get_next_message_id() { return _next_message_id.fetch_add(1); }
 
   std::atomic_uint64_t _next_message_id;
 };

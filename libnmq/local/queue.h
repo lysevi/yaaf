@@ -7,19 +7,19 @@
 namespace nmq {
 namespace local {
 
-template <class T> struct Result {
+template <class T> struct result_t {
   bool ok;
-  T result;
+  T value;
 
-  static Result<T> False() { return Result{false, T()}; }
-  static Result<T> Ok(T t) { return Result{true, t}; }
+  static result_t<T> False() { return result_t{false, T()}; }
+  static result_t<T> Ok(T t) { return result_t{true, t}; }
 };
 
-template <class T, class Cont = std::vector<T>> class Queue {
+template <class T, class Cont = std::vector<T>> class queue {
 public:
-  Queue(size_t capacity) : _values(capacity) { _cap = capacity; }
+  queue(size_t capacity) : _values(capacity) { _cap = capacity; }
 
-  bool tryPush(T v) noexcept {
+  bool try_push(T v) noexcept {
     std::lock_guard<std::shared_mutex> lg(_locker);
     if (_pos == _cap) {
       return false;
@@ -29,13 +29,13 @@ public:
     }
   }
 
-  Result<T> tryPop() noexcept {
+  result_t<T> try_pop() noexcept {
     std::lock_guard<std::shared_mutex> lg(_locker);
     if (_pos == 0) {
-      return Result<T>::False();
+      return result_t<T>::False();
     } else {
       _pos--;
-      return Result<T>::Ok(_values[_pos]);
+      return result_t<T>::Ok(_values[_pos]);
     }
   }
 

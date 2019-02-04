@@ -76,38 +76,38 @@ template <class T> size_t read(uint8_t *it, std::vector<T &&> &s) noexcept {
 }
 
 /// Recursive
-template <typename Head> static void calculateSize(size_t &result, Head &&head) noexcept {
+template <typename Head> static void calculate_args_size(size_t &result, Head &&head) noexcept {
   result += helpers::size(head);
 }
 
 template <typename Head, typename... Tail>
-static void calculateSize(size_t &result, Head &&head, Tail &&... t) noexcept {
+static void calculate_args_size(size_t &result, Head &&head, Tail &&... t) noexcept {
   result += helpers::size(std::forward<Head>(head));
-  calculateSize(result, std::forward<Tail>(t)...);
+  calculate_args_size(result, std::forward<Tail>(t)...);
 }
 
-template <typename Head> static void writeArgs(uint8_t *it, Head &&head) noexcept {
+template <typename Head> static void write_args(uint8_t *it, Head &&head) noexcept {
   auto szofcur = helpers::write(it, head);
   it += szofcur;
 }
 
 template <typename Head, typename... Tail>
-static void writeArgs(uint8_t *it, Head &&head, Tail &&... t) noexcept {
+static void write_args(uint8_t *it, Head &&head, Tail &&... t) noexcept {
   auto szofcur = helpers::write(it, head);
   it += szofcur;
-  writeArgs(it, std::forward<Tail>(t)...);
+  write_args(it, std::forward<Tail>(t)...);
 }
 
-template <typename Head> static void readArgs(uint8_t *it, Head &head) noexcept {
+template <typename Head> static void read_args(uint8_t *it, Head &head) noexcept {
   auto szofcur = helpers::read(it, head);
   it += szofcur;
 }
 
 template <typename Head, typename... Tail>
-static void readArgs(uint8_t *it, Head &head, Tail &... t) noexcept {
+static void read_args(uint8_t *it, Head &head, Tail &... t) noexcept {
   auto szofcur = helpers::read(it, head);
   it += szofcur;
-  readArgs(it, t...);
+  read_args(it, t...);
 }
 
 } // namespace helpers

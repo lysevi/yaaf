@@ -10,59 +10,60 @@ using namespace boost::asio;
 using namespace boost::asio::ip;
 
 using namespace nmq;
+using namespace nmq::utils::logging;
 using namespace nmq::network;
 
-IListenerConsumer ::~IListenerConsumer() {
-  _lstnr->eraseConsumer();
+abstract_listener_consumer ::~abstract_listener_consumer() {
+  _lstnr->erase_consumer();
 }
 
-void IListenerConsumer::setListener(const std::shared_ptr<Listener> &lstnr) {
+void abstract_listener_consumer::set_listener(const std::shared_ptr<listener> &lstnr) {
   _lstnr = lstnr;
 }
 
-void IListenerConsumer::sendTo(Id id, network::MessagePtr &d) {
-  if (!_lstnr->isStopBegin()) {
-    _lstnr->sendTo(id, d);
+void abstract_listener_consumer::send_to(id_t id, network::message_ptr &d) {
+  if (!_lstnr->is_stop_begin()) {
+    _lstnr->send_to(id, d);
   }
 }
 
-Listener::Listener(boost::asio::io_service *service, Listener::Params p)
+listener::listener(boost::asio::io_service *service, listener::params p)
     : _service(service), _params(p) {
   _next_id.store(0);
 }
 
-Listener::~Listener() {
+listener::~listener() {
   stop();
 }
 
-void Listener::start() {
-  startBegin();
+void listener::start() {
+  start_begin();
   tcp::endpoint ep(tcp::v4(), _params.port);
-  auto aio = std::make_shared<network::AsyncIO>(_service);
+  auto aio = std::make_shared<network::async_io>(_service);
   _acc = std::make_shared<boost::asio::ip::tcp::acceptor>(*_service, ep);
 
   if (_consumer != nullptr) {
-    _consumer->startBegin();
+    _consumer->start_begin();
   }
-  startAsyncAccept(aio);
+  start_async_accept(aio);
 }
 
-void Listener::startAsyncAccept(network::AsyncIOPtr aio) {
+void listener::start_async_accept(network::async_io_ptr aio) {
   auto self = shared_from_this();
   _acc->async_accept(aio->socket(),
                      [self, aio](auto ec) { self->OnAcceptHandler(self, aio, ec); });
-  if (self->isStopBegin()) {
+  if (self->is_stop_begin()) {
     return;
   }
-  startComplete();
+  start_complete();
   if (_consumer != nullptr) {
-    _consumer->startComplete();
+    _consumer->start_complete();
   }
 }
 
-void Listener::OnAcceptHandler(std::shared_ptr<Listener> self, network::AsyncIOPtr aio,
+void listener::OnAcceptHandler(std::shared_ptr<listener> self, network::async_io_ptr aio,
                                const boost::system::error_code &err) {
-  if (self->isStopBegin()) {
+  if (self->is_stop_begin()) {
     return;
   }
   if (err) {
@@ -74,19 +75,19 @@ void Listener::OnAcceptHandler(std::shared_ptr<Listener> self, network::AsyncIOP
       THROW_EXCEPTION("nmq::server: error on accept - ", err.message());
     }
   } else {
-    ENSURE(!self->isStoped());
+    ENSURE(!self->is_stoped());
 
     logger_info("server: accept connection.");
-    std::shared_ptr<ListenerClient> new_client = nullptr;
+    std::shared_ptr<listenerClient> new_client = nullptr;
     {
       std::lock_guard<std::mutex> lg(self->_locker_connections);
-      new_client = std::make_shared<ListenerClient>((Id)self->_next_id, aio, self);
+      new_client = std::make_shared<listenerClient>(self->_next_id.load(), aio, self);
 
       self->_next_id.fetch_add(1);
     }
     bool connectionAccepted = false;
     if (self->_consumer != nullptr) {
-      connectionAccepted = self->_consumer->onNewConnection(new_client);
+      connectionAccepted = self->_consumer->on_new_connection(new_client);
     }
     if (true == connectionAccepted) {
       logger_info("server: connection was accepted.");
@@ -101,25 +102,25 @@ void Listener::OnAcceptHandler(std::shared_ptr<Listener> self, network::AsyncIOP
   }
 
   boost::asio::ip::tcp::socket new_sock(*self->_service);
-  auto newaio = std::make_shared<network::AsyncIO>(self->_service);
-  if (self->isStopBegin()) {
+  auto newaio = std::make_shared<network::async_io>(self->_service);
+  if (self->is_stop_begin()) {
     return;
   }
-  self->startAsyncAccept(newaio);
+  self->start_async_accept(newaio);
 }
 
-void Listener::stop() {
-  if (!isStoped()) {
-    stopBegin();
-    logger("Listener::stop()");
+void listener::stop() {
+  if (!is_stoped()) {
+    stop_begin();
+    logger("listener::stop()");
 
     if (_consumer != nullptr) {
-      _consumer->stopBegin();
+      _consumer->stop_begin();
     }
 
     auto local_copy = [this]() {
       std::lock_guard<std::mutex> lg(_locker_connections);
-      return std::vector<std::shared_ptr<ListenerClient>>(_connections.begin(),
+      return std::vector<std::shared_ptr<listenerClient>>(_connections.begin(),
                                                           _connections.end());
     }();
 
@@ -128,16 +129,16 @@ void Listener::stop() {
     }
 
     if (_consumer != nullptr) {
-      _consumer->stopComplete();
+      _consumer->stop_complete();
     }
 
     _acc->close();
     _acc = nullptr;
-    stopComplete();
+    stop_complete();
   }
 }
 
-void Listener::eraseClientDescription(const ListenerClientPtr client) {
+void listener::erase_client_description(const listener_client_ptr client) {
   bool locked_localy = _locker_connections.try_lock();
   auto it = std::find_if(_connections.cbegin(), _connections.cend(),
                          [client](auto c) { return c->get_id() == client->get_id(); });
@@ -145,54 +146,54 @@ void Listener::eraseClientDescription(const ListenerClientPtr client) {
     THROW_EXCEPTION("delete error");
   }
   if (_consumer != nullptr) {
-    _consumer->onDisconnect(client->shared_from_this());
+    _consumer->on_disconnect(client->shared_from_this());
   }
   _connections.erase(it);
   if (locked_localy) {
     _locker_connections.unlock();
   }
-  client->stopComplete();
+  client->stop_complete();
 }
 
-void Listener::sendTo(ListenerClientPtr i, MessagePtr &d) {
-  i->sendData(d);
+void listener::send_to(listener_client_ptr i, message_ptr &d) {
+  i->send_data(d);
 }
 
-void Listener::sendTo(Id id, MessagePtr &d) {
+void listener::send_to(id_t id, message_ptr &d) {
   std::lock_guard<std::mutex> lg(this->_locker_connections);
   for (const auto &c : _connections) {
     if (c->get_id() == id) {
-      sendTo(c, d);
+      send_to(c, d);
       return;
     }
   }
   THROW_EXCEPTION("server: unknow client #", id);
 }
 
-void Listener::sendOk(ListenerClientPtr i, uint64_t messageId) {
-  auto nd = queries::Ok(messageId).getMessage();
-  this->sendTo(i, nd);
+void listener::sendOk(listener_client_ptr i, uint64_t messageid) {
+  auto nd = queries::ok(messageid).get_message();
+  this->send_to(i, nd);
 }
 
-void Listener::addConsumer(const IListenerConsumerPtr &c) {
+void listener::add_consumer(const abstract_listener_consumer_ptr &c) {
   _consumer = c;
-  c->setListener(shared_from_this());
+  c->set_listener(shared_from_this());
 }
 
-void Listener::eraseConsumer() {
+void listener::erase_consumer() {
   _consumer = nullptr;
 }
 
-void Listener::onNetworkError(ListenerClientPtr i, const network::MessagePtr &d,
+void listener::on_network_error(listener_client_ptr i, const network::message_ptr &d,
                               const boost::system::error_code &err) {
   if (_consumer != nullptr) {
-    _consumer->onNetworkError(i, d, err);
+    _consumer->on_network_error(i, d, err);
   }
 }
 
-void Listener::onNewMessage(ListenerClientPtr i, network::MessagePtr&&d,
+void listener::on_new_message(listener_client_ptr i, network::message_ptr&&d,
                             bool &cancel) {
   if (_consumer != nullptr) {
-    _consumer->onNewMessage(i, std::move(d), cancel);
+    _consumer->on_new_message(i, std::move(d), cancel);
   }
 }

@@ -9,46 +9,45 @@
 
 namespace nmq {
 
-struct AsyncOperationResult {
-  Id id;
+struct async_operation_handler {
+  id_t id;
   std::shared_ptr<utils::async::locker> locker;
 
   void wait() { locker->lock(); }
 
-  void markAsFinished() { locker->unlock(); }
+  void mark_as_finished() { locker->unlock(); }
 
-  static AsyncOperationResult makeNew(Id id_) {
-    AsyncOperationResult result;
+  static async_operation_handler make_new(id_t id_) {
+    async_operation_handler result{id_};
     result.locker = std::make_shared<utils::async::locker>();
     result.locker->lock();
-    result.id = id_;
     return result;
   }
 };
 
-class AsyncOperationsStorage {
+class ao_supervisor {
 public:
-  AsyncOperationsStorage() = default;
+  ao_supervisor() = default;
 
-  AsyncOperationResult makeAsyncResult() {
+  async_operation_handler make_async_result() {
     std::lock_guard<std::shared_mutex> lg(_asyncOperations_locker);
-    __asyncOperationsId++;
-    auto result = AsyncOperationResult::makeNew(__asyncOperationsId);
-    _asyncOperations[__asyncOperationsId] = result;
+    ++__asyncOperationsid;
+    auto result = async_operation_handler::make_new(__asyncOperationsid);
+    _asyncOperations[__asyncOperationsid] = result;
     return result;
   }
 
-  void markOperationAsFinished(Id id) {
+  void mark_operation_as_finished(id_t id) {
     std::lock_guard<std::shared_mutex> lg(_asyncOperations_locker);
     auto ao = _asyncOperations.find(id);
     if (ao == _asyncOperations.end()) {
       return;
     }
-    ao->second.markAsFinished();
+    ao->second.mark_as_finished();
     _asyncOperations.erase(id);
   }
 
-  void waitAllAsyncOperations() {
+  void wait_all_async_operations() {
     for (;;) {
       bool empty = false;
       _asyncOperations_locker.lock_shared();
@@ -63,7 +62,7 @@ public:
 
 private:
   std::shared_mutex _asyncOperations_locker;
-  Id __asyncOperationsId = 0;
-  std::unordered_map<Id, AsyncOperationResult> _asyncOperations;
+  id_t __asyncOperationsid = 0;
+  std::unordered_map<id_t, async_operation_handler> _asyncOperations;
 };
 } // namespace nmq

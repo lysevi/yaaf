@@ -11,66 +11,68 @@
 
 namespace nmq {
 namespace utils {
+namespace logging {
 
-enum class LOG_MESSAGE_KIND { MESSAGE, INFO, FATAL };
+enum class message_kind { message, info, fatal };
 
-class ILogger {
+class abstract_logger {
 public:
-  virtual void message(LOG_MESSAGE_KIND kind, const std::string &msg) noexcept = 0;
-  virtual ~ILogger() {}
+  virtual void message(message_kind kind, const std::string &msg) noexcept = 0;
+  virtual ~abstract_logger() {}
 };
 
-using ILogger_ptr = std::shared_ptr<ILogger>;
+using abstract_logger_ptr = std::shared_ptr<abstract_logger>;
 
-class ConsoleLogger : public ILogger {
+class console_logger : public abstract_logger {
 public:
-  EXPORT void message(LOG_MESSAGE_KIND kind, const std::string &msg) noexcept override;
+  EXPORT void message(message_kind kind, const std::string &msg) noexcept override;
 };
 
-class QuietLogger : public ILogger {
+class quiet_logger : public abstract_logger {
 public:
-  EXPORT void message(LOG_MESSAGE_KIND kind, const std::string &msg) noexcept override;
+  EXPORT void message(message_kind kind, const std::string &msg) noexcept override;
 };
 
-enum class Verbose { Verbose, Debug, Quiet };
+enum class verbose { verbose, debug, quiet };
 
-class LogManager {
+class logger_manager {
 public:
-  EXPORT static Verbose verbose;
-  LogManager(ILogger_ptr &logger);
+  EXPORT static verbose verbose;
+  logger_manager(abstract_logger_ptr &logger);
 
-  EXPORT static void start(ILogger_ptr &logger);
+  EXPORT static void start(abstract_logger_ptr &logger);
   EXPORT static void stop();
-  EXPORT static LogManager *instance() noexcept;
+  EXPORT static logger_manager *instance() noexcept;
 
-  EXPORT void message(LOG_MESSAGE_KIND kind, const std::string &msg) noexcept;
+  EXPORT void message(message_kind kind, const std::string &msg) noexcept;
 
   template <typename... T>
-  void variadic_message(LOG_MESSAGE_KIND kind, T &&... args) noexcept {
+  void variadic_message(message_kind kind, T &&... args) noexcept {
     auto str_message = utils::strings::args_to_string(args...);
     this->message(kind, str_message);
   }
 
 private:
-  static std::shared_ptr<LogManager> _instance;
+  static std::shared_ptr<logger_manager> _instance;
   static utils::async::locker _locker;
   utils::async::locker _msg_locker;
-  ILogger_ptr _logger;
+  abstract_logger_ptr _logger;
 };
-} // namespace utils
 
 template <typename... T> void logger(T &&... args) noexcept {
-  nmq::utils::LogManager::instance()->variadic_message(
-      nmq::utils::LOG_MESSAGE_KIND::MESSAGE, args...);
+  nmq::utils::logging::logger_manager::instance()->variadic_message(
+      nmq::utils::logging::message_kind::message, args...);
 }
 
 template <typename... T> void logger_info(T &&... args) noexcept {
-  nmq::utils::LogManager::instance()->variadic_message(nmq::utils::LOG_MESSAGE_KIND::INFO,
-                                                       args...);
+  nmq::utils::logging::logger_manager::instance()->variadic_message(
+      nmq::utils::logging::message_kind::info, args...);
 }
 
 template <typename... T> void logger_fatal(T &&... args) noexcept {
-  nmq::utils::LogManager::instance()->variadic_message(
-      nmq::utils::LOG_MESSAGE_KIND::FATAL, args...);
+  nmq::utils::logging::logger_manager::instance()->variadic_message(
+      nmq::utils::logging::message_kind::fatal, args...);
 }
+} // namespace logging
+} // namespace utils
 } // namespace nmq

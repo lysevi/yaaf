@@ -5,26 +5,26 @@
 
 TEST_CASE("local.queue") {
   const size_t test_queue_cap = 3;
-  nmq::local::Queue<int> q{test_queue_cap};
+  nmq::local::queue<int> q{test_queue_cap};
 
   EXPECT_TRUE(q.empty());
 
-  EXPECT_TRUE(q.tryPush(1));
-  EXPECT_TRUE(q.tryPush(2));
-  EXPECT_TRUE(q.tryPush(3));
+  EXPECT_TRUE(q.try_push(1));
+  EXPECT_TRUE(q.try_push(2));
+  EXPECT_TRUE(q.try_push(3));
 
-  auto r = q.tryPop();
+  auto r = q.try_pop();
   EXPECT_TRUE(r.ok);
-  EXPECT_EQ(r.result, 3);
+  EXPECT_EQ(r.value, 3);
 
-  r = q.tryPop();
+  r = q.try_pop();
   EXPECT_TRUE(r.ok);
-  EXPECT_EQ(r.result, 2);
+  EXPECT_EQ(r.value, 2);
 
-  r = q.tryPop();
+  r = q.try_pop();
   EXPECT_TRUE(r.ok);
-  EXPECT_EQ(r.result, 1);
+  EXPECT_EQ(r.value, 1);
 
-  r = q.tryPop();
+  r = q.try_pop();
   EXPECT_FALSE(r.ok);
 }

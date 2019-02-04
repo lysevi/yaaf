@@ -5,7 +5,8 @@
 
 namespace nmq {
 namespace network {
-enum class MessageKinds : network::Message::kind_t {
+
+enum class messagekinds : network::message::kind_t {
   OK,
   LOGIN,
   LOGIN_CONFIRM,

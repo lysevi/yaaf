@@ -9,116 +9,116 @@ namespace local {
 
 using boost::asio::io_service;
 
-template <typename Arg, typename Result, class ArgQueue = Queue<std::pair<Id, Arg>>,
-          class ResultQueue = Queue<Result>>
-struct Transport {
-  using SelfType = Transport<Arg, Result>;
-  using ArgType = Arg;
-  using ResultType = Result;
-  using io_chanel_type = BaseIOChanel<Arg, Result>;
-  using Sender = typename io_chanel_type::Sender;
+template <typename Arg, typename Result, class ArgQueue = queue<std::pair<id_t, Arg>>,
+          class ResultQueue = queue<Result>>
+struct transport {
+  using self_t = transport<Arg, Result>;
+  using arg_t = Arg;
+  using result_t = Result;
+  using io_chanel_t = base_io_chanel<Arg, Result>;
+  using sender_t = typename io_chanel_t::sender;
 
-  struct Params : public io_chanel_type::Params {
-    Params() {
+  struct params : public io_chanel_t::params {
+    params() {
       arg_queue_size = 10;
       result_queue_size = 10;
     }
     size_t arg_queue_size;
     size_t result_queue_size;
   };
-  class Connection;
-  class Listener;
+  class connection;
+  class listener;
 
-  class Manager : public io_chanel_type::IOManager, public AsyncOperationsStorage {
+  class manager : public io_chanel_t::io_manager, public ao_supervisor {
   public:
-    using io_chanel_type::IOManager::shared_from_this;
+    using io_chanel_t::io_manager::shared_from_this;
 
-    Manager(const Params &p)
-        : io_chanel_type::IOManager(io_chanel_type::Params(p.threads_count)), _params(p),
+    manager(const params &p)
+        : io_chanel_t::io_manager(io_chanel_t::params(p.threads_count)), _params(p),
           _args(p.arg_queue_size) {
       ENSURE(_params.threads_count > 0);
       ENSURE(_params.arg_queue_size > 0);
       ENSURE(_params.result_queue_size > 0);
     }
 
-    std::shared_ptr<Manager> shared_self() {
+    std::shared_ptr<manager> shared_self() {
       auto self = shared_from_this();
-      return std::dynamic_pointer_cast<Manager>(self);
+      return std::dynamic_pointer_cast<manager>(self);
     }
 
-    Id addListener(std::shared_ptr<typename io_chanel_type::IOListener> l) override {
-      auto res = io_chanel_type::IOManager::addListener(l);
+    id_t add_listener(std::shared_ptr<typename io_chanel_t::io_listener> l) override {
+      auto res = io_chanel_t::io_manager::add_listener(l);
       return res;
     }
 
-    Id addConnection(std::shared_ptr<typename io_chanel_type::IOConnection> c) override {
-      auto res = io_chanel_type::IOManager::addConnection(c);
+    id_t add_connection(std::shared_ptr<typename io_chanel_t::io_connection> c) override {
+      auto res = io_chanel_t::io_manager::add_connection(c);
       return res;
     }
 
-    void rmListener(Id id) override {
-      io_chanel_type::IOManager::rmListener(id);
+    void rm_listener(id_t id) override {
+      io_chanel_t::io_manager::rm_listener(id);
 
       if (listeners_count() == 0) {
-        connectionsVisit([](std::shared_ptr<io_chanel_type::IOConnection> c) {
-          c->onError(ErrorCode(ErrorsKinds::ALL_LISTENERS_STOPED));
+        connections_visit([](std::shared_ptr<io_chanel_t::io_connection> c) {
+          c->on_error(ecode(errors_kinds::ALL_LISTENERS_STOPED));
           return true;
         });
       }
     }
 
-    void rmConnection(Id id) override { io_chanel_type::IOManager::rmConnection(id); }
+    void rm_connection(id_t id) override { io_chanel_t::io_manager::rm_connection(id); }
 
     void start() override {
-      startBegin();
-      io_chanel_type::IOManager::start();
+      start_begin();
+      io_chanel_t::io_manager::start();
       auto self = shared_self();
-      post([self]() { self.get()->queueWorker(); });
-      startComplete();
+      post([self]() { self.get()->queue_worker(); });
+      start_complete();
     }
 
     void stop() override {
-      stopBegin();
-      connectionsVisit([](std::shared_ptr<io_chanel_type::IOConnection> c) {
-        c->onError(ErrorCode(ErrorsKinds::FULL_STOP));
+      stop_begin();
+      connections_visit([](std::shared_ptr<io_chanel_t::io_connection> c) {
+        c->on_error(ecode(errors_kinds::FULL_STOP));
         return true;
       });
 
-      waitAllAsyncOperations();
+      wait_all_async_operations();
 
-      io_chanel_type::IOManager::stop();
-      stopComplete();
+      io_chanel_t::io_manager::stop();
+      stop_complete();
     }
 
-    void pushArgLoop(Id id, const Arg a, Id aor) {
-      if (isStopBegin() || _args.tryPush(std::make_pair(id, a))) {
-        this->markOperationAsFinished(aor);
+    void push_arg_loop(id_t id, const Arg a, id_t aor) {
+      if (is_stop_begin() || _args.try_push(std::make_pair(id, a))) {
+        this->mark_operation_as_finished(aor);
         return;
       } else {
         auto self = shared_self();
-        post([self, id, a, aor]() { self.get()->pushArgLoop(id, a, aor); });
+        post([self, id, a, aor]() { self.get()->push_arg_loop(id, a, aor); });
       }
     }
 
-    void pushToResultLoop(const nmq::Id id, const Result a, Id aor);
+    void push_to_result_loop(const id_t id, const Result a, id_t aor);
 
-    void pushArg(Id id, const Arg a, Id aor) {
+    void push_arg(id_t id, const Arg a, id_t aor) {
       auto self = shared_self();
-      post([self, id, a, aor]() { self->pushArgLoop(id, a, aor); });
+      post([self, id, a, aor]() { self->push_arg_loop(id, a, aor); });
     }
 
-    void pushResult(const nmq::Id id, const Result a, Id aor) {
+    void pushResult(const nmq::id_t id, const Result a, id_t aor) {
       auto self = shared_self();
-      post([self, id, a, aor]() { self->pushToResultLoop(id, a, aor); });
+      post([self, id, a, aor]() { self->push_to_result_loop(id, a, aor); });
     }
 
-    void queueWorker() {
+    void queue_worker() {
       auto self = shared_self();
 
       if (!_args.empty()) {
 
-        listenersVisit([self](std::shared_ptr<io_chanel_type::IOListener> l) {
-          auto tptr = std::dynamic_pointer_cast<typename Transport::Listener>(l);
+        listeners_visit([self](std::shared_ptr<io_chanel_t::io_listener> l) {
+          auto tptr = std::dynamic_pointer_cast<typename transport::listener>(l);
 
           if (!tptr->isBusy()) {
             return tptr->run(self->_args);
@@ -127,72 +127,72 @@ struct Transport {
         });
       }
 
-      if (!isStopBegin()) {
-        post([self]() { self->queueWorker(); });
+      if (!is_stop_begin()) {
+        post([self]() { self->queue_worker(); });
       }
     }
 
   private:
-    Params _params;
+    params _params;
 
     ArgQueue _args;
   };
 
-  class Listener : public io_chanel_type::IOListener {
+  class listener : public io_chanel_t::io_listener {
   public:
-    using io_chanel_type::IOListener::isStarted;
-    using io_chanel_type::IOListener::isStoped;
-    using io_chanel_type::IOListener::startBegin;
-    using io_chanel_type::IOListener::startComplete;
-    using io_chanel_type::IOListener::stopBegin;
-    using io_chanel_type::IOListener::stopComplete;
+    using io_chanel_t::io_listener::is_started;
+    using io_chanel_t::io_listener::is_stoped;
+    using io_chanel_t::io_listener::start_begin;
+    using io_chanel_t::io_listener::start_complete;
+    using io_chanel_t::io_listener::stop_begin;
+    using io_chanel_t::io_listener::stop_complete;
 
-    Listener() = delete;
-    Listener(const Listener &) = delete;
-    Listener &operator=(const Listener &) = delete;
+    listener() = delete;
+    listener(const listener &) = delete;
+    listener &operator=(const listener &) = delete;
 
-    Listener(std::shared_ptr<Manager> manager,
-             const Transport::Params & /*transport_params*/)
-        : io_chanel_type::IOListener(manager) {
+    listener(std::shared_ptr<manager> manager,
+             const transport::params & /*transport_params*/)
+        : io_chanel_t::io_listener(manager) {
       _manager = manager;
     }
 
-    bool onClient(const Sender &) override { return true; }
+    bool on_client(const sender_t &) override { return true; }
 
-    AsyncOperationResult sendAsync(const nmq::Id id, const Result message) override {
-      auto r = _manager->makeAsyncResult();
+    async_operation_handler send_async(const nmq::id_t id, const Result message) override {
+      auto r = _manager->make_async_result();
       _manager->pushResult(id, message, r.id);
       return r;
     }
 
-    void startListener() override {
-      startBegin();
-      io_chanel_type::IOListener::startListener();
-      startComplete();
+    void start_listener() override {
+      start_begin();
+      io_chanel_t::io_listener::start_listener();
+      start_complete();
     }
 
-    void stopListener() override {
-      stopBegin();
-      io_chanel_type::IOListener::stopListener();
-      stopComplete();
+    void stop_listener() override {
+      stop_begin();
+      io_chanel_t::io_listener::stop_listener();
+      stop_complete();
     }
 
-    void start() { startListener(); }
+    void start() { start_listener(); }
 
-    void stop() { stopListener(); }
+    void stop() { stop_listener(); }
 
     bool isBusy() { return _is_busy; }
 
     bool run(ArgQueue &args) {
       if (!_is_busy) { // TODO make thread safety
-        auto a = args.tryPop();
+        auto a = args.try_pop();
         if (a.ok) {
-          std::pair<Id, Arg> arg = a.result;
+          std::pair<id_t, Arg> arg = a.value;
 
-          Sender s{*this, arg.first};
+          sender_t s{*this, arg.first};
           _is_busy = true;
           // TODO run on _manager->post
-          onMessage(s, std::move(arg.second));
+          on_message(s, std::move(arg.second));
           _is_busy = false;
           return true;
         }
@@ -201,96 +201,94 @@ struct Transport {
     }
 
   private:
-    std::shared_ptr<Manager> _manager;
+    std::shared_ptr<manager> _manager;
     bool _is_busy = false;
   };
 
-  class Connection : public io_chanel_type::IOConnection {
+  class connection : public io_chanel_t::io_connection {
   public:
-    using io_chanel_type::IOListener::isStarted;
-    using io_chanel_type::IOListener::isStoped;
-    using io_chanel_type::IOListener::startBegin;
-    using io_chanel_type::IOListener::startComplete;
-    using io_chanel_type::IOListener::stopBegin;
-    using io_chanel_type::IOListener::stopComplete;
+    using io_chanel_t::io_listener::is_started;
+    using io_chanel_t::io_listener::is_stoped;
+    using io_chanel_t::io_listener::start_begin;
+    using io_chanel_t::io_listener::start_complete;
+    using io_chanel_t::io_listener::stop_begin;
+    using io_chanel_t::io_listener::stop_complete;
 
-    Connection() = delete;
-    Connection(const Connection &) = delete;
-    Connection &operator=(const Connection &) = delete;
+    connection() = delete;
+    connection(const connection &) = delete;
+    connection &operator=(const connection &) = delete;
 
-    Connection(std::shared_ptr<Manager> manager, const Transport::Params &p)
-        : _results(p.result_queue_size), io_chanel_type::IOConnection(manager) {
+    connection(std::shared_ptr<manager> manager, const transport::params &p)
+        : _results(p.result_queue_size), io_chanel_t::io_connection(manager) {
       _manager = manager;
     }
 
-    std::shared_ptr<Connection> shared_self() {
+    std::shared_ptr<connection> shared_self() {
       auto self = shared_from_this();
-      return std::dynamic_pointer_cast<Connection>(self);
+      return std::dynamic_pointer_cast<connection>(self);
     }
 
-    void onError(const ErrorCode &err) override {
-      io_chanel_type::IOConnection::onError(err);
-    }
+    void on_error(const ecode &err) override { io_chanel_t::io_connection::on_error(err); }
 
-    void onConnected() override { io_chanel_type::IOConnection::onConnected(); }
+    void on_connected() override { io_chanel_t::io_connection::on_connected(); }
 
-    AsyncOperationResult sendAsync(const Arg message) override {
-      auto r = _manager->makeAsyncResult();
-      _manager->pushArg(getId(), message, r.id);
+    async_operation_handler send_async(const Arg message) override {
+      auto r = _manager->make_async_result();
+      _manager->push_arg(get_id(), message, r.id);
       return r;
     }
 
-    void startConnection() {
-      startBegin();
-      io_chanel_type::IOConnection::startConnection();
+    void start_connection() {
+      start_begin();
+      io_chanel_t::io_connection::start_connection();
       auto self = shared_self();
 
-      _manager->post([self]() { self->queueWorker(); });
+      _manager->post([self]() { self->queue_worker(); });
     }
 
     void run(ResultQueue &q) {
       if (_is_busy.test_and_set(std::memory_order_acquire)) {
-        auto d = q.tryPop();
+        auto d = q.try_pop();
         if (d.ok) {
-          onMessage(std::move(d.result));
+          on_message(std::move(d.value));
         }
         _is_busy.clear(std::memory_order_release);
       }
       auto self = shared_self();
-      _manager->post([self]() { self->queueWorker(); });
+      _manager->post([self]() { self->queue_worker(); });
     }
 
-    void stopConnection() { io_chanel_type::IOConnection::stopConnection(); }
+    void stop_connection() { io_chanel_t::io_connection::stop_connection(); }
 
     void start() {
-      startConnection();
-      onConnected();
+      start_connection();
+      on_connected();
     }
 
     void stop() {
-      stopBegin();
-      stopConnection();
-      stopComplete();
+      stop_begin();
+      stop_connection();
+      stop_complete();
     }
 
-    friend Manager;
+    friend manager;
 
   protected:
-    void queueWorker() {
+    void queue_worker() {
       auto self = shared_self();
-      if (self->isStopBegin()) {
+      if (self->is_stop_begin()) {
         return;
       }
       if (!self->_results.empty()) {
         auto run = [self]() { self->run(self->_results); };
         self->_manager->post(run);
       } else {
-        _manager->post([self]() { self->queueWorker(); });
+        _manager->post([self]() { self->queue_worker(); });
       }
     }
 
   private:
-    std::shared_ptr<Manager> _manager;
+    std::shared_ptr<manager> _manager;
 
     ResultQueue _results;
     std::atomic_flag _is_busy{ATOMIC_FLAG_INIT};
@@ -298,24 +296,24 @@ struct Transport {
 };
 
 template <class Arg, class Result, class ArgQueue, class ResultQueue>
-void Transport<Arg, Result, ArgQueue, ResultQueue>::Manager::pushToResultLoop(
-    const nmq::Id id, const Result a, Id aor) {
-  auto target = getConnection(id);
+void transport<Arg, Result, ArgQueue, ResultQueue>::manager::push_to_result_loop(
+    const nmq::id_t id, const Result a, id_t aor) {
+  auto target = get_connection(id);
   if (target == nullptr) { // TODO notify about it.
-    this->markOperationAsFinished(aor);
+    this->mark_operation_as_finished(aor);
     return;
   }
 
-  auto tptr = std::dynamic_pointer_cast<typename Transport::Connection>(target);
+  auto tptr = std::dynamic_pointer_cast<typename transport::connection>(target);
   ENSURE(tptr != nullptr);
-  ENSURE(tptr->getId() == id);
-  if (tptr->isStopBegin() || this->isStopBegin() || tptr->_results.tryPush(a)) {
-    this->markOperationAsFinished(aor);
+  ENSURE(tptr->get_id() == id);
+  if (tptr->is_stop_begin() || this->is_stop_begin() || tptr->_results.try_push(a)) {
+    this->mark_operation_as_finished(aor);
     return;
   }
   auto self = shared_self();
   this->post([=]() {
-    auto clbk = [=]() { self->pushToResultLoop(id, a, aor); };
+    auto clbk = [=]() { self->push_to_result_loop(id, a, aor); };
     self->post(clbk);
   });
 }

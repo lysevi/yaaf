@@ -6,26 +6,27 @@
 #include <list>
 #include <sstream>
 
-class UnitTestLogger : public nmq::utils::ILogger {
+class UnitTestLogger : public nmq::utils::logging::abstract_logger {
 public:
   static bool verbose;
   UnitTestLogger() {}
   ~UnitTestLogger() {}
 
-  void message(nmq::utils::LOG_MESSAGE_KIND kind, const std::string &msg) noexcept {
+  void message(nmq::utils::logging::message_kind kind,
+               const std::string &msg) noexcept {
     std::stringstream ss;
     switch (kind) {
-    case nmq::utils::LOG_MESSAGE_KIND::FATAL:
+    case nmq::utils::logging::message_kind::fatal:
       ss << "[err] " << msg << std::endl;
       break;
-    case nmq::utils::LOG_MESSAGE_KIND::INFO:
+    case nmq::utils::logging::message_kind::info:
       ss << "[inf] " << msg << std::endl;
       break;
-    case nmq::utils::LOG_MESSAGE_KIND::MESSAGE:
+    case nmq::utils::logging::message_kind::message:
       ss << "[dbg] " << msg << std::endl;
       break;
     }
-    if (kind == nmq::utils::LOG_MESSAGE_KIND::FATAL) {
+    if (kind == nmq::utils::logging::message_kind::fatal) {
       std::cerr << ss.str();
     } else {
       if (verbose) {
@@ -53,19 +54,19 @@ struct LoggerControl : Catch::TestEventListenerBase {
 
   virtual void testCaseStarting(Catch::TestCaseInfo const &) override {
     _raw_ptr = new UnitTestLogger();
-    _logger = nmq::utils::ILogger_ptr{_raw_ptr};
-    nmq::utils::LogManager::start(_logger);
+    _logger = nmq::utils::logging::abstract_logger_ptr{_raw_ptr};
+    nmq::utils::logging::logger_manager::start(_logger);
   }
 
   virtual void testCaseEnded(Catch::TestCaseStats const &testCaseStats) override {
     if (testCaseStats.testInfo.expectedToFail()) {
       _raw_ptr->dump_all();
     }
-    nmq::utils::LogManager::stop();
+    nmq::utils::logging::logger_manager::stop();
     _logger = nullptr;
   }
   UnitTestLogger *_raw_ptr;
-  nmq::utils::ILogger_ptr _logger;
+  nmq::utils::logging::abstract_logger_ptr _logger;
 };
 
 CATCH_REGISTER_LISTENER(LoggerControl);

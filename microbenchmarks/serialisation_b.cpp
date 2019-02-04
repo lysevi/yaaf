@@ -26,7 +26,7 @@ template <class T> void BM_serialisation_pack(benchmark::State &state, T arg) {
 
   for (auto _ : state) {
     auto it = buffer.data();
-    nmq::serialization::BinaryReaderWriter<T>::write(it, arg);
+    nmq::serialization::binary_io<T>::write(it, arg);
   }
 }
 BENCHMARK_CAPTURE(BM_serialisation_pack, uint8_t, uint8_t(10));
@@ -37,18 +37,18 @@ BENCHMARK_CAPTURE(BM_serialisation_pack, std::string_small, small_string);
 BENCHMARK_CAPTURE(BM_serialisation_pack, std::string_medium, medium_string);
 
 template <class T> void BM_serialisation_unpack(benchmark::State &state, T arg) {
-  auto cap = nmq::serialization::BinaryReaderWriter<T>::capacity(arg);
+  auto cap = nmq::serialization::binary_io<T>::capacity(arg);
 
   std::vector<uint8_t> buffer(cap);
   std::fill(buffer.begin(), buffer.end(), uint8_t(0));
 
   auto it = buffer.data();
-  nmq::serialization::BinaryReaderWriter<T>::write(it, arg);
+  nmq::serialization::binary_io<T>::write(it, arg);
 
   for (auto _ : state) {
     it = buffer.data();
     T result;
-    nmq::serialization::BinaryReaderWriter<T>::read(it, result);
+    nmq::serialization::binary_io<T>::read(it, result);
   }
 }
 
@@ -59,23 +59,23 @@ BENCHMARK_CAPTURE(BM_serialisation_unpack, uint64_t, uint64_t(10));
 BENCHMARK_CAPTURE(BM_serialisation_unpack, std::string_small, small_string);
 BENCHMARK_CAPTURE(BM_serialisation_unpack, std::string_medium, medium_string);
 
-BENCHMARK_DEFINE_F(Serialisation, Ok)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(Serialisation, ok)(benchmark::State &state) {
   while (state.KeepRunning()) {
-    benchmark::DoNotOptimize(Ok(uint64_t(1)).getMessage());
+    benchmark::DoNotOptimize(ok(uint64_t(1)).get_message());
   }
 }
-BENCHMARK_REGISTER_F(Serialisation, Ok);
+BENCHMARK_REGISTER_F(Serialisation, ok);
 
-BENCHMARK_DEFINE_F(Serialisation, Login)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(Serialisation, login)(benchmark::State &state) {
   while (state.KeepRunning()) {
-    benchmark::DoNotOptimize(Login("login").getMessage());
+    benchmark::DoNotOptimize(login("login").get_message());
   }
 }
-BENCHMARK_REGISTER_F(Serialisation, Login);
+BENCHMARK_REGISTER_F(Serialisation, login);
 
-BENCHMARK_DEFINE_F(Serialisation, LoginConfirm)(benchmark::State &state) {
+BENCHMARK_DEFINE_F(Serialisation, login_confirm)(benchmark::State &state) {
   while (state.KeepRunning()) {
-    benchmark::DoNotOptimize(LoginConfirm(uint64_t(1)).getMessage());
+    benchmark::DoNotOptimize(login_confirm(uint64_t(1)).get_message());
   }
 }
-BENCHMARK_REGISTER_F(Serialisation, LoginConfirm);
+BENCHMARK_REGISTER_F(Serialisation, login_confirm);

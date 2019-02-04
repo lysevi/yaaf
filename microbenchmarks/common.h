@@ -1,11 +1,11 @@
 #pragma once
 #include <libnmq/utils/logger.h>
 namespace microbenchmark_common {
-class BenchmarkLogger : public nmq::utils::ILogger {
+class BenchmarkLogger : public nmq::utils::logging::abstract_logger {
 public:
   BenchmarkLogger() {}
   ~BenchmarkLogger() {}
-  void message(nmq::utils::LOG_MESSAGE_KIND, const std::string &) noexcept {}
+  void message(nmq::utils::logging::message_kind, const std::string &) noexcept {}
 };
 
 void replace_std_logger();

@@ -3,55 +3,56 @@
 #include <libnmq/network/connection.h>
 
 using namespace nmq;
+using namespace nmq::utils::logging;
 using namespace nmq::network;
 
-IConnectionConsumer ::~IConnectionConsumer() {
-  _connection->eraseConsumer();
+abstract_connection_consumer ::~abstract_connection_consumer() {
+  _connection->erase_consumer();
 }
 
-bool IConnectionConsumer::isConnected() const {
-  return _connection->isStarted();
+bool abstract_connection_consumer::is_connected() const {
+  return _connection->is_started();
 }
 
-bool IConnectionConsumer::isStoped() const {
-  return _connection->isStopBegin();
+bool abstract_connection_consumer::is_stoped() const {
+  return _connection->is_stop_begin();
 }
 
-void IConnectionConsumer::addConnection(std::shared_ptr<Connection> c) {
+void abstract_connection_consumer::add_connection(std::shared_ptr<connection> c) {
   _connection = c;
 }
 
-Connection::Connection(boost::asio::io_service *service, const Params &params)
+connection::connection(boost::asio::io_service *service, const params &params)
     : _service(service), _params(params) {}
 
-Connection::~Connection() {
+connection::~connection() {
   disconnect();
 }
 
-void Connection::disconnect() {
-  if (!isStoped()) {
-    stopBegin();
+void connection::disconnect() {
+  if (!is_stoped()) {
+    stop_begin();
     _async_io->fullStop();
-    stopComplete();
+    stop_complete();
   }
 }
 
-void Connection::reconnectOnError(const MessagePtr &d,
+void connection::reconnecton_error(const message_ptr &d,
                                   const boost::system::error_code &err) {
 
   {
     if (_consumers != nullptr) {
-      _consumers->onNetworkError(d, err);
+      _consumers->on_network_error(d, err);
     }
   }
 
-  if (!isStopBegin() && !isStoped() && _params.auto_reconnection) {
-    this->startAsyncConnection();
+  if (!is_stop_begin() && !is_stoped() && _params.auto_reconnection) {
+    this->start_async_connection();
   }
 }
 
-void Connection::startAsyncConnection() {
-  startBegin();
+void connection::start_async_connection() {
+  start_begin();
 
   using namespace boost::asio::ip;
   tcp::resolver resolver(*_service);
@@ -75,53 +76,53 @@ void Connection::startAsyncConnection() {
               " - ", ep.address().to_string());
 
   auto self = this->shared_from_this();
-  self->_async_io = std::make_shared<AsyncIO>(self->_service);
+  self->_async_io = std::make_shared<async_io>(self->_service);
   self->_async_io->socket().async_connect(ep, [self](auto ec) {
     if (ec) {
-      if (!self->isStoped()) {
-        self->reconnectOnError(nullptr, ec);
+      if (!self->is_stoped()) {
+        self->reconnecton_error(nullptr, ec);
       }
     } else {
 
       if (self->_async_io->socket().is_open()) {
         logger_info("client: connected.");
-        AsyncIO::data_handler_t on_d = [self](auto d, auto cancel) {
-          self->onDataReceive(std::move(d), cancel);
+        async_io::data_handler_t on_d = [self](auto d, auto cancel) {
+          self->on_data_receive(std::move(d), cancel);
         };
-        AsyncIO::error_handler_t on_n = [self](auto d, auto err) {
-          self->reconnectOnError(d, err);
+        async_io::error_handler_t on_n = [self](auto d, auto err) {
+          self->reconnecton_error(d, err);
         };
 
         self->_async_io->start(on_d, on_n);
 
         if (self->_consumers != nullptr) {
-          self->_consumers->onConnect();
+          self->_consumers->on_connect();
         }
-        self->startComplete();
+        self->start_complete();
       }
     }
   });
 }
 
-void Connection::onDataReceive(MessagePtr &&d, bool &cancel) {
+void connection::on_data_receive(message_ptr &&d, bool &cancel) {
   {
     if (_consumers != nullptr) {
-      _consumers->onNewMessage(std::move(d), cancel);
+      _consumers->on_new_message(std::move(d), cancel);
     }
   }
 }
 
-void Connection::sendAsync(const MessagePtr &d) {
+void connection::send_async(const message_ptr &d) {
   if (_async_io) {
     _async_io->send(d);
   }
 }
 
-void Connection::addConsumer(const IConnectionConsumerPtr &c) {
+void connection::add_consumer(const abstract_connection_consumerPtr &c) {
   _consumers = c;
-  c->addConnection(shared_from_this());
+  c->add_connection(shared_from_this());
 }
 
-void Connection::eraseConsumer() {
+void connection::erase_consumer() {
   _consumers = nullptr;
 }

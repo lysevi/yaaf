@@ -14,7 +14,7 @@ public:
 
 BENCHMARK_DEFINE_F(Network, MessageAlloc)(benchmark::State &state) {
   while (state.KeepRunning()) {
-    benchmark::DoNotOptimize(std::make_unique<Message>(512));
+    benchmark::DoNotOptimize(std::make_unique<message>(512));
   }
 }
 BENCHMARK_REGISTER_F(Network, MessageAlloc);

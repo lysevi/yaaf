@@ -3,21 +3,21 @@
 #include <libnmq/utils/utils.h>
 
 using namespace boost::asio;
-using namespace nmq;
+using namespace nmq::utils::logging;
 using namespace nmq::network;
 
-AsyncIO::AsyncIO(boost::asio::io_service *service) : _sock(*service) {
+async_io::async_io(boost::asio::io_service *service) : _sock(*service) {
   _messages_to_send = 0;
   _is_stoped = true;
   ENSURE(service != nullptr);
   _service = service;
 }
 
-AsyncIO::~AsyncIO() noexcept(false) {
+async_io::~async_io() noexcept(false) {
   fullStop();
 }
 
-void AsyncIO::start(data_handler_t onRecv, error_handler_t onErr) {
+void async_io::start(data_handler_t onRecv, error_handler_t onErr) {
   if (!_is_stoped) {
     return;
   }
@@ -28,12 +28,12 @@ void AsyncIO::start(data_handler_t onRecv, error_handler_t onErr) {
   readNextAsync();
 }
 
-void AsyncIO::fullStop(bool waitAllMessages) {
+void async_io::fullStop(bool waitAllmessages) {
   _begin_stoping_flag = true;
   try {
 
     if (_sock.is_open()) {
-      if (waitAllMessages && _messages_to_send.load() != 0) {
+      if (waitAllmessages && _messages_to_send.load() != 0) {
         auto self = this->shared_from_this();
         _service->post([self]() { self->fullStop(); });
       } else {
@@ -61,16 +61,16 @@ void AsyncIO::fullStop(bool waitAllMessages) {
   }
 }
 
-void AsyncIO::send(const MessagePtr d) {
+void async_io::send(const message_ptr d) {
   if (_begin_stoping_flag) {
     return;
   }
   auto self = shared_from_this();
 
-  auto ds = d->asBuffer();
+  auto ds = d->as_buffer();
 
   _messages_to_send.fetch_add(1);
-  auto buf = buffer(ds.data, ds.size);
+  auto buf = boost::asio::buffer(ds.data, ds.size);
 
   auto on_write = [self, d](auto err, auto /*read_bytes*/) {
     if (err) {
@@ -82,12 +82,12 @@ void AsyncIO::send(const MessagePtr d) {
   async_write(_sock, buf, on_write);
 }
 
-void AsyncIO::readNextAsync() {
+void async_io::readNextAsync() {
   using utils::strings::args_to_string;
 
   auto self = shared_from_this();
 
-  auto on_read_message = [self](auto err, auto read_bytes, auto data_left, MessagePtr d) {
+  auto on_read_message = [self](auto err, auto read_bytes, auto data_left, message_ptr d) {
     UNUSED(read_bytes);
     UNUSED(data_left);
     if (err) {
@@ -115,22 +115,22 @@ void AsyncIO::readNextAsync() {
     if (err) {
       self->_on_error_handler(nullptr, err);
     } else {
-      ENSURE_MSG(read_bytes == Message::SIZE_OF_SIZE,
+      ENSURE_MSG(read_bytes == message::SIZE_OF_SIZE,
                  args_to_string("exception on async readNextAsync::on_read_size. ",
-                                " - wrong size: expected ", Message::SIZE_OF_SIZE,
+                                " - wrong size: expected ", message::SIZE_OF_SIZE,
                                 " readed ", read_bytes));
 
-      auto data_left = self->next_message_size - Message::SIZE_OF_SIZE;
-      MessagePtr d = std::make_shared<Message>(data_left);
+      auto data_left = self->next_message_size - message::SIZE_OF_SIZE;
+      message_ptr d = std::make_shared<message>(data_left);
 
-      auto buf_ptr = (uint8_t *)(d->header());
-      auto buf = buffer(buf_ptr, data_left);
+      auto buf_ptr = (uint8_t *)(d->get_header());
+      auto buf = boost::asio::buffer(buf_ptr, data_left);
       auto callback = [self, on_read_message, data_left, d](auto err, auto read_bytes) {
         on_read_message(err, read_bytes, data_left, d);
       };
       async_read(self->_sock, buf, callback);
     };
   };
-  auto buf = buffer(static_cast<void *>(&self->next_message_size), Message::SIZE_OF_SIZE);
+  auto buf = boost::asio::buffer(static_cast<void *>(&self->next_message_size), message::SIZE_OF_SIZE);
   async_read(_sock, buf, on_read_size);
 }

@@ -41,25 +41,25 @@ struct elapsed_time {
   clock_t start_time;
 };
 
-class LongProcess {
+class long_process {
 public:
-  LongProcess() = delete;
+  long_process() = delete;
 
-  LongProcess(const std::string &name, bool checkOnDtor_)
+  long_process(const std::string &name, bool checkOnDtor_)
       : _name(name), checkOnDtor(checkOnDtor_) {
     _started.store(false);
     _complete.store(false);
   }
 
-  ~LongProcess() {
-    if (checkOnDtor && !isComplete()) {
-      logger_fatal(_name + " Process was not _completed correctly");
+  ~long_process() {
+    if (checkOnDtor && !is_complete()) {
+      logging::logger_fatal(_name + " Process was not _completed correctly");
       std::abort();
     }
   }
 
-  bool isStarted() const { return _started.load(); }
-  bool isComplete() const { return _complete.load(); }
+  bool is_started() const { return _started.load(); }
+  bool is_complete() const { return _complete.load(); }
 
   void start(bool checkDoubleStarting = true) {
     if (checkDoubleStarting && _started.load()) {
@@ -99,49 +99,49 @@ private:
   std::atomic_bool _complete;
 };
 
-struct Waitable {
-  Waitable() : starting("starting", false), stoping("stoping", true) {}
+struct waitable {
+  waitable() : starting("starting", false), stoping("stoping", true) {}
 
-  ~Waitable() {
-    if (!isStoped()) {
-      logger_fatal("Process was not stopped correctly");
+  ~waitable() {
+    if (!is_stoped()) {
+      logging::logger_fatal("Process was not stopped correctly");
       std::abort();
     }
   }
-  bool isStartBegin() const { return starting.isStarted(); }
-  bool isStarted() const { return starting.isComplete(); }
-  bool isStopBegin() const { return stoping.isStarted(); }
-  bool isStoped() const { return stoping.isComplete(); }
+  bool is_start_begin() const { return starting.is_started(); }
+  bool is_started() const { return starting.is_complete(); }
+  bool is_stop_begin() const { return stoping.is_started(); }
+  bool is_stoped() const { return stoping.is_complete(); }
 
-  void startBegin() {
-    if (stoping.isStarted()) {
+  void start_begin() {
+    if (stoping.is_started()) {
       throw std::logic_error("begin on stoping process");
     }
     stoping.reset();
     starting.start();
   }
 
-  void startComplete() {
-    if (stoping.isStarted()) {
+  void start_complete() {
+    if (stoping.is_started()) {
       throw std::logic_error("complete on stoping process");
     }
     starting.complete();
     stoping.reset();
   }
 
-  void stopBegin(bool checkTwiceStoping = true) { stoping.start(checkTwiceStoping); }
+  void stop_begin(bool checkTwiceStoping = true) { stoping.start(checkTwiceStoping); }
 
-  void stopComplete(bool checkDoubleStoping = false) {
+  void stop_complete(bool checkDoubleStoping = false) {
     starting.reset();
     stoping.complete(checkDoubleStoping);
   }
 
-  void waitStarting() { starting.wait(); }
+  void wait_starting() { starting.wait(); }
 
-  void waitStoping() { stoping.wait(); }
+  void wait_stoping() { stoping.wait(); }
 
-  LongProcess starting;
-  LongProcess stoping;
+  long_process starting;
+  long_process stoping;
 };
 } // namespace utils
 } // namespace nmq
