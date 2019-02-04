@@ -15,10 +15,10 @@ template <typename Tr> struct ParamFiller {
 
   template <class Q = Tr>
   static typename std::enable_if<
-      std::is_same<typename Q::params,
-                   typename networkTransport<typename Q::arg_t>::params>::value,
+      std::is_same<typename Q::params_t,
+                   typename networkTransport<typename Q::arg_t>::params_t>::value,
       bool>::type
-  fillParams(typename Q::params &t) {
+  fillParams(typename Q::params_t &t) {
     t.host = "localhost";
     t.port = 4040;
     return true;
@@ -26,10 +26,10 @@ template <typename Tr> struct ParamFiller {
 
   template <class Q = Tr>
   static typename std::enable_if<
-      std::is_same<typename Q::params,
-                   typename localTransport<typename Q::arg_t>::params>::value,
+      std::is_same<typename Q::params_t,
+                   typename localTransport<typename Q::arg_t>::params_t>::value,
       bool>::type
-  fillParams(typename Q::params &t) {
+  fillParams(typename Q::params_t &t) {
     UNUSED(t);
     return true;
   }
@@ -40,16 +40,16 @@ template <typename Tr> struct ParamFiller {
 template <class MockTrasport>
 struct MockTransportListener : public MockTrasport::listener {
   MockTransportListener(std::shared_ptr<typename MockTrasport::manager> &manager,
-                        typename MockTrasport::params &p)
+                        typename MockTrasport::params_t &p)
       : MockTrasport::listener(manager, p) {
     _count.store(0);
   }
 
-  void on_error(const typename MockTrasport::io_chanel_t::sender &,
+  void on_error(const typename MockTrasport::io_chanel_t::sender_t &,
                const nmq::ecode &er) override {
     UNUSED(er);
   };
-  void on_message(const typename MockTrasport::io_chanel_t::sender &s,
+  void on_message(const typename MockTrasport::io_chanel_t::sender_t &s,
                  typename const MockTrasport::arg_t &&d) override {
     logger("<= d", d);
     _count++;
@@ -67,7 +67,7 @@ struct MockTransportListener : public MockTrasport::listener {
 template <class MockTrasport>
 struct MockTransportClient : public MockTrasport::connection {
   MockTransportClient(std::shared_ptr<typename MockTrasport::manager> &manager,
-                      typename MockTrasport::params &p)
+                      typename MockTrasport::params_t &p)
       : to_send(), MockTrasport::connection(manager, p) {}
 
   void send_query() { this->send_async(to_send); }
@@ -87,7 +87,7 @@ template <class Tr> struct TransportTester : public benchmark::Fixture {
   std::shared_ptr<MockTransportClient<Tr>> client;
 
   void SetUp(const ::benchmark::State &) override {
-    Tr::params p;
+    Tr::params_t p;
 
     inner::ParamFiller<Tr>::fillParams(p);
 

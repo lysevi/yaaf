@@ -3,6 +3,7 @@
 #include <libnmq/exports.h>
 #include <libnmq/network/async_io.h>
 #include <libnmq/types.h>
+#include <libnmq/utils/initialized_resource.h>
 
 #include <unordered_map>
 
@@ -16,7 +17,7 @@ public:
   virtual void on_connect() = 0;
   virtual void on_new_message(message_ptr &&d, bool &cancel) = 0;
   virtual void on_network_error(const message_ptr &d,
-                              const boost::system::error_code &err) = 0;
+                                const boost::system::error_code &err) = 0;
 
   EXPORT bool is_connected() const;
   EXPORT bool is_stoped() const;
@@ -30,7 +31,7 @@ private:
 using abstract_connection_consumerPtr = abstract_connection_consumer *;
 
 class connection : public std::enable_shared_from_this<connection>,
-                   public utils::waitable {
+                   public utils::initialized_resource {
 public:
   struct params {
     params(std::string host_, unsigned short port_, bool auto_reconnection_ = true)
@@ -46,7 +47,8 @@ public:
   EXPORT virtual ~connection();
   EXPORT void disconnect();
   EXPORT void start_async_connection();
-  EXPORT void reconnecton_error(const message_ptr &d, const boost::system::error_code &err);
+  EXPORT void reconnecton_error(const message_ptr &d,
+                                const boost::system::error_code &err);
   EXPORT void on_data_receive(message_ptr &&d, bool &cancel);
   EXPORT void send_async(const message_ptr &d);
 

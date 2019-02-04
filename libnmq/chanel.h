@@ -3,6 +3,7 @@
 #include <libnmq/async_result.h>
 #include <libnmq/errors.h>
 #include <libnmq/types.h>
+#include <libnmq/utils/initialized_resource.h>
 #include <libnmq/utils/utils.h>
 #include <atomic>
 #include <shared_mutex>
@@ -15,8 +16,8 @@ namespace nmq {
 template <typename Arg, typename Result> struct base_io_chanel {
   using arg_t = Arg;
   using result_t = Result;
-  struct sender {
-    sender(base_io_chanel<Arg, Result> &bc, nmq::id_t id_) : chanel(bc), id(id_) {}
+  struct sender_t {
+    sender_t(base_io_chanel<Arg, Result> &bc, nmq::id_t id_) : chanel(bc), id(id_) {}
     base_io_chanel<Arg, Result> &chanel;
     nmq::id_t id;
   };
@@ -24,10 +25,10 @@ template <typename Arg, typename Result> struct base_io_chanel {
   struct io_listener;
   struct io_connection;
 
-  struct params {
-    params() { threads_count = 1; }
+  struct params_t {
+    params_t() { threads_count = 1; }
 
-    params(size_t threads) {
+    params_t(size_t threads) {
       ENSURE(threads > 0);
       threads_count = threads;
     }
@@ -35,11 +36,11 @@ template <typename Arg, typename Result> struct base_io_chanel {
   };
 
   class io_manager : virtual public std::enable_shared_from_this<io_manager>,
-                    public utils::waitable {
+                     public utils::initialized_resource {
   public:
     using io_chanel_t = typename base_io_chanel<Arg, Result>;
 
-    io_manager(const params &p) : _params(p) {
+    io_manager(const params_t &p) : _params(p) {
       ENSURE(_params.threads_count > 0);
       _id.store(0);
     }
@@ -87,16 +88,16 @@ template <typename Arg, typename Result> struct base_io_chanel {
       ecode ec(errors_kinds::FULL_STOP);
 
       for (auto l : lst) {
-        sender s(*l, l->get_id());
+        sender_t s(*l, l->get_id());
         l->on_error(s, ec);
         l->stop_listener();
       }
 
       for (auto c : cons) {
-        c->stop_begin();
+        c->stopping_started();
         c->on_error(ec);
         c->stop_connection();
-        c->stop_complete();
+        c->stopping_completed();
       }
     };
 
@@ -175,7 +176,7 @@ template <typename Arg, typename Result> struct base_io_chanel {
     virtual bool is_stopped() const { return _stop_io_service; }
 
   private:
-    params _params;
+    params_t _params;
     mutable std::shared_mutex _lock_listeners;
     std::unordered_map<id_t, std::shared_ptr<io_listener>> _listeners;
     mutable std::shared_mutex _lock_connections;
@@ -190,7 +191,7 @@ template <typename Arg, typename Result> struct base_io_chanel {
 
   class io_listener : public base_io_chanel,
                       public std::enable_shared_from_this<io_listener>,
-                     public utils ::waitable {
+                      public utils::initialized_resource {
   public:
     io_listener(std::shared_ptr<io_manager> manager) : _manager(manager) {}
     virtual ~io_listener() { stop_listener(); }
@@ -198,14 +199,15 @@ template <typename Arg, typename Result> struct base_io_chanel {
     id_t get_id() const { return _id; }
     std::shared_ptr<io_manager> getmanager() const { return _manager; }
 
-    virtual void on_error(const sender &i, const ecode &err) = 0;
-    virtual void on_message(const sender &i, const Arg &&d) = 0;
+    virtual void on_error(const sender_t &i, const ecode &err) = 0;
+    virtual void on_message(const sender_t &i, const Arg &&d) = 0;
     /**
     result - true for accept, false for failed.
     */
-    virtual bool on_client(const sender &i) = 0;
-    virtual void on_clientDisconnect(const sender &i) { UNUSED(i); };
-    virtual async_operation_handler send_async(nmq::id_t client, const Result message) = 0;
+    virtual bool on_client(const sender_t &i) = 0;
+    virtual void on_clientDisconnect(const sender_t &i) { UNUSED(i); };
+    virtual async_operation_handler send_async(nmq::id_t client,
+                                               const Result message) = 0;
 
     virtual void start_listener() { _id = _manager->add_listener(shared_from_this()); }
 
@@ -221,8 +223,8 @@ template <typename Arg, typename Result> struct base_io_chanel {
   };
 
   class io_connection : public base_io_chanel,
-                       public std::enable_shared_from_this<io_connection>,
-                       public utils ::waitable {
+                        public std::enable_shared_from_this<io_connection>,
+                        public utils ::initialized_resource {
   public:
     io_connection() = delete;
     io_connection(std::shared_ptr<io_manager> manager) : _manager(manager) {}
@@ -231,12 +233,14 @@ template <typename Arg, typename Result> struct base_io_chanel {
     id_t get_id() const { return _id; }
     std::shared_ptr<io_manager> getmanager() const { return _manager; }
 
-    virtual void on_connected() { start_complete(); }
+    virtual void on_connected() { initialisation_complete(); }
     virtual void on_error(const ecode &err) { UNUSED(err); };
     virtual void on_message(const result_t &&d) = 0;
     virtual async_operation_handler send_async(const Arg message) = 0;
 
-    virtual void start_connection() { _id = _manager->add_connection(shared_from_this()); }
+    virtual void start_connection() {
+      _id = _manager->add_connection(shared_from_this());
+    }
 
     virtual void stop_connection() {
       if (!is_stoped()) {

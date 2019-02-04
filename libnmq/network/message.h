@@ -20,13 +20,13 @@ public:
   using size_t = uint32_t;
   using kind_t = uint16_t;
 
-  struct header {
+  struct header_t {
     kind_t kind;
   };
 
   static const size_t MAX_MESSAGE_SIZE = 1024 * 4;
   static const size_t SIZE_OF_SIZE = sizeof(size_t);
-  static const size_t SIZE_OF_HEADER = sizeof(header);
+  static const size_t SIZE_OF_HEADER = sizeof(header_t);
   static const size_t MAX_BUFFER_SIZE = MAX_MESSAGE_SIZE - SIZE_OF_HEADER;
 
   message(const message &other) : data(other.data) {
@@ -46,7 +46,7 @@ public:
 
   ~message() {}
 
-  uint8_t *value() { return (data.data() + SIZE_OF_SIZE + sizeof(header)); }
+  uint8_t *value() { return (data.data() + SIZE_OF_SIZE + sizeof(header_t)); }
 
   buffer as_buffer() {
     uint8_t *v = reinterpret_cast<uint8_t *>(data.data());
@@ -54,8 +54,8 @@ public:
     return buffer{buf_size, v};
   }
 
-  header *get_header() {
-    return reinterpret_cast<header *>(this->data.data() + SIZE_OF_SIZE);
+  header_t *get_header() {
+    return reinterpret_cast<header_t *>(this->data.data() + SIZE_OF_SIZE);
   }
 
 private:

@@ -72,13 +72,13 @@ using networkTransport = nmq::network::transport<MockMessage, MockResultMessage>
 using localTransport = nmq::local::transport<MockMessage, MockResultMessage>;
 
 template <typename T>
-std::enable_if_t<std::is_same_v<T, networkTransport::params>, void> fillparams(T &t) {
+std::enable_if_t<std::is_same_v<T, networkTransport::params_t>, void> fillparams(T &t) {
   t.host = "localhost";
   t.port = 4040;
 }
 
 template <typename T>
-std::enable_if_t<std::is_same_v<T, localTransport::params>, void> fillparams(T &t) {
+std::enable_if_t<std::is_same_v<T, localTransport::params_t>, void> fillparams(T &t) {
   t.result_queue_size = 10;
   t.result_queue_size = 10;
 }
@@ -89,10 +89,10 @@ template <class TestType> struct TransportTester {
     using MockTrasport = TestType;
 
     struct listener : public MockTrasport::listener {
-      listener(std::shared_ptr<MockTrasport::manager> &manager, MockTrasport::params &p)
+      listener(std::shared_ptr<MockTrasport::manager> &manager, MockTrasport::params_t &p)
           : MockTrasport::listener(manager, p) {}
 
-      void on_error(const MockTrasport::io_chanel_t::sender &,
+      void on_error(const MockTrasport::io_chanel_t::sender_t &,
                    const ecode &er) override {
 
         if (er.inner_error == nmq::errors_kinds::FULL_STOP) {
@@ -100,10 +100,10 @@ template <class TestType> struct TransportTester {
         }
       };
 
-      void on_message(const MockTrasport::io_chanel_t::sender &s,
+      void on_message(const MockTrasport::io_chanel_t::sender_t &s,
                      const MockMessage &&d) override {
 
-        if (is_stop_begin()) {
+        if (is_stopping_started()) {
           return;
         }
 
@@ -141,7 +141,7 @@ template <class TestType> struct TransportTester {
 
     struct Client : public MockTrasport::connection {
       Client(std::shared_ptr<MockTrasport::manager> &manager,
-             const MockTrasport::params &p)
+             const MockTrasport::params_t &p)
           : MockTrasport::connection(manager, p) {}
 
       void on_connected() override { MockTrasport::connection::on_connected(); }
@@ -167,7 +167,7 @@ template <class TestType> struct TransportTester {
       };
 
       void on_message(const MockResultMessage &&d) override {
-        if (!is_stop_begin()) {
+        if (!is_stopping_started()) {
           logger_info("<=id:", d.id, " length:", d.length);
           _locker.lock();
           _q.insert(std::make_pair(d.id, d.length));
@@ -189,7 +189,7 @@ template <class TestType> struct TransportTester {
       bool all_listeners__stoped_flag = false;
     };
 
-    MockTrasport::params p;
+    MockTrasport::params_t p;
 
     fillparams(p);
     p.threads_count = (listenersCount + clientsCount) + 3;

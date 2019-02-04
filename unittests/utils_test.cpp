@@ -1,3 +1,4 @@
+#include <libnmq/utils/initialized_resource.h>
 #include <libnmq/utils/strings.h>
 #include <libnmq/utils/utils.h>
 
@@ -55,38 +56,38 @@ TEST_CASE("utils.long_process") {
   REQUIRE_THROWS(run.complete(true));
 }
 
-TEST_CASE("utils.waitable") {
-  nmq::utils::waitable child_w, parent_w;
+TEST_CASE("utils.initialized_resource") {
+  nmq::utils::initialized_resource child_w, parent_w;
   {
-    EXPECT_FALSE(child_w.is_start_begin());
+    EXPECT_FALSE(child_w.is_initialisation_begin());
 
-    parent_w.start_begin();
-    child_w.start_begin();
+    parent_w.initialisation_begin();
+    child_w.initialisation_begin();
 
-    REQUIRE_THROWS(child_w.start_begin());
-    REQUIRE_THROWS(parent_w.start_begin());
+    REQUIRE_THROWS(child_w.initialisation_begin());
+    REQUIRE_THROWS(parent_w.initialisation_begin());
 
-    EXPECT_TRUE(child_w.is_start_begin());
+    EXPECT_TRUE(child_w.is_initialisation_begin());
 
     auto chld = [&child_w, &parent_w]() {
       parent_w.wait_starting();
       EXPECT_TRUE(parent_w.is_started());
-      child_w.start_complete();
+      child_w.initialisation_complete();
     };
 
     std::thread chldT(chld);
 
-    parent_w.start_complete();
+    parent_w.initialisation_complete();
     child_w.wait_starting();
     EXPECT_TRUE(child_w.is_started());
 
     chldT.join();
   }
 
-  child_w.stop_begin();
-  parent_w.stop_begin();
+  child_w.stopping_started();
+  parent_w.stopping_started();
   auto chld_stoper = [&parent_w, &child_w]() {
-    child_w.stop_complete();
+    child_w.stopping_completed();
     EXPECT_TRUE(child_w.is_stoped());
     EXPECT_FALSE(child_w.is_started());
     parent_w.wait_stoping();
@@ -98,6 +99,6 @@ TEST_CASE("utils.waitable") {
 
   child_w.wait_stoping();
 
-  parent_w.stop_complete();
+  parent_w.stopping_completed();
   chldStoper.join();
 }

@@ -11,16 +11,16 @@ using namespace boost::asio::ip;
 using namespace nmq;
 using namespace nmq::network;
 
-listenerClient::listenerClient(id_t id_, network::async_io_ptr async_io,
+listener_client::listener_client(id_t id_, network::async_io_ptr async_io,
                                std::shared_ptr<listener> s)
     : id(id_), _listener(s) {
   _async_connection = async_io;
 }
 
-listenerClient::~listenerClient() {}
+listener_client::~listener_client() {}
 
-void listenerClient::start() {
-  start_begin();
+void listener_client::start() {
+  initialisation_begin();
   auto self = shared_from_this();
 
   async_io::data_handler_t on_d = [self](message_ptr &&d, bool &cancel) {
@@ -33,12 +33,12 @@ void listenerClient::start() {
   };
 
   _async_connection->start(on_d, on_n);
-  start_complete();
+  initialisation_complete();
 }
 
-void listenerClient::close() {
-  if (!is_stop_begin() && !is_stoped()) {
-    stop_begin(true);
+void listener_client::close() {
+  if (!is_stopping_started() && !is_stoped()) {
+    stopping_started(true);
     if (_async_connection != nullptr) {
       _async_connection->fullStop();
       _async_connection = nullptr;
@@ -47,15 +47,15 @@ void listenerClient::close() {
   }
 }
 
-void listenerClient::on_network_error(const message_ptr &d,
+void listener_client::on_network_error(const message_ptr &d,
                                     const boost::system::error_code &err) {
   this->_listener->on_network_error(this->shared_from_this(), d, err);
 }
 
-void listenerClient::on_data_recv(message_ptr &&d, bool &cancel) {
+void listener_client::on_data_recv(message_ptr &&d, bool &cancel) {
   _listener->on_new_message(this->shared_from_this(), std::move(d), cancel);
 }
 
-void listenerClient::send_data(const message_ptr &d) {
+void listener_client::send_data(const message_ptr &d) {
   _async_connection->send(d);
 }

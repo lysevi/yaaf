@@ -14,7 +14,7 @@ template <typename Arg, typename Result> struct transport {
   using result_t = Result;
 
   using io_chanel_t = typename base_io_chanel<Arg, Result>;
-  using sender = typename io_chanel_t::sender;
+  using sender_t = typename io_chanel_t::sender_t;
   using arg_scheme_t = serialization::object_packer<Arg>;
   using result_scheme_t = serialization::object_packer<Arg>;
 
@@ -22,10 +22,10 @@ template <typename Arg, typename Result> struct transport {
   using net_listener_consumer_t = network::abstract_listener_consumer;
 
   using net_connection_t = network::connection;
-  using net_connection__consumer_t = network::abstract_connection_consumer;
+  using net_connection_consumer_t = network::abstract_connection_consumer;
 
-  struct params : public io_chanel_t::params {
-    params() { auto_reconnect = true; }
+  struct params_t : public io_chanel_t::params_t {
+    params_t() { auto_reconnect = true; }
     std::string host;
     unsigned short port;
     bool auto_reconnect;
@@ -33,36 +33,36 @@ template <typename Arg, typename Result> struct transport {
 
   class manager : public io_chanel_t::io_manager {
   public:
-    manager(const params &p)
-        : _params(p), io_chanel_t::io_manager(io_chanel_t::params(p.threads_count)) {
+    manager(const params_t &p)
+        : _params(p), io_chanel_t::io_manager(io_chanel_t::params_t(p.threads_count)) {
     }
 
     void start() override {
-      start_begin();
+      initialisation_begin();
       io_chanel_t::io_manager::start();
-      start_complete();
+      initialisation_complete();
     }
 
     void stop() override {
-      stop_begin();
+      stopping_started();
       io_chanel_t::io_manager::stop();
-      stop_complete();
+      stopping_completed();
     }
 
   private:
-    params _params;
+    params_t _params;
   };
 
   class listener : public io_chanel_t::io_listener,
                    public net_listener_consumer_t,
                    public ao_supervisor {
   public:
-    using io_chanel_t::io_listener::is_start_begin;
-    using io_chanel_t::io_listener::is_stop_begin;
-    using io_chanel_t::io_listener::start_begin;
-    using io_chanel_t::io_listener::start_complete;
-    using io_chanel_t::io_listener::stop_begin;
-    using io_chanel_t::io_listener::stop_complete;
+    using io_chanel_t::io_listener::is_initialisation_begin;
+    using io_chanel_t::io_listener::is_stopping_started;
+    using io_chanel_t::io_listener::initialisation_begin;
+    using io_chanel_t::io_listener::initialisation_complete;
+    using io_chanel_t::io_listener::stopping_started;
+    using io_chanel_t::io_listener::stopping_completed;
     using io_chanel_t::io_listener::wait_starting;
     using io_chanel_t::io_listener::wait_stoping;
 
@@ -70,7 +70,8 @@ template <typename Arg, typename Result> struct transport {
     listener(const listener &) = delete;
     listener &operator=(const listener &) = delete;
 
-    listener(std::shared_ptr<manager> manager, const transport::params &transport_params_)
+    listener(std::shared_ptr<manager> manager,
+             const transport::params_t &transport_params_)
         : io_chanel_t::io_listener(manager), transport_params(transport_params_) {
       _next_message_id = 0;
       _manager = manager;
@@ -83,28 +84,28 @@ template <typename Arg, typename Result> struct transport {
     }
 
     bool on_new_connection(listener_client_ptr i) override {
-      return on_client(sender{*this, i->get_id()});
+      return on_client(sender_t{*this, i->get_id()});
     }
 
     void on_disconnect(const listener_client_ptr &i) override {
-      on_clientDisconnect(sender{*this, i->get_id()});
+      on_clientDisconnect(sender_t{*this, i->get_id()});
     }
     void on_network_error(listener_client_ptr i, const message_ptr &,
                         const boost::system::error_code &err) override {
-      on_error(sender{*this, i->get_id()}, ecode{err});
+      on_error(sender_t{*this, i->get_id()}, ecode{err});
     }
 
     void on_new_message(listener_client_ptr i, message_ptr &&d, bool &cancel) override {
       UNUSED(cancel);
       queries::packed_message<Arg> msg(std::move(d));
-      // if (!is_stop_begin())
+      // if (!is_stopping_started())
       auto okMsg = queries::ok(msg.asyncOperationid).get_message();
       send_to(i->get_id(), okMsg);
 
-      on_message(sender{*this, i->get_id()}, std::move(msg.msg));
+      on_message(sender_t{*this, i->get_id()}, std::move(msg.msg));
     }
 
-    bool on_client(const sender &) override { return true; }
+    bool on_client(const sender_t &) override { return true; }
 
     async_operation_handler send_async(id_t client, const Result message) override {
       auto r = make_async_result();
@@ -119,7 +120,7 @@ template <typename Arg, typename Result> struct transport {
 
     void start() override {
       std::lock_guard<std::mutex> lg(_locker);
-      start_begin();
+      initialisation_begin();
       io_chanel_t::io_listener::start_listener();
 
       _lstnr = std::make_shared<net_listener_t>(getmanager()->service(),
@@ -130,18 +131,18 @@ template <typename Arg, typename Result> struct transport {
       }
       _lstnr->start();
       _lstnr->wait_starting();
-      start_complete();
+      initialisation_complete();
     }
 
     void stop() override {
       std::lock_guard<std::mutex> lg(_locker);
-      stop_begin();
+      stopping_started();
       io_chanel_t::io_listener::stop_listener();
       _lstnr->stop();
       _lstnr->wait_stoping();
       _lstnr = nullptr;
 
-      stop_complete();
+      stopping_completed();
     }
 
     bool is_stoped() const { return io_chanel_t::io_listener::is_stoped(); }
@@ -149,13 +150,13 @@ template <typename Arg, typename Result> struct transport {
 
   private:
     std::shared_ptr<net_listener_t> _lstnr;
-    transport::params transport_params;
+    transport::params_t transport_params;
     std::mutex _locker;
     std::shared_ptr<manager> _manager;
   };
 
   class connection : public io_chanel_t::io_connection,
-                     public net_connection__consumer_t,
+                     public net_connection_consumer_t,
                      public ao_supervisor {
   public:
     connection() = delete;
@@ -163,7 +164,7 @@ template <typename Arg, typename Result> struct transport {
     connection &operator=(const connection &) = delete;
 
     connection(std::shared_ptr<manager> manager,
-               const transport::params &transport_params)
+               const transport::params_t &transport_params)
         : _transport_params(transport_params), io_chanel_t::io_connection(manager) {
       _manager = manager;
     }
@@ -195,7 +196,7 @@ template <typename Arg, typename Result> struct transport {
 
     void on_error(const ecode &err) override {
       UNUSED(err);
-      if (!is_stop_begin()) {
+      if (!is_stopping_started()) {
         stop();
       }
     }
@@ -212,7 +213,7 @@ template <typename Arg, typename Result> struct transport {
 
     void start() override {
       std::lock_guard<std::mutex> lg(_locker);
-      start_begin();
+      initialisation_begin();
 
       net_connection_t::params nparams(_transport_params.host, _transport_params.port,
                                     _transport_params.auto_reconnect);
@@ -228,12 +229,12 @@ template <typename Arg, typename Result> struct transport {
 
     void stop() override {
       std::lock_guard<std::mutex> lg(_locker);
-      stop_begin();
+      stopping_started();
       io_connection::stop_connection();
       _connection->disconnect();
       _connection->wait_stoping();
       _connection = nullptr;
-      stop_complete();
+      stopping_completed();
     }
 
     bool is_stoped() const { return io_chanel_t::io_connection::is_stoped(); }
@@ -241,7 +242,7 @@ template <typename Arg, typename Result> struct transport {
 
   private:
     std::shared_ptr<net_connection_t> _connection;
-    transport::params _transport_params;
+    transport::params_t _transport_params;
     std::mutex _locker;
 
     std::shared_ptr<manager> _manager;

@@ -16,10 +16,10 @@ struct transport {
   using arg_t = Arg;
   using result_t = Result;
   using io_chanel_t = base_io_chanel<Arg, Result>;
-  using sender_t = typename io_chanel_t::sender;
+  using sender_t = typename io_chanel_t::sender_t;
 
-  struct params : public io_chanel_t::params {
-    params() {
+  struct params_t : public io_chanel_t::params_t {
+    params_t() {
       arg_queue_size = 10;
       result_queue_size = 10;
     }
@@ -33,8 +33,8 @@ struct transport {
   public:
     using io_chanel_t::io_manager::shared_from_this;
 
-    manager(const params &p)
-        : io_chanel_t::io_manager(io_chanel_t::params(p.threads_count)), _params(p),
+    manager(const params_t &p)
+        : io_chanel_t::io_manager(io_chanel_t::params_t(p.threads_count)), _params(p),
           _args(p.arg_queue_size) {
       ENSURE(_params.threads_count > 0);
       ENSURE(_params.arg_queue_size > 0);
@@ -70,15 +70,15 @@ struct transport {
     void rm_connection(id_t id) override { io_chanel_t::io_manager::rm_connection(id); }
 
     void start() override {
-      start_begin();
+      initialisation_begin();
       io_chanel_t::io_manager::start();
       auto self = shared_self();
       post([self]() { self.get()->queue_worker(); });
-      start_complete();
+      initialisation_complete();
     }
 
     void stop() override {
-      stop_begin();
+      stopping_started();
       connections_visit([](std::shared_ptr<io_chanel_t::io_connection> c) {
         c->on_error(ecode(errors_kinds::FULL_STOP));
         return true;
@@ -87,11 +87,11 @@ struct transport {
       wait_all_async_operations();
 
       io_chanel_t::io_manager::stop();
-      stop_complete();
+      stopping_completed();
     }
 
     void push_arg_loop(id_t id, const Arg a, id_t aor) {
-      if (is_stop_begin() || _args.try_push(std::make_pair(id, a))) {
+      if (is_stopping_started() || _args.try_push(std::make_pair(id, a))) {
         this->mark_operation_as_finished(aor);
         return;
       } else {
@@ -127,13 +127,13 @@ struct transport {
         });
       }
 
-      if (!is_stop_begin()) {
+      if (!is_stopping_started()) {
         post([self]() { self->queue_worker(); });
       }
     }
 
   private:
-    params _params;
+    params_t _params;
 
     ArgQueue _args;
   };
@@ -142,17 +142,17 @@ struct transport {
   public:
     using io_chanel_t::io_listener::is_started;
     using io_chanel_t::io_listener::is_stoped;
-    using io_chanel_t::io_listener::start_begin;
-    using io_chanel_t::io_listener::start_complete;
-    using io_chanel_t::io_listener::stop_begin;
-    using io_chanel_t::io_listener::stop_complete;
+    using io_chanel_t::io_listener::initialisation_begin;
+    using io_chanel_t::io_listener::initialisation_complete;
+    using io_chanel_t::io_listener::stopping_started;
+    using io_chanel_t::io_listener::stopping_completed;
 
     listener() = delete;
     listener(const listener &) = delete;
     listener &operator=(const listener &) = delete;
 
     listener(std::shared_ptr<manager> manager,
-             const transport::params & /*transport_params*/)
+             const transport::params_t & /*transport_params*/)
         : io_chanel_t::io_listener(manager) {
       _manager = manager;
     }
@@ -166,15 +166,15 @@ struct transport {
     }
 
     void start_listener() override {
-      start_begin();
+      initialisation_begin();
       io_chanel_t::io_listener::start_listener();
-      start_complete();
+      initialisation_complete();
     }
 
     void stop_listener() override {
-      stop_begin();
+      stopping_started();
       io_chanel_t::io_listener::stop_listener();
-      stop_complete();
+      stopping_completed();
     }
 
     void start() { start_listener(); }
@@ -209,16 +209,16 @@ struct transport {
   public:
     using io_chanel_t::io_listener::is_started;
     using io_chanel_t::io_listener::is_stoped;
-    using io_chanel_t::io_listener::start_begin;
-    using io_chanel_t::io_listener::start_complete;
-    using io_chanel_t::io_listener::stop_begin;
-    using io_chanel_t::io_listener::stop_complete;
+    using io_chanel_t::io_listener::initialisation_begin;
+    using io_chanel_t::io_listener::initialisation_complete;
+    using io_chanel_t::io_listener::stopping_started;
+    using io_chanel_t::io_listener::stopping_completed;
 
     connection() = delete;
     connection(const connection &) = delete;
     connection &operator=(const connection &) = delete;
 
-    connection(std::shared_ptr<manager> manager, const transport::params &p)
+    connection(std::shared_ptr<manager> manager, const transport::params_t &p)
         : _results(p.result_queue_size), io_chanel_t::io_connection(manager) {
       _manager = manager;
     }
@@ -239,7 +239,7 @@ struct transport {
     }
 
     void start_connection() {
-      start_begin();
+      initialisation_begin();
       io_chanel_t::io_connection::start_connection();
       auto self = shared_self();
 
@@ -266,9 +266,9 @@ struct transport {
     }
 
     void stop() {
-      stop_begin();
+      stopping_started();
       stop_connection();
-      stop_complete();
+      stopping_completed();
     }
 
     friend manager;
@@ -276,7 +276,7 @@ struct transport {
   protected:
     void queue_worker() {
       auto self = shared_self();
-      if (self->is_stop_begin()) {
+      if (self->is_stopping_started()) {
         return;
       }
       if (!self->_results.empty()) {
@@ -307,7 +307,7 @@ void transport<Arg, Result, ArgQueue, ResultQueue>::manager::push_to_result_loop
   auto tptr = std::dynamic_pointer_cast<typename transport::connection>(target);
   ENSURE(tptr != nullptr);
   ENSURE(tptr->get_id() == id);
-  if (tptr->is_stop_begin() || this->is_stop_begin() || tptr->_results.try_push(a)) {
+  if (tptr->is_stopping_started() || this->is_stopping_started() || tptr->_results.try_push(a)) {
     this->mark_operation_as_finished(aor);
     return;
   }

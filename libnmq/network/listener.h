@@ -3,6 +3,7 @@
 #include <libnmq/exports.h>
 #include <libnmq/network/async_io.h>
 #include <libnmq/network/listener_client.h>
+#include <libnmq/utils/initialized_resource.h>
 
 #include <atomic>
 #include <mutex>
@@ -12,14 +13,14 @@ namespace nmq {
 namespace network {
 class listener;
 
-class abstract_listener_consumer : public utils::waitable {
+class abstract_listener_consumer : public utils::initialized_resource {
 public:
   EXPORT virtual ~abstract_listener_consumer();
 
   virtual void on_network_error(listener_client_ptr i, const network::message_ptr &d,
-                              const boost::system::error_code &err) = 0;
+                                const boost::system::error_code &err) = 0;
   virtual void on_new_message(listener_client_ptr i, network::message_ptr &&d,
-                            bool &cancel) = 0;
+                              bool &cancel) = 0;
   virtual bool on_new_connection(listener_client_ptr i) = 0;
   virtual void on_disconnect(const listener_client_ptr &i) = 0;
 
@@ -33,7 +34,8 @@ private:
 
 using abstract_listener_consumer_ptr = abstract_listener_consumer *;
 
-class listener : public std::enable_shared_from_this<listener>, public utils::waitable {
+class listener : public std::enable_shared_from_this<listener>,
+                 public utils::initialized_resource {
 public:
   struct params {
     unsigned short port;
@@ -56,13 +58,13 @@ public:
 
   EXPORT void erase_consumer();
 
-  friend listenerClient;
+  friend listener_client;
 
 protected:
   void sendOk(listener_client_ptr i, uint64_t messageid);
 
   void on_network_error(listener_client_ptr i, const network::message_ptr &d,
-                      const boost::system::error_code &err);
+                        const boost::system::error_code &err);
   void on_new_message(listener_client_ptr i, network::message_ptr &&d, bool &cancel);
 
 private:

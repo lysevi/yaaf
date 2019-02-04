@@ -15,7 +15,7 @@ bool abstract_connection_consumer::is_connected() const {
 }
 
 bool abstract_connection_consumer::is_stoped() const {
-  return _connection->is_stop_begin();
+  return _connection->is_stopping_started();
 }
 
 void abstract_connection_consumer::add_connection(std::shared_ptr<connection> c) {
@@ -31,9 +31,9 @@ connection::~connection() {
 
 void connection::disconnect() {
   if (!is_stoped()) {
-    stop_begin();
+    stopping_started();
     _async_io->fullStop();
-    stop_complete();
+    stopping_completed();
   }
 }
 
@@ -46,13 +46,13 @@ void connection::reconnecton_error(const message_ptr &d,
     }
   }
 
-  if (!is_stop_begin() && !is_stoped() && _params.auto_reconnection) {
+  if (!is_stopping_started() && !is_stoped() && _params.auto_reconnection) {
     this->start_async_connection();
   }
 }
 
 void connection::start_async_connection() {
-  start_begin();
+  initialisation_begin();
 
   using namespace boost::asio::ip;
   tcp::resolver resolver(*_service);
@@ -98,7 +98,7 @@ void connection::start_async_connection() {
         if (self->_consumers != nullptr) {
           self->_consumers->on_connect();
         }
-        self->start_complete();
+        self->initialisation_complete();
       }
     }
   });
