@@ -12,7 +12,8 @@ class base_actor;
 class actor_for_delegate;
 
 using actor_ptr = std::shared_ptr<base_actor>;
-using actor_weak = std::weak_ptr<base_actor>;
+// TODO rm
+// using actor_weak = std::weak_ptr<base_actor>;
 
 enum class actor_status_kinds { NORMAL, WITH_ERROR };
 
@@ -22,7 +23,7 @@ public:
     actor_status_kinds kind;
     std::string msg;
   };
-  // TODO ctx not used
+
   base_actor() {
     _busy = false;
     _status.kind = actor_status_kinds::NORMAL;
@@ -72,6 +73,7 @@ public:
   ~actor_for_delegate() {}
 
   EXPORT void action_handle(envelope &e) override;
+
 private:
   delegate_t _handle;
 };

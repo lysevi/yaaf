@@ -94,7 +94,7 @@ void context::mailbox_worker() {
     auto mb = kv.second;
     if (!mb->empty()) {
       auto it = _actors.find(kv.first);
-      if (it == _actors.end()) { // TODO make a test for this;
+      if (it == _actors.end()) {
         envelope e;
         mb->try_pop(e);
         to_remove.insert(kv.first);
