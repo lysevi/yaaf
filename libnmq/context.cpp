@@ -52,7 +52,7 @@ actor_address context::add_actor(actor_ptr a) {
   auto new_id = id_t(_next_actor_id++);
 
   logger_info("context: add actor #", new_id);
-  actor_address *result = new actor_address(new_id, this);
+  actor_address result{new_id, this};
   a->set_self_addr(result);
   _actors[new_id] = a;
   _mboxes[new_id] = std::make_shared<mailbox>();
@@ -66,7 +66,7 @@ actor_address context::add_actor(actor_ptr a) {
 
   _thread_manager->post(USER, wrap_task(t));
 
-  return *result;
+  return result;
 }
 
 void context::send(actor_address &addr, envelope msg) {

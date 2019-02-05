@@ -39,8 +39,8 @@ public:
 
   void reset_busy() { _busy.store(false); }
 
-  EXPORT actor_address *self_addr();
-  EXPORT void set_self_addr(actor_address *sa);
+  EXPORT actor_address self_addr();
+  EXPORT void set_self_addr(actor_address sa);
 
 protected:
   void update_status(actor_status_kinds kind) {
@@ -57,7 +57,7 @@ private:
   mutable std::atomic_bool _busy;
   status_t _status;
 
-  actor_address *_sa = nullptr;
+  actor_address _sa;
 };
 
 class actor_for_delegate : public base_actor {

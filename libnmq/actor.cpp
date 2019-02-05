@@ -4,10 +4,7 @@
 using namespace nmq;
 
 base_actor::~base_actor() {
-  if (_sa != nullptr) {
-    delete _sa;
-    _sa = nullptr;
-  }
+  
 }
 
 void base_actor::on_start() {}
@@ -47,11 +44,11 @@ bool base_actor::try_lock() {
   return true;
 }
 
-actor_address *base_actor::self_addr() {
+actor_address base_actor::self_addr() {
   return _sa;
 }
 
-void base_actor::set_self_addr(actor_address *sa) {
+void base_actor::set_self_addr(actor_address sa) {
   _sa = sa;
 }
 

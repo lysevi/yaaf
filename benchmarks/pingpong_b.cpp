@@ -17,21 +17,21 @@ public:
     auto v = boost::any_cast<int>(e.payload);
     UNUSED(v);
     pongs++;
-    e.sender.send(*self_addr(), int(2));
+    e.sender.send(self_addr(), int(2));
   }
 };
 
 class ping_actor : public base_actor {
 public:
   void on_start() override {
-    pong_addr = self_addr()->ctx()->add_actor(std::make_shared<pong_actor>());
+    pong_addr = self_addr().ctx()->add_actor(std::make_shared<pong_actor>());
   }
   void action_handle(envelope &e) override {
     auto v = boost::any_cast<int>(e.payload);
     UNUSED(v);
     pings++;
 
-    pong_addr.send(*self_addr(), int(1));
+    pong_addr.send(self_addr(), int(1));
   }
   nmq::actor_address pong_addr;
 };
