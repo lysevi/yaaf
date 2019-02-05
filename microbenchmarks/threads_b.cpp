@@ -21,9 +21,10 @@ public:
 };
 
 BENCHMARK_DEFINE_F(ThreadPool_b, repeated)(benchmark::State &state) {
-  task at = [](const thread_info &) { return CONTINUATION_STRATEGY::REPEAT; };
-  tr_pool->post(wrap_task(at));
+  task at = [](const thread_info &) { return CONTINUATION_STRATEGY::SINGLE; };
   while (state.KeepRunning()) {
+    auto tresult = tr_pool->post(wrap_task(at));
+    tresult->wait();
   }
 }
 BENCHMARK_REGISTER_F(ThreadPool_b, repeated);

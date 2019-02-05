@@ -27,16 +27,15 @@ public:
   };
   EXPORT threads_pool(const params_t &p);
   EXPORT ~threads_pool();
-  size_t threads_count() const { return _params.threads_count; }
-  thread_kind_t kind() const { return _params.kind; }
-
-  bool is_stopped() const { return _is_stoped; }
-
   EXPORT task_result_ptr post(const task_wrapper_ptr &task);
   EXPORT void flush();
   EXPORT void stop();
 
-  size_t active_works() const {
+  size_t threads_count() const { return _params.threads_count; }
+  thread_kind_t kind() const { return _params.kind; }
+  bool is_stopped() const { return _is_stoped; }
+
+  size_t active_workers() const {
     std::shared_lock<std::shared_mutex> lg(_queue_mutex);
     size_t res = _in_queue.size();
     return res + (_task_runned);
