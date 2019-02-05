@@ -7,7 +7,9 @@ TEST_CASE("mailbox") {
   nmq::mailbox mbox;
   EXPECT_TRUE(mbox.empty());
 
-  nmq::actor_ptr actor = nmq::actor_ptr(new nmq::actor);
+  auto clbk = [](nmq::actor_weak, nmq::envelope) {};
+  nmq::actor_ptr actor = std::make_shared<nmq::actor>(nmq::actor::delegate_t(clbk));
+
   mbox.push(std::string("svalue"), actor);
   mbox.push(int(1), actor);
   mbox.push(std::make_shared<std::string>("shared string"), actor);

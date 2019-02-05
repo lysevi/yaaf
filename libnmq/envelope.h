@@ -4,6 +4,7 @@
 #include <boost/any.hpp>
 
 namespace nmq {
+
 struct envelope {
   boost::any payload;
 
