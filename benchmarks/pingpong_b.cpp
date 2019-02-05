@@ -7,6 +7,11 @@ using namespace nmq;
 actor_address *c1_addr_ptr;
 actor_address *c2_addr_ptr;
 
+class ping_actor : public base_actor {
+public:
+  void action_handle(envelope & /*e*/) override {}
+};
+
 int main(int argc, char **argv) {
   UNUSED(argc);
   UNUSED(argv);
@@ -21,18 +26,22 @@ int main(int argc, char **argv) {
   std::atomic_size_t pings = 0;
   std::atomic_size_t pongs = 0;
 
-  auto c1 = [&](nmq::actor_weak, nmq::envelope e) {
+  auto c1 = [&](nmq::envelope e) {
     auto v = boost::any_cast<int>(e.payload);
     UNUSED(v);
     pings++;
-    c2_addr_ptr->send(int(1));
+    if (e.sender.empty()) {
+      c2_addr_ptr->send(*c1_addr_ptr, int(1));
+    } else {
+      e.sender.send(*c1_addr_ptr, int(1));
+    }
   };
 
-  auto c2 = [&](nmq::actor_weak, nmq::envelope e) {
+  auto c2 = [&](nmq::envelope e) {
     auto v = boost::any_cast<int>(e.payload);
     UNUSED(v);
     pongs++;
-    c1_addr_ptr->send(int(2));
+    e.sender.send(*c2_addr_ptr, int(2));
   };
 
   auto c1_addr = ctx->add_actor(actor_for_delegate::delegate_t(c1));
@@ -40,7 +49,7 @@ int main(int argc, char **argv) {
   c1_addr_ptr = &c1_addr;
   c2_addr_ptr = &c2_addr;
 
-  c1_addr.send(int(2));
+  c1_addr.send(c2_addr, int(2));
 
   for (int i = 0;; ++i) {
     size_t last_ping = pings.load();

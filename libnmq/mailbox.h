@@ -22,7 +22,7 @@ public:
     _dqueue.emplace_back(e);
   }
 
-  template <class T> void push(T &&t, const actor_weak &sender) {
+  template <class T> void push(T &&t, const actor_address &sender) {
     std::lock_guard<std::shared_mutex> lg(_locker);
     envelope ep;
     ep.payload = std::forward<T>(t);

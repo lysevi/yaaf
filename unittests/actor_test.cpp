@@ -1,6 +1,4 @@
-#include <libnmq/actor.h>
-#include <libnmq/envelope.h>
-#include <libnmq/mailbox.h>
+#include <libnmq/context.h>
 
 #include "helpers.h"
 #include <catch.hpp>
@@ -8,10 +6,8 @@
 TEST_CASE("actor") {
   int summ = 0;
 
-  auto clbk = [&summ](nmq::actor_weak a, nmq::envelope el) {
-    if (auto sl = a.lock()) {
-      EXPECT_TRUE(sl->busy());
-    }
+  auto clbk = [&summ](nmq::envelope el) {
+
     int v = boost::any_cast<int>(el.payload);
     summ += v;
   };
@@ -22,10 +18,10 @@ TEST_CASE("actor") {
   nmq::mailbox mbox;
   actor->apply(mbox);
 
-  mbox.push(int(1), actor);
-  mbox.push(int(2), actor);
-  mbox.push(int(3), actor);
-  mbox.push(int(4), actor);
+  mbox.push(int(1), nmq::actor_address());
+  mbox.push(int(2), nmq::actor_address());
+  mbox.push(int(3), nmq::actor_address());
+  mbox.push(int(4), nmq::actor_address());
 
   while (!mbox.empty()) {
     EXPECT_TRUE(actor->try_lock());
@@ -39,7 +35,7 @@ TEST_CASE("actor") {
 
   EXPECT_EQ(summ, int(1) + 2 + 3 + 4);
 
-  mbox.push(std::string("bad cast check"), actor);
+  mbox.push(std::string("bad cast check"), nmq::actor_address());
   bool has_exception = false;
   try {
     EXPECT_TRUE(actor->try_lock());
@@ -54,7 +50,7 @@ TEST_CASE("actor") {
   EXPECT_EQ(st.kind, nmq::actor_status_kinds::WITH_ERROR);
   EXPECT_NE(st.msg, std::string());
 
-  mbox.push(int(4), actor);
+  mbox.push(int(4), nmq::actor_address());
   EXPECT_TRUE(actor->try_lock());
   actor->apply(mbox);
 

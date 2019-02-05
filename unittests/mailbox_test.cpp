@@ -1,4 +1,4 @@
-#include <libnmq/mailbox.h>
+#include <libnmq/context.h>
 
 #include "helpers.h"
 #include <catch.hpp>
@@ -7,13 +7,9 @@ TEST_CASE("mailbox") {
   nmq::mailbox mbox;
   EXPECT_TRUE(mbox.empty());
 
-  auto clbk = [](nmq::actor_weak, nmq::envelope) {};
-  nmq::actor_ptr actor =
-      std::make_shared<nmq::actor_for_delegate>(nullptr, nmq::actor_for_delegate::delegate_t(clbk));
-
-  mbox.push(std::string("svalue"), actor);
-  mbox.push(int(1), actor);
-  mbox.push(std::make_shared<std::string>("shared string"), actor);
+  mbox.push(std::string("svalue"), nmq::actor_address());
+  mbox.push(int(1), nmq::actor_address());
+  mbox.push(std::make_shared<std::string>("shared string"), nmq::actor_address());
 
   EXPECT_FALSE(mbox.empty());
   EXPECT_EQ(mbox.size(), size_t(3));

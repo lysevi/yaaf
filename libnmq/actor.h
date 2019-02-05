@@ -30,7 +30,9 @@ public:
     _status.kind = actor_status_kinds::NORMAL;
   }
 
-  virtual void apply(mailbox &mbox) = 0;
+  EXPORT virtual void on_start();
+  EXPORT virtual void apply(mailbox &mbox);
+  virtual void action_handle(envelope&e)=0;
 
   EXPORT bool try_lock();
   bool busy() const { return _busy.load(); }
@@ -51,8 +53,6 @@ protected:
     _status.msg = msg;
   }
 
-  
-
 private:
   mutable std::atomic_bool _busy;
   status_t _status;
@@ -62,7 +62,7 @@ private:
 
 class actor_for_delegate : public base_actor {
 public:
-  using delegate_t = std::function<void(actor_weak, const envelope &)>;
+  using delegate_t = std::function<void(const envelope &)>;
 
   actor_for_delegate(const actor_for_delegate &a) = delete;
   actor_for_delegate() = delete;
@@ -71,7 +71,7 @@ public:
   EXPORT actor_for_delegate(context *ctx, delegate_t callback);
   ~actor_for_delegate() {}
 
-  EXPORT void apply(mailbox &mbox) override;
+  EXPORT void action_handle(envelope &e) override;
 
 private:
   delegate_t _handle;

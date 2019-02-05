@@ -1,4 +1,4 @@
-#include <libnmq/mailbox.h>
+#include <libnmq/context.h>
 #include <benchmark/benchmark.h>
 
 using namespace nmq;
