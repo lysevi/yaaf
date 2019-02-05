@@ -17,7 +17,7 @@ TEST_CASE("actor") {
   };
 
   nmq::actor_ptr actor =
-      std::make_shared<nmq::actor>(nullptr, nmq::actor::delegate_t(clbk));
+      std::make_shared<nmq::actor_for_delegate>(nullptr, nmq::actor_for_delegate::delegate_t(clbk));
 
   nmq::mailbox mbox;
   actor->apply(mbox);

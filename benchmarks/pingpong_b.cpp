@@ -14,14 +14,16 @@ int main(int argc, char **argv) {
   auto _logger = nmq::utils::logging::abstract_logger_ptr{_raw_ptr};
   nmq::utils::logging::logger_manager::start(_logger);
 
-  auto ctx = std::make_shared<context>(context::params_t::defparams());
+  context::params_t params = context::params_t::defparams();
+  params.user_threads = 1;
+  auto ctx = std::make_shared<context>(params);
 
   std::atomic_size_t pings = 0;
   std::atomic_size_t pongs = 0;
 
   auto c1 = [&](nmq::actor_weak, nmq::envelope e) {
     auto v = boost::any_cast<int>(e.payload);
-	UNUSED(v);
+    UNUSED(v);
     pings++;
     c2_addr_ptr->send(int(1));
   };
@@ -33,8 +35,8 @@ int main(int argc, char **argv) {
     c1_addr_ptr->send(int(2));
   };
 
-  auto c1_addr = ctx->add_actor(actor::delegate_t(c1));
-  auto c2_addr = ctx->add_actor(actor::delegate_t(c2));
+  auto c1_addr = ctx->add_actor(actor_for_delegate::delegate_t(c1));
+  auto c2_addr = ctx->add_actor(actor_for_delegate::delegate_t(c2));
   c1_addr_ptr = &c1_addr;
   c2_addr_ptr = &c2_addr;
 
@@ -47,7 +49,7 @@ int main(int argc, char **argv) {
 
     size_t new_ping = pings.load();
 
-    std::cout << "#: " << i << " ping/pong speed: " << (new_ping - last_ping) / 1000.0 <<" per.sec."
-              << std::endl;
+    std::cout << "#: " << i << " ping/pong speed: " << (new_ping - last_ping) / 1000.0
+              << " per.sec." << std::endl;
   }
 }

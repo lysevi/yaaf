@@ -14,10 +14,10 @@ bool base_actor::try_lock() {
   }
   return true;
 }
-actor::actor(context *ctx, actor::delegate_t callback)
+actor_for_delegate::actor_for_delegate(context *ctx, actor_for_delegate::delegate_t callback)
     : base_actor(ctx), _handle(callback) {}
 
-void actor::apply(mailbox &mbox) {
+void actor_for_delegate::apply(mailbox &mbox) {
   if (mbox.empty()) {
     update_status(actor_status_kinds::NORMAL);
     reset_busy();

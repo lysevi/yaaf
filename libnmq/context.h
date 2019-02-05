@@ -45,7 +45,8 @@ public:
 
   EXPORT context(params_t params);
   EXPORT ~context();
-  EXPORT actor_address add_actor(actor::delegate_t f);
+  EXPORT actor_address add_actor(actor_for_delegate::delegate_t f);
+  EXPORT actor_address add_actor(actor_ptr a);
   EXPORT void send(actor_address &addr, envelope msg);
   EXPORT void stop_actor(actor_address &addr);
 

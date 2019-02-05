@@ -9,7 +9,7 @@ TEST_CASE("mailbox") {
 
   auto clbk = [](nmq::actor_weak, nmq::envelope) {};
   nmq::actor_ptr actor =
-      std::make_shared<nmq::actor>(nullptr, nmq::actor::delegate_t(clbk));
+      std::make_shared<nmq::actor_for_delegate>(nullptr, nmq::actor_for_delegate::delegate_t(clbk));
 
   mbox.push(std::string("svalue"), actor);
   mbox.push(int(1), actor);

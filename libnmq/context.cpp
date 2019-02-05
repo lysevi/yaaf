@@ -43,12 +43,17 @@ context ::~context() {
   _thread_manager = nullptr;
 }
 
-actor_address context::add_actor(actor::delegate_t f) {
+actor_address context::add_actor(actor_for_delegate::delegate_t f) {
+  actor_ptr aptr = std::make_shared<actor_for_delegate>(this, f);
+  return add_actor(aptr);
+}
+
+actor_address context::add_actor(actor_ptr a) {
   std::lock_guard<std::shared_mutex> lg(_locker);
   auto new_id = id_t(_next_actor_id++);
   actor_address result(new_id, this);
 
-  _actors[new_id] = std::make_shared<actor>(this, f);
+  _actors[new_id] = a;
   _mboxes[new_id] = std::make_shared<mailbox>();
   return result;
 }

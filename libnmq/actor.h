@@ -10,7 +10,7 @@ namespace nmq {
 struct envelope;
 class mailbox;
 class base_actor;
-class actor;
+class actor_for_delegate;
 class context;
 
 using actor_ptr = std::shared_ptr<base_actor>;
@@ -60,16 +60,16 @@ private:
   context *_ctx;
 };
 
-class actor : public base_actor {
+class actor_for_delegate : public base_actor {
 public:
   using delegate_t = std::function<void(actor_weak, const envelope &)>;
 
-  actor(const actor &a) = delete;
-  actor() = delete;
-  actor(actor &&a) = delete;
+  actor_for_delegate(const actor_for_delegate &a) = delete;
+  actor_for_delegate() = delete;
+  actor_for_delegate(actor_for_delegate &&a) = delete;
 
-  EXPORT actor(context *ctx, delegate_t callback);
-  ~actor() {}
+  EXPORT actor_for_delegate(context *ctx, delegate_t callback);
+  ~actor_for_delegate() {}
 
   EXPORT void apply(mailbox &mbox) override;
 
