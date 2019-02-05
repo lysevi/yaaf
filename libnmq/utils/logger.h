@@ -13,7 +13,7 @@ namespace nmq {
 namespace utils {
 namespace logging {
 
-enum class message_kind { message, info, fatal };
+enum class message_kind { message, info, warn, fatal };
 
 class abstract_logger {
 public:
@@ -67,6 +67,11 @@ template <typename... T> void logger(T &&... args) noexcept {
 template <typename... T> void logger_info(T &&... args) noexcept {
   nmq::utils::logging::logger_manager::instance()->variadic_message(
       nmq::utils::logging::message_kind::info, args...);
+}
+
+template <typename... T> void logger_warn(T &&... args) noexcept {
+  nmq::utils::logging::logger_manager::instance()->variadic_message(
+      nmq::utils::logging::message_kind::warn, args...);
 }
 
 template <typename... T> void logger_fatal(T &&... args) noexcept {

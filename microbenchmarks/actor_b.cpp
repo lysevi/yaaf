@@ -7,9 +7,8 @@ using namespace nmq;
 static void BM_ActorCtor(benchmark::State &state) {
   auto clbk = [](nmq::actor_weak, envelope) {};
   for (auto _ : state) {
-    nmq::actor_ptr actor =
-        std::make_shared<nmq::actor>(nmq::actor::delegate_t(clbk));
-    benchmark::DoNotOptimize(actor);
+    actor_ptr ac = std::make_shared<actor>(nullptr, actor::delegate_t(clbk));
+    benchmark::DoNotOptimize(ac);
   }
 }
 BENCHMARK(BM_ActorCtor);

@@ -16,7 +16,8 @@ TEST_CASE("actor") {
     summ += v;
   };
 
-  nmq::actor_ptr actor = std::make_shared<nmq::actor>(nmq::actor::delegate_t(clbk));
+  nmq::actor_ptr actor =
+      std::make_shared<nmq::actor>(nullptr, nmq::actor::delegate_t(clbk));
 
   nmq::mailbox mbox;
   actor->apply(mbox);
@@ -27,6 +28,7 @@ TEST_CASE("actor") {
   mbox.push(int(4), actor);
 
   while (!mbox.empty()) {
+    EXPECT_TRUE(actor->try_lock());
     actor->apply(mbox);
     EXPECT_FALSE(actor->busy());
 
@@ -40,6 +42,7 @@ TEST_CASE("actor") {
   mbox.push(std::string("bad cast check"), actor);
   bool has_exception = false;
   try {
+    EXPECT_TRUE(actor->try_lock());
     actor->apply(mbox);
   } catch (...) {
     has_exception = true;
@@ -52,6 +55,7 @@ TEST_CASE("actor") {
   EXPECT_NE(st.msg, std::string());
 
   mbox.push(int(4), actor);
+  EXPECT_TRUE(actor->try_lock());
   actor->apply(mbox);
 
   st = actor->status();

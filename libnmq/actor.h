@@ -1,7 +1,7 @@
 #pragma once
 
 #include <libnmq/exports.h>
-#include <atomic>
+#include <libnmq/utils/async/locker.h>
 #include <functional>
 #include <memory>
 
@@ -9,40 +9,70 @@ namespace nmq {
 
 struct envelope;
 class mailbox;
+class base_actor;
 class actor;
+class context;
 
-using actor_ptr = std::shared_ptr<actor>;
-using actor_weak = std::weak_ptr<actor>;
+using actor_ptr = std::shared_ptr<base_actor>;
+using actor_weak = std::weak_ptr<base_actor>;
 
 enum class actor_status_kinds { NORMAL, WITH_ERROR };
 
-class actor : public std::enable_shared_from_this<actor> {
+class base_actor : public std::enable_shared_from_this<base_actor> {
 public:
-  using delegate_t = std::function<void(actor_weak, const envelope &)>;
-
   struct status_t {
     actor_status_kinds kind;
     std::string msg;
   };
 
+  base_actor(context *ctx) : _ctx(ctx) {
+    _busy = false;
+    _status.kind = actor_status_kinds::NORMAL;
+  }
+
+  virtual void apply(mailbox &mbox) = 0;
+
+  EXPORT bool try_lock();
+  bool busy() const { return _busy.load(); }
+  status_t status() const { return _status; }
+
+  context *ctx() { return _ctx; }
+
+protected:
+  void update_status(actor_status_kinds kind) {
+    _status.kind = kind;
+    _status.msg.clear();
+  }
+
+  void update_status(actor_status_kinds kind, const std::string &msg) {
+    _status.kind = kind;
+    _status.msg = msg;
+  }
+
+  void reset_busy() { _busy.store(false); }
+
+private:
+  mutable std::atomic_bool _busy;
+  status_t _status;
+
+  context *_ctx;
+};
+
+class actor : public base_actor {
+public:
+  using delegate_t = std::function<void(actor_weak, const envelope &)>;
+
   actor(const actor &a) = delete;
   actor() = delete;
   actor(actor &&a) = delete;
 
-  actor(delegate_t callback) : _handle(callback), _busy(false) {
-    _status.kind = actor_status_kinds::NORMAL;
-  }
+  EXPORT actor(context *ctx, delegate_t callback);
   ~actor() {}
 
-  EXPORT void apply(mailbox &mbox);
-  bool busy() const { return _busy.load(); }
-  status_t status() const { return _status; }
+  EXPORT void apply(mailbox &mbox) override;
 
 private:
-  mutable std::atomic_bool _busy;
   delegate_t _handle;
-
-  status_t _status;
 };
 
 } // namespace nmq

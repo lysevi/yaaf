@@ -1,19 +1,29 @@
 #include <libnmq/actor.h>
+#include <libnmq/context.h>
 #include <libnmq/mailbox.h>
 
 using namespace nmq;
+
+bool base_actor::try_lock() {
+  bool expect = _busy.load();
+  if (expect) {
+    return false;
+  }
+  if (!_busy.compare_exchange_strong(expect, true)) {
+    return false;
+  }
+  return true;
+}
+actor::actor(context *ctx, actor::delegate_t callback)
+    : base_actor(ctx), _handle(callback) {}
 
 void actor::apply(mailbox &mbox) {
   if (mbox.empty()) {
     return;
   }
-  bool expect = _busy.load();
-  if (expect) {
-    return;
-  }
-  if (!_busy.compare_exchange_strong(expect, true)) {
-    return;
-  }
+
+  ENSURE(busy());
+
   auto self = shared_from_this();
   try {
     envelope el;
@@ -21,14 +31,12 @@ void actor::apply(mailbox &mbox) {
       nmq::actor_weak aweak(self);
       _handle(aweak, el);
     }
-    _status.kind = actor_status_kinds::NORMAL;
-    _status.msg.clear();
+    update_status(actor_status_kinds::NORMAL);
 
   } catch (std::exception &ex) {
-    _busy.store(false);
-    _status.kind = actor_status_kinds::WITH_ERROR;
-    _status.msg = ex.what();
+    reset_busy();
+    update_status(actor_status_kinds::WITH_ERROR, ex.what());
     throw;
   }
-  _busy.store(false);
+  reset_busy();
 }

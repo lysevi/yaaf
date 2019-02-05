@@ -51,6 +51,9 @@ void console_logger::message(message_kind kind, const std::string &msg) noexcept
   case message_kind::fatal:
     std::cerr << "[err] " << msg << std::endl;
     break;
+  case message_kind::warn:
+    std::cout << "[wrn] " << msg << std::endl;
+    break;
   case message_kind::info:
     std::cout << "[inf] " << msg << std::endl;
     break;

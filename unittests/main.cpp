@@ -12,8 +12,7 @@ public:
   UnitTestLogger() {}
   ~UnitTestLogger() {}
 
-  void message(nmq::utils::logging::message_kind kind,
-               const std::string &msg) noexcept {
+  void message(nmq::utils::logging::message_kind kind, const std::string &msg) noexcept {
     std::stringstream ss;
     switch (kind) {
     case nmq::utils::logging::message_kind::fatal:
@@ -22,10 +21,14 @@ public:
     case nmq::utils::logging::message_kind::info:
       ss << "[inf] " << msg << std::endl;
       break;
+    case nmq::utils::logging::message_kind::warn:
+      ss << "[wrn] " << msg << std::endl;
+      break;
     case nmq::utils::logging::message_kind::message:
       ss << "[dbg] " << msg << std::endl;
       break;
     }
+
     if (kind == nmq::utils::logging::message_kind::fatal) {
       std::cerr << ss.str();
     } else {
