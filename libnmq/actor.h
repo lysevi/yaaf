@@ -38,6 +38,8 @@ public:
 
   context *ctx() { return _ctx; }
 
+  void reset_busy() { _busy.store(false); }
+
 protected:
   void update_status(actor_status_kinds kind) {
     _status.kind = kind;
@@ -49,7 +51,7 @@ protected:
     _status.msg = msg;
   }
 
-  void reset_busy() { _busy.store(false); }
+  
 
 private:
   mutable std::atomic_bool _busy;

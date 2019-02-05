@@ -20,6 +20,9 @@ void thread_manager::flush() {
 
 task_result_ptr thread_manager::post(const thread_kind_t kind,
                                      const task_wrapper_ptr &task) {
+  if (_stoping_begin) {
+    return nullptr;
+  }
   auto target = _pools.find(kind);
   if (target == _pools.end()) {
     throw MAKE_EXCEPTION("unknow kind.");
@@ -28,6 +31,11 @@ task_result_ptr thread_manager::post(const thread_kind_t kind,
 }
 
 thread_manager::~thread_manager() {
+  stop();
+}
+
+void thread_manager::stop() {
+  _stoping_begin = true;
   if (!_stoped) {
     for (auto &&kv : _pools) {
       kv.second->stop();

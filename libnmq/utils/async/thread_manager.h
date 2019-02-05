@@ -4,6 +4,7 @@
 #include <libnmq/utils/async/thread_pool.h>
 #include <libnmq/utils/utils.h>
 #include <unordered_map>
+#include <shared_mutex>
 
 namespace nmq {
 namespace utils {
@@ -18,8 +19,9 @@ public:
   };
   EXPORT thread_manager(const params_t &params);
   EXPORT ~thread_manager();
+  EXPORT void stop();
   EXPORT void flush();
-  //task_result_ptr post(const THREAD_KINDS kind,
+  // task_result_ptr post(const THREAD_KINDS kind,
   //                    const std::shared_ptr<async_task_wrapper> &task) {
   //  return this->post((thread_kind_t)kind, task);
   //}
@@ -34,12 +36,13 @@ public:
   }
 
 private:
-  
 private:
-  bool _stoped;
+  bool _stoping_begin = false;
+  bool _stoped = false;
   params_t _params;
+  std::shared_mutex _locker;
   std::unordered_map<thread_kind_t, std::shared_ptr<threads_pool>> _pools;
 };
-}
-}
-}
+} // namespace async
+} // namespace utils
+} // namespace nmq

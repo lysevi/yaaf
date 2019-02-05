@@ -39,6 +39,7 @@ context::context(context::params_t p) : _params(p) {
 }
 
 context ::~context() {
+  _thread_manager->stop();
   _thread_manager = nullptr;
 }
 
@@ -72,30 +73,36 @@ void context::mailbox_worker() {
   std::unordered_set<id_t> to_remove;
 
   for (auto kv : _mboxes) {
-    if (!kv.second->empty()) {
+    auto mb = kv.second;
+    if (!mb->empty()) {
       auto it = _actors.find(kv.first);
       if (it == _actors.end()) { // TODO make a test for this;
         envelope e;
-        kv.second->try_pop(e);
+        mb->try_pop(e);
         to_remove.insert(kv.first);
         continue;
       }
 
       auto target_actor = _actors[kv.first];
-      if (!target_actor->try_lock()) {
-        continue;
-      }
-      task t = [kv, target_actor](const thread_info &tinfo) {
-        UNUSED(tinfo);
-        try {
-          target_actor->apply(*kv.second);
-        } catch (std::exception &ex) {
-          logger_warn(ex.what());
-        }
-        return CONTINUATION_STRATEGY::SINGLE;
-      };
 
-      _thread_manager->post(USER, wrap_task(t));
+      if (target_actor->try_lock()) {
+        if (mb->empty()) {
+          target_actor->reset_busy();
+        } else {
+          task t = [target_actor, mb](const thread_info &tinfo) {
+            UNUSED(tinfo);
+            TKIND_CHECK(tinfo.kind, USER);
+            try {
+              target_actor->apply(*mb);
+            } catch (std::exception &ex) {
+              logger_warn(ex.what());
+            }
+            return CONTINUATION_STRATEGY::SINGLE;
+          };
+
+          _thread_manager->post(USER, wrap_task(t));
+        }
+      }
     }
   }
 

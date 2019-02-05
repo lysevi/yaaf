@@ -23,7 +23,7 @@
   //std::exit(1);
 #else
 #define THROW_EXCEPTION(...)                                                             \
-  throw nmq::utils::Exception::create_and_log(CODE_POS, __VA_ARGS__);
+  throw nmq::utils::exception::create_and_log(CODE_POS, __VA_ARGS__);
 #endif
 
 namespace nmq {

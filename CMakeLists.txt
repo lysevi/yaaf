@@ -101,5 +101,7 @@ if(NMQ_ENABLE_BENCHMARKS)
    #SET(CXXOPTS_BUILD_EXAMPLES OFF)
    #add_subdirectory(extern/cxxopts)
    #include_directories(extern/cxxopts/include)
+
+   add_subdirectory(benchmarks)
 endif(NMQ_ENABLE_BENCHMARKS)
 
