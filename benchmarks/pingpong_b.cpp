@@ -38,7 +38,15 @@ public:
 
 int main(int argc, char **argv) {
   cxxopts::Options options("ping-poing", "benchmark via ping-pong");
-  options.add_options()("v,verbose", "Enable debugging")("h,help", "Help");
+  options.allow_unrecognised_options();
+  options.positional_help("[optional args]").show_positional_help();
+
+  int steps = 10;
+
+  auto add_o = options.add_options();
+  add_o("v,verbose", "Enable debugging");
+  add_o("h,help", "Help");
+  add_o("s,steps", "Steps count", cxxopts::value<int>(steps));
 
   try {
     cxxopts::ParseResult result = options.parse(argc, argv);
@@ -68,7 +76,7 @@ int main(int argc, char **argv) {
 
     c1_addr.send(nmq::actor_address(), int(2));
 
-    for (int i = 0;; ++i) {
+    for (int i = 0; i < steps; ++i) {
       size_t last_ping = pings.load();
 
       std::this_thread::sleep_for(std::chrono::seconds(1));
