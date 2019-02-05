@@ -123,19 +123,19 @@ TEST_CASE("utils.threads_pool") {
     const size_t threads_count = 2;
     threads_pool tp(threads_pool::params_t(threads_count, tk));
     const size_t tasks_count = 100;
-    async_task at = [tk](const thread_info &ti) {
+    task at = [tk](const thread_info &ti) {
       if (tk != ti.kind) {
         INFO("(tk != ti.kind)");
         throw MAKE_EXCEPTION("(tk != ti.kind)");
       }
-      return RUN_STRATEGY::SINGLE;
+      return CONTINUATION_STRATEGY::SINGLE;
     };
     for (size_t i = 0; i < tasks_count; ++i) {
-      tp.post(AT(at));
+      tp.post(wrap_task(at));
     }
     tp.flush();
 
-    auto lock = tp.post(AT(at));
+    auto lock = tp.post(wrap_task(at));
     lock->wait();
 
     tp.stop();
@@ -145,15 +145,15 @@ TEST_CASE("utils.threads_pool") {
     const size_t threads_count = 2;
     threads_pool tp(threads_pool::params_t(threads_count, tk));
     const size_t tasks_count = 100;
-    async_task at = [tk](const thread_info &ti) {
+    task at = [tk](const thread_info &ti) {
       if (tk != ti.kind) {
         INFO("(tk != ti.kind)");
         throw MAKE_EXCEPTION("(tk != ti.kind)");
       }
-      return RUN_STRATEGY::SINGLE;
+      return CONTINUATION_STRATEGY::SINGLE;
     };
     for (size_t i = 0; i < tasks_count; ++i) {
-      tp.post(AT(at));
+      tp.post(wrap_task(at));
     }
 
     tp.stop();
@@ -176,40 +176,40 @@ TEST_CASE("utils.threads_manager") {
     thread_manager  t_manager(tpm_params);
     int called = 0;
     uint64_t inf_calls = 0;
-    async_task infinite_worker = [&inf_calls](const thread_info &) {
+    task infinite_worker = [&inf_calls](const thread_info &) {
       ++inf_calls;
-      return RUN_STRATEGY::REPEAT;
+      return CONTINUATION_STRATEGY::REPEAT;
     };
 
-    async_task at_while = [&called](const thread_info &) {
+    task at_while = [&called](const thread_info &) {
       if (called < 10) {
         ++called;
-        return RUN_STRATEGY::REPEAT;
+        return CONTINUATION_STRATEGY::REPEAT;
       }
-      return RUN_STRATEGY::SINGLE;
+      return CONTINUATION_STRATEGY::SINGLE;
     };
-    async_task at1 = [tk1](const thread_info &ti) {
+    task at1 = [tk1](const thread_info &ti) {
       if (tk1 != ti.kind) {
         INFO("(tk != ti.kind)");
         nmq::utils::sleep_mls(400);
         throw MAKE_EXCEPTION("(tk1 != ti.kind)");
       }
-      return RUN_STRATEGY::SINGLE;
+      return CONTINUATION_STRATEGY::SINGLE;
     };
-    async_task at2 = [tk2](const thread_info &ti) {
+    task at2 = [tk2](const thread_info &ti) {
       if (tk2 != ti.kind) {
         INFO("(tk != ti.kind)");
         nmq::utils::sleep_mls(400);
         throw MAKE_EXCEPTION("(tk2 != ti.kind)");
       }
-      return RUN_STRATEGY::SINGLE;
+      return CONTINUATION_STRATEGY::SINGLE;
     };
     t_manager.post(
-        tk1, AT_PRIORITY(infinite_worker, nmq::utils::async::TASK_PRIORITY::WORKER));
-    auto at_while_res = t_manager.post(tk1, AT(at_while));
+        tk1, wrap_task(infinite_worker, nmq::utils::async::TASK_PRIORITY::WORKER));
+    auto at_while_res = t_manager.post(tk1, wrap_task(at_while));
     for (size_t i = 0; i < tasks_count; ++i) {
-      t_manager.post(tk1, AT(at1));
-      t_manager.post(tk2, AT(at2));
+      t_manager.post(tk1, wrap_task(at1));
+      t_manager.post(tk2, wrap_task(at2));
     }
     // EXPECT_GT(ThreadManager::instance()->active_works(), size_t(0));
     at_while_res->wait();

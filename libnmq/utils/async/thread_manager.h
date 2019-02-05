@@ -19,11 +19,11 @@ public:
   EXPORT thread_manager(const params_t &params);
   EXPORT ~thread_manager();
   EXPORT void flush();
-  task_result_ptr post(const THREAD_KINDS kind,
-                      const std::shared_ptr<async_task_wrapper> &task) {
-    return this->post((thread_kind_t)kind, task);
-  }
-  EXPORT task_result_ptr post(const thread_kind_t kind, const async_task_wrapper_ptr &task);
+  //task_result_ptr post(const THREAD_KINDS kind,
+  //                    const std::shared_ptr<async_task_wrapper> &task) {
+  //  return this->post((thread_kind_t)kind, task);
+  //}
+  EXPORT task_result_ptr post(const thread_kind_t kind, const task_wrapper_ptr &task);
 
   size_t active_works() {
     size_t res = 0;

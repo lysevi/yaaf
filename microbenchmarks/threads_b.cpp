@@ -21,8 +21,8 @@ public:
 };
 
 BENCHMARK_DEFINE_F(ThreadPool_b, repeated)(benchmark::State &state) {
-  async_task at = [](const thread_info &) { return RUN_STRATEGY::REPEAT; };
-  tr_pool->post(AT(at));
+  task at = [](const thread_info &) { return CONTINUATION_STRATEGY::REPEAT; };
+  tr_pool->post(wrap_task(at));
   while (state.KeepRunning()) {
   }
 }
