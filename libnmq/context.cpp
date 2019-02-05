@@ -35,8 +35,10 @@ context::context(context::params_t p) : _params(p) {
 }
 
 context ::~context() {
+  logger_info("context: stoping....");
   _thread_manager->stop();
   _thread_manager = nullptr;
+  logger_info("context: stoped");
 }
 
 actor_address context::add_actor(actor_for_delegate::delegate_t f) {
@@ -46,7 +48,10 @@ actor_address context::add_actor(actor_for_delegate::delegate_t f) {
 
 actor_address context::add_actor(actor_ptr a) {
   std::lock_guard<std::shared_mutex> lg(_locker);
+
   auto new_id = id_t(_next_actor_id++);
+
+  logger_info("context: add actor #", new_id);
   actor_address *result = new actor_address(new_id, this);
   a->set_self_addr(result);
   _actors[new_id] = a;
@@ -66,6 +71,7 @@ actor_address context::add_actor(actor_ptr a) {
 
 void context::send(actor_address &addr, envelope msg) {
   std::shared_lock<std::shared_mutex> lg(_locker);
+  logger_info("context: send to #", addr.get_id());
   auto it = _mboxes.find(addr.get_id());
   if (it != _mboxes.end()) {
     it->second->push(msg);
@@ -79,6 +85,7 @@ void context::stop_actor(actor_address &addr) {
 }
 
 void context::mailbox_worker() {
+  logger_info("context: mailbox_worker");
 
   _locker.lock_shared();
   std::unordered_set<id_t> to_remove;

@@ -6,6 +6,7 @@
 
 namespace nmq {
 class context;
+struct envelope;
 
 class actor_address {
 public:

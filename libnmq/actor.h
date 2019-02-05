@@ -1,18 +1,15 @@
 #pragma once
 
 #include <libnmq/exports.h>
+#include <libnmq/mailbox.h>
 #include <libnmq/utils/async/locker.h>
 #include <functional>
 #include <memory>
 
 namespace nmq {
 
-struct envelope;
-class actor_address;
-class mailbox;
 class base_actor;
 class actor_for_delegate;
-class context;
 
 using actor_ptr = std::shared_ptr<base_actor>;
 using actor_weak = std::weak_ptr<base_actor>;
@@ -56,12 +53,11 @@ protected:
     _status.msg = msg;
   }
 
-  
 private:
   mutable std::atomic_bool _busy;
   status_t _status;
 
-  actor_address *_sa=nullptr;
+  actor_address *_sa = nullptr;
 };
 
 class actor_for_delegate : public base_actor {
@@ -76,7 +72,6 @@ public:
   ~actor_for_delegate() {}
 
   EXPORT void action_handle(envelope &e) override;
-
 private:
   delegate_t _handle;
 };

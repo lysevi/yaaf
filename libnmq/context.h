@@ -2,7 +2,6 @@
 
 #include <libnmq/actor.h>
 #include <libnmq/exports.h>
-#include <libnmq/mailbox.h>
 #include <libnmq/types.h>
 
 #include <libnmq/utils/async/thread_manager.h>
