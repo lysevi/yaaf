@@ -7,3 +7,6 @@
 [submodule "cmake/cotire"]
 	path = cmake/cotire
 	url = https://github.com/sakra/cotire
+[submodule "extern/cxxopts"]
+	path = extern/cxxopts
+	url = https://github.com/jarro2783/cxxopts

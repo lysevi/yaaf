@@ -27,7 +27,6 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/cotire/CMake")
 
 include(AddCXXCompilerFlag)
 include(CompillerSettings)
-include(CompillerSettings)
 include(cotire)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
@@ -98,9 +97,11 @@ if(NMQ_ENABLE_BENCHMARKS)
    include_directories(extern/benchmark/include)
    set_target_properties(benchmark PROPERTIES FOLDER Extern)
    add_subdirectory (microbenchmarks)
-   #SET(CXXOPTS_BUILD_EXAMPLES OFF)
-   #add_subdirectory(extern/cxxopts)
-   #include_directories(extern/cxxopts/include)
+   
+   SET(CXXOPTS_BUILD_TESTS OFF)
+   SET(CXXOPTS_BUILD_EXAMPLES OFF)
+   add_subdirectory(extern/cxxopts)
+   include_directories(extern/cxxopts/include)
 
    add_subdirectory(benchmarks)
 endif(NMQ_ENABLE_BENCHMARKS)

@@ -2,6 +2,8 @@
 #include <libnmq/utils/logger.h>
 #include <iostream>
 
+#include <cxxopts.hpp>
+
 using namespace nmq;
 
 std::atomic_size_t pings = 0;
@@ -35,30 +37,48 @@ public:
 };
 
 int main(int argc, char **argv) {
-  UNUSED(argc);
-  UNUSED(argv);
-  auto _raw_ptr = new nmq::utils::logging::quiet_logger();
-  auto _logger = nmq::utils::logging::abstract_logger_ptr{_raw_ptr};
-  nmq::utils::logging::logger_manager::start(_logger);
+  cxxopts::Options options("ping-poing", "benchmark via ping-pong");
+  options.add_options()("v,verbose", "Enable debugging")("h,help", "Help");
 
-  context::params_t params = context::params_t::defparams();
-  params.user_threads = 1;
-  params.sys_threads = 1;
-  ctx = std::make_shared<context>(params);
-  auto ping_ptr = std::make_shared<ping_actor>();
+  try {
+    cxxopts::ParseResult result = options.parse(argc, argv);
 
-  auto c1_addr = ctx->add_actor(ping_ptr);
+    if (result["help"].as<bool>()) {
+      std::cout << options.help() << std::endl;
+      return 0;
+    }
 
-  c1_addr.send(nmq::actor_address(), int(2));
+    nmq::utils::logging::abstract_logger *_raw_logger_ptr = nullptr;
+    if (result["verbose"].as<bool>()) {
+      _raw_logger_ptr = new nmq::utils::logging::console_logger();
+    } else {
+      _raw_logger_ptr = new nmq::utils::logging::quiet_logger();
+    }
 
-  for (int i = 0;; ++i) {
-    size_t last_ping = pings.load();
+    auto _logger = nmq::utils::logging::abstract_logger_ptr{_raw_logger_ptr};
+    nmq::utils::logging::logger_manager::start(_logger);
 
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    context::params_t params = context::params_t::defparams();
+    params.user_threads = 1;
+    params.sys_threads = 1;
+    ctx = std::make_shared<context>(params);
+    auto ping_ptr = std::make_shared<ping_actor>();
 
-    size_t new_ping = pings.load();
+    auto c1_addr = ctx->add_actor(ping_ptr);
 
-    std::cout << "#: " << i << " ping/pong speed: " << (new_ping - last_ping) / 1000.0
-              << " per.sec." << std::endl;
+    c1_addr.send(nmq::actor_address(), int(2));
+
+    for (int i = 0;; ++i) {
+      size_t last_ping = pings.load();
+
+      std::this_thread::sleep_for(std::chrono::seconds(1));
+
+      size_t new_ping = pings.load();
+
+      std::cout << "#: " << i << " ping/pong speed: " << (new_ping - last_ping) / 1000.0
+                << " per.sec." << std::endl;
+    }
+  } catch (cxxopts::OptionException &ex) {
+    std::cerr << ex.what() << std::endl;
   }
 }
