@@ -8,6 +8,7 @@
 namespace nmq {
 
 struct envelope;
+class actor_address;
 class mailbox;
 class base_actor;
 class actor_for_delegate;
@@ -24,23 +25,25 @@ public:
     actor_status_kinds kind;
     std::string msg;
   };
-
-  base_actor(context *ctx) : _ctx(ctx) {
+  // TODO ctx not used
+  base_actor() {
     _busy = false;
     _status.kind = actor_status_kinds::NORMAL;
   }
-
+  EXPORT virtual ~base_actor();
   EXPORT virtual void on_start();
   EXPORT virtual void apply(mailbox &mbox);
-  virtual void action_handle(envelope&e)=0;
+  virtual void action_handle(envelope &e) = 0;
 
   EXPORT bool try_lock();
+
   bool busy() const { return _busy.load(); }
   status_t status() const { return _status; }
 
-  context *ctx() { return _ctx; }
-
   void reset_busy() { _busy.store(false); }
+
+  EXPORT actor_address *self_addr();
+  EXPORT void set_self_addr(actor_address *sa);
 
 protected:
   void update_status(actor_status_kinds kind) {
@@ -53,11 +56,12 @@ protected:
     _status.msg = msg;
   }
 
+  
 private:
   mutable std::atomic_bool _busy;
   status_t _status;
 
-  context *_ctx;
+  actor_address *_sa=nullptr;
 };
 
 class actor_for_delegate : public base_actor {
@@ -68,7 +72,7 @@ public:
   actor_for_delegate() = delete;
   actor_for_delegate(actor_for_delegate &&a) = delete;
 
-  EXPORT actor_for_delegate(context *ctx, delegate_t callback);
+  EXPORT actor_for_delegate(delegate_t callback);
   ~actor_for_delegate() {}
 
   EXPORT void action_handle(envelope &e) override;

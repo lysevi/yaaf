@@ -4,12 +4,34 @@
 
 using namespace nmq;
 
-actor_address *c1_addr_ptr;
-actor_address *c2_addr_ptr;
+std::atomic_size_t pings = 0;
+std::atomic_size_t pongs = 0;
+
+std::shared_ptr<context> ctx;
+
+class pong_actor : public base_actor {
+public:
+  void action_handle(envelope &e) override {
+    auto v = boost::any_cast<int>(e.payload);
+    UNUSED(v);
+    pongs++;
+    e.sender.send(*self_addr(), int(2));
+  }
+};
 
 class ping_actor : public base_actor {
 public:
-  void action_handle(envelope & /*e*/) override {}
+  void on_start() override {
+    pong_addr = self_addr()->ctx()->add_actor(std::make_shared<pong_actor>());
+  }
+  void action_handle(envelope &e) override {
+    auto v = boost::any_cast<int>(e.payload);
+    UNUSED(v);
+    pings++;
+
+    pong_addr.send(*self_addr(), int(1));
+  }
+  nmq::actor_address pong_addr;
 };
 
 int main(int argc, char **argv) {
@@ -21,35 +43,13 @@ int main(int argc, char **argv) {
 
   context::params_t params = context::params_t::defparams();
   params.user_threads = 1;
-  auto ctx = std::make_shared<context>(params);
+  params.sys_threads = 1;
+  ctx = std::make_shared<context>(params);
+  auto ping_ptr = std::make_shared<ping_actor>();
 
-  std::atomic_size_t pings = 0;
-  std::atomic_size_t pongs = 0;
+  auto c1_addr = ctx->add_actor(ping_ptr);
 
-  auto c1 = [&](nmq::envelope e) {
-    auto v = boost::any_cast<int>(e.payload);
-    UNUSED(v);
-    pings++;
-    if (e.sender.empty()) {
-      c2_addr_ptr->send(*c1_addr_ptr, int(1));
-    } else {
-      e.sender.send(*c1_addr_ptr, int(1));
-    }
-  };
-
-  auto c2 = [&](nmq::envelope e) {
-    auto v = boost::any_cast<int>(e.payload);
-    UNUSED(v);
-    pongs++;
-    e.sender.send(*c2_addr_ptr, int(2));
-  };
-
-  auto c1_addr = ctx->add_actor(actor_for_delegate::delegate_t(c1));
-  auto c2_addr = ctx->add_actor(actor_for_delegate::delegate_t(c2));
-  c1_addr_ptr = &c1_addr;
-  c2_addr_ptr = &c2_addr;
-
-  c1_addr.send(c2_addr, int(2));
+  c1_addr.send(nmq::actor_address(), int(2));
 
   for (int i = 0;; ++i) {
     size_t last_ping = pings.load();

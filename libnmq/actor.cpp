@@ -1,8 +1,16 @@
 #include <libnmq/actor.h>
-#include <libnmq/mailbox.h>
 #include <libnmq/context.h>
+#include <libnmq/envelope.h>
+#include <libnmq/mailbox.h>
 
 using namespace nmq;
+
+base_actor::~base_actor() {
+  if (_sa != nullptr) {
+    delete _sa;
+    _sa = nullptr;
+  }
+}
 
 void base_actor::on_start() {}
 
@@ -41,9 +49,16 @@ bool base_actor::try_lock() {
   return true;
 }
 
-actor_for_delegate::actor_for_delegate(context *ctx,
-                                       actor_for_delegate::delegate_t callback)
-    : base_actor(ctx), _handle(callback) {}
+actor_address *base_actor::self_addr() {
+  return _sa;
+}
+
+void base_actor::set_self_addr(actor_address *sa) {
+  _sa = sa;
+}
+
+actor_for_delegate::actor_for_delegate(actor_for_delegate::delegate_t callback)
+    : _handle(callback) {}
 
 void actor_for_delegate::action_handle(envelope &e) {
   _handle(e);

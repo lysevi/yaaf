@@ -11,10 +11,6 @@ const thread_kind_t USER = 1;
 const thread_kind_t SYSTEM = 2;
 } // namespace
 
-void actor_address::stop() {
-  _ctx->stop_actor(*this);
-}
-
 context::params_t context::params_t::defparams() {
   context::params_t r{};
   r.user_threads = 1;
@@ -44,18 +40,28 @@ context ::~context() {
 }
 
 actor_address context::add_actor(actor_for_delegate::delegate_t f) {
-  actor_ptr aptr = std::make_shared<actor_for_delegate>(this, f);
+  actor_ptr aptr = std::make_shared<actor_for_delegate>(f);
   return add_actor(aptr);
 }
 
 actor_address context::add_actor(actor_ptr a) {
   std::lock_guard<std::shared_mutex> lg(_locker);
   auto new_id = id_t(_next_actor_id++);
-  actor_address result(new_id, this);
-
+  actor_address *result = new actor_address(new_id, this);
+  a->set_self_addr(result);
   _actors[new_id] = a;
   _mboxes[new_id] = std::make_shared<mailbox>();
-  return result;
+
+  task t = [a](const thread_info &tinfo) {
+    UNUSED(tinfo);
+    TKIND_CHECK(tinfo.kind, USER);
+    a->on_start();
+    return CONTINUATION_STRATEGY::SINGLE;
+  };
+
+  _thread_manager->post(USER, wrap_task(t));
+
+  return *result;
 }
 
 void context::send(actor_address &addr, envelope msg) {
