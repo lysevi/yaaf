@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
 
     size_t new_ping = pings.load();
 
-    std::cout << "#: " << i << " ping/pong speed: " << (new_ping - last_ping) / 1000.0
+    std::cout << "#: " << i << " ping/pong speed: " << new_ping - last_ping
               << " per.sec." << std::endl;
   }
 }
