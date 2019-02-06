@@ -36,12 +36,13 @@ public:
   nmq::actor_address pong_addr;
 };
 
-int main(int argc, char **argv) {
+int steps = 10;
+nmq::utils::logging::abstract_logger *_raw_logger_ptr = nullptr;
+
+void parse_args(int argc, char **argv) {
   cxxopts::Options options("ping-poing", "benchmark via ping-pong");
   options.allow_unrecognised_options();
   options.positional_help("[optional args]").show_positional_help();
-
-  int steps = 10;
 
   auto add_o = options.add_options();
   add_o("v,verbose", "Enable debugging");
@@ -53,40 +54,43 @@ int main(int argc, char **argv) {
 
     if (result["help"].as<bool>()) {
       std::cout << options.help() << std::endl;
-      return 0;
+      std::exit(0);
     }
 
-    nmq::utils::logging::abstract_logger *_raw_logger_ptr = nullptr;
     if (result["verbose"].as<bool>()) {
       _raw_logger_ptr = new nmq::utils::logging::console_logger();
     } else {
       _raw_logger_ptr = new nmq::utils::logging::quiet_logger();
     }
-
-    auto _logger = nmq::utils::logging::abstract_logger_ptr{_raw_logger_ptr};
-    nmq::utils::logging::logger_manager::start(_logger);
-
-    context::params_t params = context::params_t::defparams();
-    params.user_threads = 1;
-    params.sys_threads = 1;
-    ctx = std::make_shared<context>(params);
-    auto ping_ptr = std::make_shared<ping_actor>();
-
-    auto c1_addr = ctx->add_actor(ping_ptr);
-
-    c1_addr.send(nmq::actor_address(), int(2));
-
-    for (int i = 0; i < steps; ++i) {
-      size_t last_ping = pings.load();
-
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-
-      size_t new_ping = pings.load();
-
-      std::cout << "#: " << i << " ping/pong speed: " << (new_ping - last_ping) / 1000.0
-                << " per.sec." << std::endl;
-    }
   } catch (cxxopts::OptionException &ex) {
     std::cerr << ex.what() << std::endl;
+  }
+}
+
+int main(int argc, char **argv) {
+  parse_args(argc, argv);
+
+  auto _logger = nmq::utils::logging::abstract_logger_ptr{_raw_logger_ptr};
+  nmq::utils::logging::logger_manager::start(_logger);
+
+  context::params_t params = context::params_t::defparams();
+  params.user_threads = 1;
+  params.sys_threads = 1;
+  ctx = std::make_shared<context>(params);
+  auto ping_ptr = std::make_shared<ping_actor>();
+
+  auto c1_addr = ctx->add_actor(ping_ptr);
+
+  c1_addr.send(nmq::actor_address(), int(2));
+
+  for (int i = 0; i < steps; ++i) {
+    size_t last_ping = pings.load();
+
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+
+    size_t new_ping = pings.load();
+
+    std::cout << "#: " << i << " ping/pong speed: " << (new_ping - last_ping) / 1000.0
+              << " per.sec." << std::endl;
   }
 }
