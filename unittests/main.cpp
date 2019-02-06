@@ -13,6 +13,8 @@ public:
   ~UnitTestLogger() {}
 
   void message(nmq::utils::logging::message_kind kind, const std::string &msg) noexcept {
+    std::lock_guard<std::mutex> lg(_locker);
+
     std::stringstream ss;
     switch (kind) {
     case nmq::utils::logging::message_kind::fatal:
@@ -35,6 +37,7 @@ public:
       if (verbose) {
         std::cout << ss.str();
       } else {
+
         _messages.push_back(ss.str());
       }
     }
@@ -47,6 +50,7 @@ public:
   }
 
 private:
+  std::mutex _locker;
   std::list<std::string> _messages;
 };
 
