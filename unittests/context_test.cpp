@@ -7,7 +7,7 @@ using namespace nmq;
 using namespace nmq::utils::logging;
 
 TEST_CASE("context") {
-  auto ctx = std::make_shared<context>(context::params_t::defparams());
+  auto ctx = nmq::context::make_context();
   int summ = 0;
   auto c1 = [&summ](nmq::envelope e) {
     auto v = boost::any_cast<int>(e.payload);
@@ -32,4 +32,37 @@ TEST_CASE("context") {
 
   c1_addr.stop();
   c1_addr.send(c2_addr, int(1));
+  ctx = nullptr;
+}
+
+TEST_CASE("context.actor_events") {
+  class testable_actor : public nmq::base_actor {
+  public:
+    testable_actor(int ctor_arg_) : ctor_arg(ctor_arg_) {}
+
+    nmq::actor_settings on_init() override {
+      is_on_init_called = true;
+      return nmq::base_actor::on_init();
+    }
+    void on_stop() override {
+      is_on_stop_called = true;
+      nmq::base_actor::on_stop();
+    }
+
+    void action_handle(nmq::envelope &) override {}
+
+    int ctor_arg;
+    bool is_on_init_called = false;
+    bool is_on_stop_called = false;
+  };
+
+  nmq::context_ptr ctx = nmq::context::make_context();
+
+  auto aptr_addr = ctx->make_actor<testable_actor>(int(1));
+  nmq::actor_ptr aptr = ctx->get_actor(aptr_addr);
+
+  aptr_addr.stop();
+  auto testable_a_ptr = dynamic_cast<testable_actor *>(aptr.get());
+  EXPECT_TRUE(testable_a_ptr->is_on_init_called);
+  EXPECT_TRUE(testable_a_ptr->is_on_stop_called);
 }

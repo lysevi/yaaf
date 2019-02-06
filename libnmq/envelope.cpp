@@ -1,5 +1,5 @@
-#include <libnmq/envelope.h>
 #include <libnmq/context.h>
+#include <libnmq/envelope.h>
 
 using namespace nmq;
 

@@ -18,6 +18,14 @@ context::params_t context::params_t::defparams() {
   return r;
 }
 
+std::shared_ptr<context> context::make_context() {
+  return context::make_context(params_t::defparams());
+}
+
+std::shared_ptr<context> context::make_context(context::params_t p) {
+  return std::make_shared<context>(p);
+}
+
 context::context(context::params_t p) : _params(p) {
 
   std::vector<threads_pool::params_t> pools{
@@ -68,6 +76,17 @@ actor_address context::add_actor(actor_ptr a) {
   _thread_manager->post(USER, wrap_task(t));
 
   return result;
+}
+
+actor_ptr context::get_actor(id_t id) {
+  std::shared_lock<std::shared_mutex> lg(_locker);
+  logger_info("context: get actor #", id);
+  auto it = _actors.find(id);
+  if (it != _actors.end()) { // actor may be stopped
+    return it->second;
+  } else {
+    return nullptr;
+  }
 }
 
 void context::send(actor_address &addr, envelope msg) {

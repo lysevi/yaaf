@@ -76,10 +76,9 @@ int main(int argc, char **argv) {
   context::params_t params = context::params_t::defparams();
   params.user_threads = 1;
   params.sys_threads = 1;
-  ctx = std::make_shared<context>(params);
-  auto ping_ptr = std::make_shared<ping_actor>();
+  ctx = nmq::context::make_context(params);
 
-  auto c1_addr = ctx->add_actor(ping_ptr);
+  auto c1_addr = ctx->make_actor<ping_actor>();
 
   c1_addr.send(nmq::actor_address(), int(2));
 

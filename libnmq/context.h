@@ -20,12 +20,25 @@ public:
     size_t sys_threads;
   };
 
+  EXPORT static std::shared_ptr<context> make_context();
+  EXPORT static std::shared_ptr<context> make_context(params_t params);
+
   EXPORT context(params_t params);
   EXPORT ~context();
+  
   EXPORT actor_address add_actor(actor_for_delegate::delegate_t f);
   EXPORT actor_address add_actor(actor_ptr a);
+
   EXPORT void send(actor_address &addr, envelope msg);
   EXPORT void stop_actor(actor_address &addr);
+
+  inline actor_ptr get_actor(const actor_address &a) { return get_actor(a.get_id()); }
+  EXPORT actor_ptr get_actor(id_t id);
+
+  template <class ACTOR_T, class... ARGS> actor_address make_actor(ARGS &&... a) {
+    auto new_a = std::make_shared<ACTOR_T>(std::forward<ARGS>(a)...);
+    return add_actor(new_a);
+  }
 
 private:
   void mailbox_worker();

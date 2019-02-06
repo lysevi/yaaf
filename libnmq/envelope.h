@@ -28,7 +28,6 @@ public:
   }
 
   EXPORT void stop();
-
 private:
   id_t _id;
   context *_ctx;
