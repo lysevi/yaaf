@@ -18,8 +18,31 @@ struct description {
 };
 } // namespace inner
 
-class context : public std::enable_shared_from_this<context> {
+class abstract_context {
 public:
+  EXPORT virtual ~abstract_context();
+
+  template <class ACTOR_T, class... ARGS> actor_address make_actor(ARGS &&... a) {
+    auto new_a = std::make_shared<ACTOR_T>(std::forward<ARGS>(a)...);
+    return add_actor(new_a);
+  }
+
+  EXPORT actor_address add_actor(const actor_for_delegate::delegate_t f);
+
+  inline actor_ptr get_actor(const actor_address &a) { return get_actor(a.get_id()); }
+
+  virtual actor_address add_actor(const actor_ptr a) = 0;
+  virtual void send(const actor_address &addr, const envelope &msg) = 0;
+  virtual void stop_actor(const actor_address &addr) = 0;
+  virtual actor_ptr get_actor(id_t id) = 0;
+};
+
+class context : public abstract_context, public std::enable_shared_from_this<context> {
+public:
+  using abstract_context::add_actor;
+  using abstract_context::get_actor;
+  using abstract_context::make_actor;
+
   struct params_t {
     EXPORT static params_t defparams();
 
@@ -33,19 +56,10 @@ public:
   EXPORT context(const params_t &p);
   EXPORT ~context();
 
-  EXPORT actor_address add_actor(const actor_for_delegate::delegate_t f);
-  EXPORT actor_address add_actor(const actor_ptr a);
-
-  EXPORT void send(const actor_address &addr, const envelope &msg);
-  EXPORT void stop_actor(const actor_address &addr);
-
-  inline actor_ptr get_actor(const actor_address &a) { return get_actor(a.get_id()); }
-  EXPORT actor_ptr get_actor(id_t id);
-
-  template <class ACTOR_T, class... ARGS> actor_address make_actor(ARGS &&... a) {
-    auto new_a = std::make_shared<ACTOR_T>(std::forward<ARGS>(a)...);
-    return add_actor(new_a);
-  }
+  EXPORT actor_address add_actor(const actor_ptr a) override;
+  EXPORT void send(const actor_address &addr, const envelope &msg) override;
+  EXPORT void stop_actor(const actor_address &addr) override;
+  EXPORT actor_ptr get_actor(id_t id) override;
 
 private:
   void mailbox_worker();
@@ -62,5 +76,4 @@ private:
   std::unordered_map<id_t, std::shared_ptr<mailbox>> _mboxes;
 };
 
-using context_ptr = std::shared_ptr<context>;
 } // namespace nmq

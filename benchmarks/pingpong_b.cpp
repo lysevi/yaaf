@@ -21,7 +21,12 @@ public:
 
 class ping_actor : public base_actor {
 public:
-  void on_start() override { pong_addr = self_addr().ctx()->make_actor<pong_actor>(); }
+  void on_start() override {
+    auto ctx = self_addr().ctx();
+    if (ctx != nullptr) {
+      pong_addr = ctx->make_actor<pong_actor>();
+    }
+  }
 
   void action_handle(const envelope &e) override {
     auto v = boost::any_cast<int>(e.payload);
@@ -87,7 +92,7 @@ int main(int argc, char **argv) {
 
     size_t new_ping = pings.load();
 
-    std::cout << "#: " << i << " ping/pong speed: " << new_ping - last_ping
-              << " per.sec." << std::endl;
+    std::cout << "#: " << i << " ping/pong speed: " << new_ping - last_ping << " per.sec."
+              << std::endl;
   }
 }

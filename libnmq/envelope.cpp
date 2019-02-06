@@ -4,5 +4,7 @@
 using namespace nmq;
 
 void actor_address::stop() {
-  _ctx->stop_actor(*this);
+  if (auto ptr = _ctx.lock()) {
+    ptr->stop_actor(*this);
+  }
 }

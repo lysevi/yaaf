@@ -51,7 +51,7 @@ actor_address base_actor::self_addr() {
   return _sa;
 }
 
-void base_actor::set_self_addr(const actor_address&sa) {
+void base_actor::set_self_addr(const actor_address &sa) {
   _sa = sa;
 }
 

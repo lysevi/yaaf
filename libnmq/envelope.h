@@ -5,32 +5,43 @@
 #include <boost/any.hpp>
 
 namespace nmq {
-class context;
 struct envelope;
+class abstract_context;
 
 class actor_address {
 public:
   actor_address(const actor_address &other) = default;
   actor_address &operator=(const actor_address &other) = default;
-  actor_address() : _id(), _ctx(nullptr) {}
-  actor_address(id_t id_, context *ctx_) : _id(id_), _ctx(ctx_) {}
+  actor_address() : _id() {}
+  actor_address(id_t id_, std::weak_ptr<abstract_context> ctx_) : _id(id_), _ctx(ctx_) {}
   ~actor_address() {}
 
-  bool empty() const { return _ctx == nullptr; }
+  bool empty() const { return _ctx.expired(); }
   id_t get_id() const { return _id; }
-  context *ctx() { return _ctx; }
 
-  template <class T> void send(actor_address src, T &&t) const{
+  std::shared_ptr<abstract_context> ctx() {
+    if (auto p = _ctx.lock()) {
+      return p;
+    } else {
+      return nullptr;
+    }
+  }
+
+  template <class T> void send(actor_address src, T &&t) const {
     envelope ev;
     ev.payload = t;
     ev.sender = src;
-    _ctx->send(*this, ev);
+    if (auto p = _ctx.lock()) {
+      p->send(*this, ev);
+    } else { // TODO send status error?
+    }
   }
 
   EXPORT void stop();
+
 private:
   id_t _id;
-  context *_ctx;
+  std::weak_ptr<abstract_context> _ctx;
 };
 
 struct envelope {

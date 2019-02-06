@@ -6,6 +6,7 @@
 using namespace nmq;
 using namespace nmq::utils::logging;
 
+
 TEST_CASE("context") {
   auto ctx = nmq::context::make_context();
   int summ = 0;
@@ -35,7 +36,7 @@ TEST_CASE("context") {
   ctx = nullptr;
 }
 
-TEST_CASE("context.actor_stop_stop") {
+TEST_CASE("context.actor_start_stop") {
   class testable_actor : public nmq::base_actor {
   public:
     testable_actor(int ctor_arg_) : ctor_arg(ctor_arg_) {}
@@ -56,7 +57,7 @@ TEST_CASE("context.actor_stop_stop") {
     bool is_on_stop_called = false;
   };
 
-  nmq::context_ptr ctx = nmq::context::make_context();
+  auto ctx = nmq::context::make_context();
 
   auto aptr_addr = ctx->make_actor<testable_actor>(int(1));
   nmq::actor_ptr aptr = ctx->get_actor(aptr_addr);

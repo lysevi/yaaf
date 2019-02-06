@@ -18,6 +18,14 @@ context::params_t context::params_t::defparams() {
   return r;
 }
 
+abstract_context ::~abstract_context() {
+  logger_info("~abstract_context");
+}
+
+    actor_address abstract_context::add_actor(const actor_for_delegate::delegate_t f) {
+  return make_actor<actor_for_delegate>(f);
+}
+
 std::shared_ptr<context> context::make_context() {
   return context::make_context(params_t::defparams());
 }
@@ -26,7 +34,7 @@ std::shared_ptr<context> context::make_context(const params_t &params) {
   return std::make_shared<context>(params);
 }
 
-context::context(const context::params_t&p) : _params(p) {
+context::context(const context::params_t &p) : abstract_context(), _params(p) {
 
   std::vector<threads_pool::params_t> pools{
       threads_pool::params_t(_params.user_threads, USER),
@@ -46,12 +54,12 @@ context ::~context() {
   logger_info("context: stoping....");
   _thread_manager->stop();
   _thread_manager = nullptr;
+  for (auto kv : _actors) {
+    kv.second.actor->on_stop();
+  }
+  _actors.clear();
+  _mboxes.clear();
   logger_info("context: stoped");
-}
-
-actor_address context::add_actor(const actor_for_delegate::delegate_t f) {
-  actor_ptr aptr = std::make_shared<actor_for_delegate>(f);
-  return add_actor(aptr);
 }
 
 actor_address context::add_actor(const actor_ptr a) {
@@ -60,7 +68,8 @@ actor_address context::add_actor(const actor_ptr a) {
   auto new_id = id_t(_next_actor_id++);
 
   logger_info("context: add actor #", new_id);
-  actor_address result{new_id, this};
+  auto self = shared_from_this();
+  actor_address result{new_id, self};
 
   inner::description d;
   d.actor = a;
