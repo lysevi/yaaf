@@ -10,6 +10,13 @@
 #include <shared_mutex>
 
 namespace nmq {
+namespace inner {
+
+struct description {
+  actor_ptr actor;
+  actor_settings settings;
+};
+} // namespace inner
 
 class context : public std::enable_shared_from_this<context> {
 public:
@@ -21,16 +28,16 @@ public:
   };
 
   EXPORT static std::shared_ptr<context> make_context();
-  EXPORT static std::shared_ptr<context> make_context(params_t params);
+  EXPORT static std::shared_ptr<context> make_context(const params_t &params);
 
-  EXPORT context(params_t params);
+  EXPORT context(const params_t &p);
   EXPORT ~context();
-  
-  EXPORT actor_address add_actor(actor_for_delegate::delegate_t f);
-  EXPORT actor_address add_actor(actor_ptr a);
 
-  EXPORT void send(actor_address &addr, envelope msg);
-  EXPORT void stop_actor(actor_address &addr);
+  EXPORT actor_address add_actor(const actor_for_delegate::delegate_t f);
+  EXPORT actor_address add_actor(const actor_ptr a);
+
+  EXPORT void send(const actor_address &addr, const envelope &msg);
+  EXPORT void stop_actor(const actor_address &addr);
 
   inline actor_ptr get_actor(const actor_address &a) { return get_actor(a.get_id()); }
   EXPORT actor_ptr get_actor(id_t id);
@@ -51,7 +58,7 @@ private:
   std::shared_mutex _locker;
   std::uint64_t _next_actor_id{0};
 
-  std::unordered_map<id_t, actor_ptr> _actors;
+  std::unordered_map<id_t, inner::description> _actors;
   std::unordered_map<id_t, std::shared_ptr<mailbox>> _mboxes;
 };
 

@@ -20,7 +20,7 @@ public:
   id_t get_id() const { return _id; }
   context *ctx() { return _ctx; }
 
-  template <class T> void send(actor_address src, T &&t) {
+  template <class T> void send(actor_address src, T &&t) const{
     envelope ev;
     ev.payload = t;
     ev.sender = src;

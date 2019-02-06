@@ -9,11 +9,9 @@ using namespace nmq;
 std::atomic_size_t pings = 0;
 std::atomic_size_t pongs = 0;
 
-std::shared_ptr<context> ctx;
-
 class pong_actor : public base_actor {
 public:
-  void action_handle(envelope &e) override {
+  void action_handle(const envelope &e) override {
     auto v = boost::any_cast<int>(e.payload);
     UNUSED(v);
     pongs++;
@@ -23,10 +21,9 @@ public:
 
 class ping_actor : public base_actor {
 public:
-  void on_start() override {
-    pong_addr = self_addr().ctx()->add_actor(std::make_shared<pong_actor>());
-  }
-  void action_handle(envelope &e) override {
+  void on_start() override { pong_addr = self_addr().ctx()->make_actor<pong_actor>(); }
+
+  void action_handle(const envelope &e) override {
     auto v = boost::any_cast<int>(e.payload);
     UNUSED(v);
     pings++;
@@ -76,7 +73,8 @@ int main(int argc, char **argv) {
   context::params_t params = context::params_t::defparams();
   params.user_threads = 1;
   params.sys_threads = 1;
-  ctx = nmq::context::make_context(params);
+
+  auto ctx = nmq::context::make_context(params);
 
   auto c1_addr = ctx->make_actor<ping_actor>();
 

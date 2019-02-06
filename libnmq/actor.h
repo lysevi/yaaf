@@ -30,11 +30,11 @@ public:
     _status.kind = actor_status_kinds::NORMAL;
   }
   EXPORT virtual ~base_actor();
-  EXPORT virtual actor_settings on_init();
+  EXPORT virtual actor_settings on_init(const actor_settings&base_settings);
   EXPORT virtual void on_start();
   EXPORT virtual void on_stop();
   EXPORT virtual void apply(mailbox &mbox);
-  virtual void action_handle(envelope &e) = 0;
+  virtual void action_handle(const envelope &e) = 0;
 
   EXPORT bool try_lock();
 
@@ -44,7 +44,7 @@ public:
   void reset_busy() { _busy.store(false); }
 
   EXPORT actor_address self_addr();
-  EXPORT void set_self_addr(actor_address sa);
+  EXPORT void set_self_addr(const actor_address&sa);
 
 protected:
   void update_status(actor_status_kinds kind) {
@@ -75,7 +75,7 @@ public:
   EXPORT actor_for_delegate(delegate_t callback);
   ~actor_for_delegate() {}
 
-  EXPORT void action_handle(envelope &e) override;
+  EXPORT void action_handle(const envelope &e) override;
 
 private:
   delegate_t _handle;

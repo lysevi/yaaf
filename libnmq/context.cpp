@@ -22,11 +22,11 @@ std::shared_ptr<context> context::make_context() {
   return context::make_context(params_t::defparams());
 }
 
-std::shared_ptr<context> context::make_context(context::params_t p) {
-  return std::make_shared<context>(p);
+std::shared_ptr<context> context::make_context(const params_t &params) {
+  return std::make_shared<context>(params);
 }
 
-context::context(context::params_t p) : _params(p) {
+context::context(const context::params_t&p) : _params(p) {
 
   std::vector<threads_pool::params_t> pools{
       threads_pool::params_t(_params.user_threads, USER),
@@ -49,21 +49,26 @@ context ::~context() {
   logger_info("context: stoped");
 }
 
-actor_address context::add_actor(actor_for_delegate::delegate_t f) {
+actor_address context::add_actor(const actor_for_delegate::delegate_t f) {
   actor_ptr aptr = std::make_shared<actor_for_delegate>(f);
   return add_actor(aptr);
 }
 
-actor_address context::add_actor(actor_ptr a) {
+actor_address context::add_actor(const actor_ptr a) {
   std::lock_guard<std::shared_mutex> lg(_locker);
 
   auto new_id = id_t(_next_actor_id++);
 
   logger_info("context: add actor #", new_id);
   actor_address result{new_id, this};
-  a->on_init();
+
+  inner::description d;
+  d.actor = a;
+  d.settings = a->on_init(actor_settings::defsettings());
+
   a->set_self_addr(result);
-  _actors[new_id] = a;
+
+  _actors[new_id] = d;
   _mboxes[new_id] = std::make_shared<mailbox>();
 
   task t = [a](const thread_info &tinfo) {
@@ -83,13 +88,13 @@ actor_ptr context::get_actor(id_t id) {
   logger_info("context: get actor #", id);
   auto it = _actors.find(id);
   if (it != _actors.end()) { // actor may be stopped
-    return it->second;
+    return it->second.actor;
   } else {
     return nullptr;
   }
 }
 
-void context::send(actor_address &addr, envelope msg) {
+void context::send(const actor_address &addr, const envelope &msg) {
   std::shared_lock<std::shared_mutex> lg(_locker);
   logger_info("context: send to #", addr.get_id());
   auto it = _mboxes.find(addr.get_id());
@@ -98,11 +103,11 @@ void context::send(actor_address &addr, envelope msg) {
   }
 }
 
-void context::stop_actor(actor_address &addr) {
+void context::stop_actor(const actor_address &addr) {
   std::lock_guard<std::shared_mutex> lg(_locker);
   auto it = _actors.find(addr.get_id());
   if (it != _actors.end()) { // double-stop protection;
-    it->second->on_stop();
+    it->second.actor->on_stop();
     _mboxes.erase(addr.get_id());
     _actors.erase(it);
   }
@@ -125,7 +130,7 @@ void context::mailbox_worker() {
         continue;
       }
 
-      auto target_actor = _actors[kv.first];
+      auto target_actor = it->second.actor;
 
       if (target_actor->try_lock()) {
         if (mb->empty()) {

@@ -35,21 +35,21 @@ TEST_CASE("context") {
   ctx = nullptr;
 }
 
-TEST_CASE("context.actor_events") {
+TEST_CASE("context.actor_stop_stop") {
   class testable_actor : public nmq::base_actor {
   public:
     testable_actor(int ctor_arg_) : ctor_arg(ctor_arg_) {}
 
-    nmq::actor_settings on_init() override {
+    nmq::actor_settings on_init(const nmq::actor_settings &bs) override {
       is_on_init_called = true;
-      return nmq::base_actor::on_init();
+      return nmq::base_actor::on_init(bs);
     }
     void on_stop() override {
       is_on_stop_called = true;
       nmq::base_actor::on_stop();
     }
 
-    void action_handle(nmq::envelope &) override {}
+    void action_handle(const nmq::envelope &) override {}
 
     int ctor_arg;
     bool is_on_init_called = false;

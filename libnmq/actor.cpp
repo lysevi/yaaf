@@ -5,8 +5,8 @@ using namespace nmq;
 
 base_actor::~base_actor() {}
 
-actor_settings base_actor::on_init() {
-  return actor_settings::defsettings();
+actor_settings base_actor::on_init(const actor_settings &base_settings) {
+  return base_settings;
 }
 
 void base_actor::on_start() {}
@@ -51,13 +51,13 @@ actor_address base_actor::self_addr() {
   return _sa;
 }
 
-void base_actor::set_self_addr(actor_address sa) {
+void base_actor::set_self_addr(const actor_address&sa) {
   _sa = sa;
 }
 
 actor_for_delegate::actor_for_delegate(actor_for_delegate::delegate_t callback)
     : _handle(callback) {}
 
-void actor_for_delegate::action_handle(envelope &e) {
+void actor_for_delegate::action_handle(const envelope &e) {
   _handle(e);
 }
