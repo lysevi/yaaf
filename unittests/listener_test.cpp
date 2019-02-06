@@ -25,11 +25,11 @@ struct Listener : public nmq::network::abstract_listener_consumer {
   }
 
   void on_network_error(nmq::network::listener_client_ptr i,
-                      const network::message_ptr & /*d*/,
-                      const boost::system::error_code & /*err*/) override {}
+                        const network::message_ptr & /*d*/,
+                        const boost::system::error_code & /*err*/) override {}
 
   void on_new_message(nmq::network::listener_client_ptr i, network::message_ptr && /*d*/,
-                    bool & /*cancel*/) override {}
+                      bool & /*cancel*/) override {}
 
   void on_disconnect(const nmq::network::listener_client_ptr & /*i*/) override {
     connections.fetch_sub(1);
@@ -42,7 +42,7 @@ struct Connection : public nmq::network::abstract_connection_consumer {
   void on_connect() override { mock_is_connected = true; };
   void on_new_message(nmq::network::message_ptr &&, bool &) override {}
   void on_network_error(const nmq::network::message_ptr &,
-                      const boost::system::error_code &err) override {
+                        const boost::system::error_code &err) override {
     bool isError = err == boost::asio::error::operation_aborted ||
                    err == boost::asio::error::connection_reset ||
                    err == boost::asio::error::eof;
@@ -129,12 +129,12 @@ void testForConnection(const size_t clients_count) {
 }
 } // namespace listener_test
 
-TEST_CASE("listener.client.1") {
+TEST_CASE("listener.client.1", "[network]") {
   const size_t connections_count = 1;
   listener_test::testForConnection(connections_count);
 }
 
-TEST_CASE("listener.client.10") {
+TEST_CASE("listener.client.10", "[network]") {
   const size_t connections_count = 10;
   listener_test::testForConnection(connections_count);
 }

@@ -6,37 +6,42 @@
 using namespace nmq;
 using namespace nmq::utils::logging;
 
-
-TEST_CASE("context") {
+TEST_CASE("context. sending", "[context]") {
   auto ctx = nmq::context::make_context();
   int summ = 0;
   auto c1 = [&summ](nmq::envelope e) {
     auto v = boost::any_cast<int>(e.payload);
     summ += v;
   };
-  auto c1_addr = ctx->add_actor(actor_for_delegate::delegate_t(c1));
 
   auto c2 = [](nmq::envelope) {};
+  auto c1_addr = ctx->add_actor(actor_for_delegate::delegate_t(c1));
   auto c2_addr = ctx->add_actor(actor_for_delegate::delegate_t(c2));
+
   EXPECT_NE(c1_addr.get_id(), c2_addr.get_id());
 
-  c1_addr.send(c2_addr, int(1));
-  c1_addr.send(c2_addr, int(2));
-  c1_addr.send(c2_addr, int(3));
-  c1_addr.send(c2_addr, std::string("wrong type"));
-  c1_addr.send(c2_addr, int(4));
+  SECTION("context. many values") {
+    c1_addr.send(c2_addr, int(1));
+    c1_addr.send(c2_addr, int(2));
+    c1_addr.send(c2_addr, int(3));
+    c1_addr.send(c2_addr, std::string("wrong type"));
+    c1_addr.send(c2_addr, int(4));
 
-  while (summ != int(1 + 2 + 3 + 4)) {
-    logger_info("summ!=1+2+3+4");
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    while (summ != int(1 + 2 + 3 + 4)) {
+      logger_info("summ!=1+2+3+4");
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
   }
 
-  c1_addr.stop();
-  c1_addr.send(c2_addr, int(1));
+  SECTION("context. to stopped actor") {
+    c1_addr.stop();
+    c1_addr.send(c2_addr, int(1));
+  }
+
   ctx = nullptr;
 }
 
-TEST_CASE("context.actor_start_stop") {
+TEST_CASE("context. actor_start_stop", "[context]") {
   class testable_actor : public nmq::base_actor {
   public:
     testable_actor(int ctor_arg_) : ctor_arg(ctor_arg_) {}
@@ -64,6 +69,9 @@ TEST_CASE("context.actor_start_stop") {
 
   aptr_addr.stop();
   auto testable_a_ptr = dynamic_cast<testable_actor *>(aptr.get());
-  EXPECT_TRUE(testable_a_ptr->is_on_init_called);
-  EXPECT_TRUE(testable_a_ptr->is_on_stop_called);
+
+  SECTION("check start|stop flags") {
+    EXPECT_TRUE(testable_a_ptr->is_on_init_called);
+    EXPECT_TRUE(testable_a_ptr->is_on_stop_called);
+  }
 }
