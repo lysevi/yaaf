@@ -3,7 +3,7 @@
 #include "helpers.h"
 #include <catch.hpp>
 
-TEST_CASE("actor.apply actor", "[actor]") {
+TEST_CASE("actor.apply", "[actor]") {
   int summ = 0;
 
   auto clbk = [&summ](nmq::envelope el) {
