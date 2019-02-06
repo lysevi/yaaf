@@ -1,5 +1,6 @@
 #pragma once
 
+#include <libnmq/actor_settings.h>
 #include <libnmq/exports.h>
 #include <libnmq/mailbox.h>
 #include <libnmq/utils/async/locker.h>
@@ -29,7 +30,9 @@ public:
     _status.kind = actor_status_kinds::NORMAL;
   }
   EXPORT virtual ~base_actor();
+  EXPORT virtual actor_settings on_init();
   EXPORT virtual void on_start();
+  EXPORT virtual void on_stop();
   EXPORT virtual void apply(mailbox &mbox);
   virtual void action_handle(envelope &e) = 0;
 

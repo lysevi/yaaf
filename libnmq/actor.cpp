@@ -3,11 +3,14 @@
 
 using namespace nmq;
 
-base_actor::~base_actor() {
-  
+base_actor::~base_actor() {}
+
+actor_settings base_actor::on_init() {
+  return actor_settings::defsettings();
 }
 
 void base_actor::on_start() {}
+void base_actor::on_stop() {}
 
 void base_actor::apply(mailbox &mbox) {
   if (mbox.empty()) {

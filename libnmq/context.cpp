@@ -53,6 +53,7 @@ actor_address context::add_actor(actor_ptr a) {
 
   logger_info("context: add actor #", new_id);
   actor_address result{new_id, this};
+  a->on_init();
   a->set_self_addr(result);
   _actors[new_id] = a;
   _mboxes[new_id] = std::make_shared<mailbox>();
@@ -73,15 +74,19 @@ void context::send(actor_address &addr, envelope msg) {
   std::shared_lock<std::shared_mutex> lg(_locker);
   logger_info("context: send to #", addr.get_id());
   auto it = _mboxes.find(addr.get_id());
-  if (it != _mboxes.end()) {
+  if (it != _mboxes.end()) { // actor may be stopped
     it->second->push(msg);
   }
 }
 
 void context::stop_actor(actor_address &addr) {
   std::lock_guard<std::shared_mutex> lg(_locker);
-  _mboxes.erase(addr.get_id());
-  _actors.erase(addr.get_id());
+  auto it = _actors.find(addr.get_id());
+  if (it != _actors.end()) { // double-stop protection;
+    it->second->on_stop();
+    _mboxes.erase(addr.get_id());
+    _actors.erase(it);
+  }
 }
 
 void context::mailbox_worker() {
