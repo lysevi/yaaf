@@ -5,8 +5,6 @@ set(__compiler_settings_flag INCLUDED)
 
 IF(WIN32)
   add_definitions(-DNOMINMAX)
-  MESSAGE(STATUS "WIN32:")
-  MESSAGE(STATUS "+ boost root: " ${BOOST_ROOT})
 else(WIN32)
   MESSAGE(STATUS "UNIX")
   add_definitions(-DUNIX_OS)
@@ -47,7 +45,7 @@ if(MSVC)
   add_definitions(-D_CRT_SECURE_NO_WARNINGS)
 
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D_WIN32_WINNT=0x0501")
-  set(CMAKE_CXX_FLAGS_RELEASE "/Ox /GT /Ot -DNDEBUG")
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Ox /GT /Ot -DNDEBUG")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Oy") #-fno-omit-frame-pointer analog
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG -D_DEBUG")
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /sdl")
