@@ -9,7 +9,7 @@ function(ADD_BENCHARK name src)
         add_executable(${trgt} ${src})
         target_link_libraries(${trgt} ${NMQ_LIBS})
         set_target_properties(${trgt} PROPERTIES FOLDER Benchmarks)
-		add_test(${trgt} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/benchmarks) 
+		add_test(${name} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${trgt}) 
 		cotire(${trgt})
 endfunction(ADD_BENCHARK)
 
