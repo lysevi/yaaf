@@ -16,9 +16,10 @@ class abstract_context {
 public:
   EXPORT virtual ~abstract_context();
 
-  template <class ACTOR_T, class... ARGS> actor_address make_actor(ARGS &&... a) {
+  template <class ACTOR_T, class... ARGS>
+  actor_address make_actor(const std::string &actor_name, ARGS &&... a) {
     auto new_a = std::make_shared<ACTOR_T>(std::forward<ARGS>(a)...);
-    return add_actor(new_a);
+    return add_actor(actor_name, new_a);
   }
 
   template <class T> void send(const actor_address &target, T &&t) {
@@ -30,7 +31,7 @@ public:
   EXPORT actor_ptr get_actor(const actor_address &a);
   EXPORT void send(const actor_address &target, envelope e);
 
-  virtual actor_address add_actor(const actor_ptr a) = 0;
+  virtual actor_address add_actor(const std::string &actor_name, const actor_ptr a) = 0;
   virtual void send_envelope(const actor_address &target, envelope msg) = 0;
 
   virtual void stop_actor(const actor_address &addr) = 0;

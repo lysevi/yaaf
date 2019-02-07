@@ -23,8 +23,8 @@ TEST_CASE("context. sending", "[context]") {
   };
 
   auto c2 = [](nmq::envelope) {};
-  auto c1_addr = ctx->make_actor<nmq::actor_for_delegate>(c1);
-  auto c2_addr = ctx->make_actor<nmq::actor_for_delegate>(c2);
+  auto c1_addr = ctx->make_actor<nmq::actor_for_delegate>("c1", c1);
+  auto c2_addr = ctx->make_actor<nmq::actor_for_delegate>("c2", c2);
 
   EXPECT_NE(c1_addr.get_id(), c2_addr.get_id());
 
@@ -89,7 +89,7 @@ TEST_CASE("context. actor_start_stop", "[context]") {
 
   auto ctx = nmq::context::make_context();
 
-  auto aptr_addr = ctx->make_actor<testable_actor>(int(1));
+  auto aptr_addr = ctx->make_actor<testable_actor>("testable", int(1));
   nmq::actor_ptr aptr = ctx->get_actor(aptr_addr);
 
   auto testable_a_ptr = dynamic_cast<testable_actor *>(aptr.get());
@@ -163,7 +163,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
       }
 
       for (int i = 0; i < 3; ++i) {
-        auto a = ctx->make_actor<child1_a>();
+        auto a = ctx->make_actor<child1_a>("child_" + std::to_string(i));
         children.push_back(a);
       }
 
@@ -190,7 +190,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
   };
 
   auto ctx = nmq::context::make_context();
-  auto root_address = ctx->make_actor<root_a>();
+  auto root_address = ctx->make_actor<root_a>("root_a");
 
   auto root_ptr = ctx->get_actor(root_address);
   auto root_ptr_raw = dynamic_cast<root_a *>(root_ptr.get());

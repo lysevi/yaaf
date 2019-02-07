@@ -12,7 +12,7 @@ static void BM_Context(benchmark::State &state) {
     ENSURE(v == 1);
   };
 
-  auto c1_addr = ctx->make_actor<actor_for_delegate>(c1);
+  auto c1_addr = ctx->make_actor<actor_for_delegate>("c1", c1);
 
   for (auto _ : state) {
     ctx->send(c1_addr, int(1));

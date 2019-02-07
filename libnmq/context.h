@@ -17,6 +17,7 @@ struct description {
   actor_ptr actor;
   actor_settings settings;
   std::shared_ptr<abstract_context> usrcont;
+  std::string name;
   id_t parent;
   std::unordered_set<id_t> children;
 };
@@ -45,8 +46,10 @@ public:
   void start();
 
   EXPORT void send_envelope(const actor_address &target, envelope msg) override;
-  EXPORT actor_address add_actor(const actor_ptr a) override;
-  EXPORT actor_address add_actor(const actor_address &parent, const actor_ptr a);
+  EXPORT actor_address add_actor(const std::string &actor_name,
+                                 const actor_ptr a) override;
+  EXPORT actor_address add_actor(const std::string &actor_name,
+                                 const actor_address &parent, const actor_ptr a);
   EXPORT void stop_actor(const actor_address &addr) override;
   EXPORT actor_ptr get_actor(id_t id) override;
   EXPORT std::string name() const override;

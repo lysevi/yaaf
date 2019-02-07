@@ -27,7 +27,7 @@ public:
   void on_start() override {
     auto ctx = get_context();
     if (ctx != nullptr) {
-      pong_addr = ctx->make_actor<pong_actor>();
+      pong_addr = ctx->make_actor<pong_actor>("pong");
     }
     ping();
   }
@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
 
   auto ctx = nmq::context::make_context(params);
 
-  ctx->make_actor<ping_actor>();
+  ctx->make_actor<ping_actor>("ping");
 
   std::this_thread::sleep_for(std::chrono::seconds(1));
 

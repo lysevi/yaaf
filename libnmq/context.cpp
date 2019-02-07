@@ -17,9 +17,9 @@ public:
   user_context(std::weak_ptr<context> ctx, const actor_address &addr, std::string name)
       : _ctx(ctx), _addr(addr), _name(name) {}
 
-  actor_address add_actor(const actor_ptr a) override {
+  actor_address add_actor(const std::string &actor_name, const actor_ptr a) override {
     if (auto c = _ctx.lock()) {
-      return c->add_actor(_addr, a);
+      return c->add_actor(actor_name, _addr, a);
     }
     THROW_EXCEPTION("context is nullptr");
   }
@@ -112,29 +112,35 @@ void context::start() {
 std::string context::name() const {
   return _name;
 }
-actor_address context::add_actor(const actor_ptr a) {
-  actor_address empty;
-  return add_actor(empty, a);
+actor_address context::add_actor(const std::string &actor_name, const actor_ptr a) {
+  return add_actor(actor_name, actor_address{}, a);
 }
 
-actor_address context::add_actor(const actor_address &parent, const actor_ptr a) {
+actor_address context::add_actor(const std::string &actor_name,
+                                 const actor_address &parent, const actor_ptr a) {
   auto new_id = id_t(_next_actor_id++);
 
   logger_info("context: add actor #", new_id);
   auto self = shared_from_this();
 
   auto d = std::make_shared<inner::description>();
-  auto ucname = name() + "/_usercontext_" + std::to_string(new_id.value);
+  auto ucname = name() + "/#usercontext#" + std::to_string(new_id.value);
+
   d->usrcont = std::make_shared<user_context>(self, actor_address{new_id}, ucname);
   a->set_context(d->usrcont);
 
   auto settings = actor_settings::defsettings();
+  std::string parent_name = "";
   if (!parent.empty()) {
     auto parent_ac = _actors[parent.get_id()];
     d->parent = parent.get_id();
     settings = parent_ac->settings;
+    parent_name = parent_ac->name;
+  } else {
+    parent_name = "";
   }
-
+  
+  d->name = parent_name + "/" + actor_name;
   d->actor = a;
   d->settings = a->on_init(settings);
 
@@ -177,7 +183,7 @@ actor_ptr context::get_actor(id_t id) {
 
 void context::send_envelope(const actor_address &target, envelope msg) {
   std::shared_lock<std::shared_mutex> lg(_locker);
-  logger_info("context: send to #", target.get_id());
+  logger_info("context: send to: ", _actors[target.get_id()]->name);
   auto it = _mboxes.find(target.get_id());
   if (it != _mboxes.end()) { // actor may be stopped
     it->second->push(msg);
@@ -247,6 +253,8 @@ void context::mailbox_worker() {
 
           task t = [this, target_actor_description, id, parent,
                     mb](const thread_info &tinfo) {
+            logger_info("context: apply ", target_actor_description->name);
+
             TKIND_CHECK(tinfo.kind, USER);
             try {
               target_actor_description->actor->apply(*mb);
