@@ -8,13 +8,18 @@
 
 #include <memory>
 #include <shared_mutex>
+#include <type_traits>
 
 namespace nmq {
+class abstract_context;
+
 namespace inner {
 
 struct description {
   actor_ptr actor;
   actor_settings settings;
+  std::shared_ptr<abstract_context> usrcont;
+  id_t parent;
 };
 } // namespace inner
 
@@ -32,7 +37,17 @@ public:
   inline actor_ptr get_actor(const actor_address &a) { return get_actor(a.get_id()); }
 
   virtual actor_address add_actor(const actor_ptr a) = 0;
-  virtual void send(const actor_address &addr, const envelope &msg) = 0;
+
+  template <class T> void send(const actor_address &target, T &&t) {
+    envelope e;
+    e.payload = std::forward<T>(t);
+    send(target, e);
+  }
+
+  void send(const actor_address &target, envelope e) { send_envelope(target, e); }
+
+  virtual void send_envelope(const actor_address &target, envelope msg) = 0;
+
   virtual void stop_actor(const actor_address &addr) = 0;
   virtual actor_ptr get_actor(id_t id) = 0;
 };
@@ -42,6 +57,7 @@ public:
   using abstract_context::add_actor;
   using abstract_context::get_actor;
   using abstract_context::make_actor;
+  using abstract_context::send;
 
   struct params_t {
     EXPORT static params_t defparams();
@@ -56,8 +72,9 @@ public:
   EXPORT context(const params_t &p);
   EXPORT ~context();
 
+  EXPORT void send_envelope(const actor_address &target, envelope msg)override;
   EXPORT actor_address add_actor(const actor_ptr a) override;
-  EXPORT void send(const actor_address &addr, const envelope &msg) override;
+  EXPORT actor_address add_actor(const actor_address &parent, const actor_ptr a);
   EXPORT void stop_actor(const actor_address &addr) override;
   EXPORT actor_ptr get_actor(id_t id) override;
 
@@ -70,7 +87,7 @@ private:
   std::unique_ptr<utils::async::thread_manager> _thread_manager;
 
   std::shared_mutex _locker;
-  std::uint64_t _next_actor_id{0};
+  std::atomic_uint64_t _next_actor_id{1};
 
   std::unordered_map<id_t, inner::description> _actors;
   std::unordered_map<id_t, std::shared_ptr<mailbox>> _mboxes;

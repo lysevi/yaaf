@@ -9,6 +9,45 @@ using namespace nmq::utils::async;
 namespace {
 const thread_kind_t USER = 1;
 const thread_kind_t SYSTEM = 2;
+
+class user_context : public abstract_context {
+public:
+  user_context(std::weak_ptr<context> ctx, const actor_address &addr)
+      : _ctx(ctx), _addr(addr) {}
+
+  actor_address add_actor(const actor_ptr a) override {
+    if (auto c = _ctx.lock()) {
+      return c->add_actor(_addr, a);
+    }
+    THROW_EXCEPTION("context is nullptr");
+  }
+
+  void send_envelope(const actor_address &target, envelope msg) override {
+    if (auto c = _ctx.lock()) {
+      msg.sender = _addr;
+      return c->send_envelope(target, msg);
+    }
+    THROW_EXCEPTION("context is nullptr");
+  }
+
+  void stop_actor(const actor_address &addr) {
+    if (auto c = _ctx.lock()) {
+      return c->stop_actor(addr);
+    }
+    THROW_EXCEPTION("context is nullptr");
+  }
+
+  actor_ptr get_actor(id_t id) {
+    if (auto c = _ctx.lock()) {
+      return c->get_actor(id);
+    }
+    THROW_EXCEPTION("context is nullptr");
+  }
+
+private:
+  std::weak_ptr<context> _ctx;
+  actor_address _addr;
+};
 } // namespace
 
 context::params_t context::params_t::defparams() {
@@ -22,7 +61,7 @@ abstract_context ::~abstract_context() {
   logger_info("~abstract_context");
 }
 
-    actor_address abstract_context::add_actor(const actor_for_delegate::delegate_t f) {
+actor_address abstract_context::add_actor(const actor_for_delegate::delegate_t f) {
   return make_actor<actor_for_delegate>(f);
 }
 
@@ -63,22 +102,33 @@ context ::~context() {
 }
 
 actor_address context::add_actor(const actor_ptr a) {
-  std::lock_guard<std::shared_mutex> lg(_locker);
+  actor_address empty;
+  return add_actor(empty, a);
+}
 
+actor_address context::add_actor(const actor_address &parent, const actor_ptr a) {
   auto new_id = id_t(_next_actor_id++);
 
   logger_info("context: add actor #", new_id);
   auto self = shared_from_this();
-  actor_address result{new_id, self};
 
   inner::description d;
+  d.usrcont = std::make_shared<user_context>(self, actor_address{new_id});
   d.actor = a;
   d.settings = a->on_init(actor_settings::defsettings());
+  if (!parent.empty()) {
+    d.parent = parent.get_id();
+  }
 
+  actor_address result{new_id};
   a->set_self_addr(result);
+  a->set_context(d.usrcont);
 
-  _actors[new_id] = d;
-  _mboxes[new_id] = std::make_shared<mailbox>();
+  {
+    std::lock_guard<std::shared_mutex> lg(_locker);
+    _actors[new_id] = d;
+    _mboxes[new_id] = std::make_shared<mailbox>();
+  }
 
   task t = [a](const thread_info &tinfo) {
     UNUSED(tinfo);
@@ -103,10 +153,10 @@ actor_ptr context::get_actor(id_t id) {
   }
 }
 
-void context::send(const actor_address &addr, const envelope &msg) {
+void context::send_envelope(const actor_address &target, envelope msg) {
   std::shared_lock<std::shared_mutex> lg(_locker);
-  logger_info("context: send to #", addr.get_id());
-  auto it = _mboxes.find(addr.get_id());
+  logger_info("context: send to #", target.get_id());
+  auto it = _mboxes.find(target.get_id());
   if (it != _mboxes.end()) { // actor may be stopped
     it->second->push(msg);
   }

@@ -9,6 +9,7 @@
 
 namespace nmq {
 
+class abstract_context;
 class base_actor;
 class actor_for_delegate;
 
@@ -30,7 +31,7 @@ public:
     _status.kind = actor_status_kinds::NORMAL;
   }
   EXPORT virtual ~base_actor();
-  EXPORT virtual actor_settings on_init(const actor_settings&base_settings);
+  EXPORT virtual actor_settings on_init(const actor_settings &base_settings);
   EXPORT virtual void on_start();
   EXPORT virtual void on_stop();
   EXPORT virtual void apply(mailbox &mbox);
@@ -44,7 +45,10 @@ public:
   void reset_busy() { _busy.store(false); }
 
   EXPORT actor_address self_addr();
-  EXPORT void set_self_addr(const actor_address&sa);
+  EXPORT void set_self_addr(const actor_address &sa);
+
+  std::shared_ptr<abstract_context> get_context() const { return _ctx.lock(); }
+  void set_context(std::weak_ptr<abstract_context> ctx_) { _ctx = ctx_; }
 
 protected:
   void update_status(actor_status_kinds kind) {
@@ -62,6 +66,7 @@ private:
   status_t _status;
 
   actor_address _sa;
+  std::weak_ptr<abstract_context> _ctx;
 };
 
 class actor_for_delegate : public base_actor {

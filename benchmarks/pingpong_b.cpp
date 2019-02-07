@@ -15,25 +15,35 @@ public:
     auto v = boost::any_cast<int>(e.payload);
     UNUSED(v);
     pongs++;
-    e.sender.send(self_addr(), int(2));
+    auto ctx = get_context();
+    if (ctx != nullptr) {
+      ctx->send(e.sender, int(2));
+    }
   }
 };
 
 class ping_actor : public base_actor {
 public:
   void on_start() override {
-    auto ctx = self_addr().ctx();
+    auto ctx = get_context();
     if (ctx != nullptr) {
       pong_addr = ctx->make_actor<pong_actor>();
     }
+    ping();
   }
 
   void action_handle(const envelope &e) override {
     auto v = boost::any_cast<int>(e.payload);
     UNUSED(v);
     pings++;
+    ping();
+  }
 
-    pong_addr.send(self_addr(), int(1));
+  void ping() {
+    auto ctx = get_context();
+    if (ctx != nullptr) {
+      ctx->send(pong_addr, int(1));
+    }
   }
   nmq::actor_address pong_addr;
 };
@@ -81,9 +91,7 @@ int main(int argc, char **argv) {
 
   auto ctx = nmq::context::make_context(params);
 
-  auto c1_addr = ctx->make_actor<ping_actor>();
-
-  c1_addr.send(nmq::actor_address(), int(2));
+  ctx->make_actor<ping_actor>();
 
   for (int i = 0; i < steps; ++i) {
     size_t last_ping = pings.load();

@@ -21,11 +21,16 @@ TEST_CASE("context. sending", "[context]") {
   EXPECT_NE(c1_addr.get_id(), c2_addr.get_id());
 
   SECTION("context. many values") {
-    c1_addr.send(c2_addr, int(1));
-    c1_addr.send(c2_addr, int(2));
-    c1_addr.send(c2_addr, int(3));
-    c1_addr.send(c2_addr, std::string("wrong type"));
-    c1_addr.send(c2_addr, int(4));
+    nmq::envelope e;
+    e.sender = c2_addr;
+
+    auto send_helper = [c1_addr, ctx](auto v) { ctx->send(c1_addr, v); };
+
+    send_helper(int(1));
+    send_helper(int(2));
+    send_helper(int(3));
+    send_helper(std::string("wrong type"));
+    send_helper(int(4));
 
     while (summ != int(1 + 2 + 3 + 4)) {
       logger_info("summ!=1+2+3+4");
@@ -34,8 +39,8 @@ TEST_CASE("context. sending", "[context]") {
   }
 
   SECTION("context. to stopped actor") {
-    c1_addr.stop();
-    c1_addr.send(c2_addr, int(1));
+    ctx->stop_actor(c1_addr);
+    ctx->send(c1_addr, nmq::envelope{int(1), c2_addr});
   }
 
   ctx = nullptr;
@@ -67,7 +72,8 @@ TEST_CASE("context. actor_start_stop", "[context]") {
   auto aptr_addr = ctx->make_actor<testable_actor>(int(1));
   nmq::actor_ptr aptr = ctx->get_actor(aptr_addr);
 
-  aptr_addr.stop();
+  ctx->stop_actor(aptr_addr);
+
   auto testable_a_ptr = dynamic_cast<testable_actor *>(aptr.get());
 
   SECTION("check start|stop flags") {
