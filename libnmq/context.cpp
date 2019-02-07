@@ -57,13 +57,6 @@ context::params_t context::params_t::defparams() {
   return r;
 }
 
-abstract_context ::~abstract_context() {
-  logger_info("~abstract_context");
-}
-
-actor_address abstract_context::add_actor(const actor_for_delegate::delegate_t f) {
-  return make_actor<actor_for_delegate>(f);
-}
 
 std::shared_ptr<context> context::make_context() {
   return context::make_context(params_t::defparams());

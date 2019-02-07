@@ -10,12 +10,6 @@
 namespace nmq {
 
 class abstract_context;
-class base_actor;
-class actor_for_delegate;
-
-using actor_ptr = std::shared_ptr<base_actor>;
-// TODO rm
-// using actor_weak = std::weak_ptr<base_actor>;
 
 enum class actor_status_kinds { NORMAL, WITH_ERROR, STOPED };
 enum class actor_stopping_reason { MANUAL, EXCEPT };

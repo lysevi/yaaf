@@ -93,14 +93,17 @@ int main(int argc, char **argv) {
 
   ctx->make_actor<ping_actor>();
 
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+
   for (int i = 0; i < steps; ++i) {
     size_t last_ping = pings.load();
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     size_t new_ping = pings.load();
+    size_t diff = new_ping - last_ping;
+    std::cout << "#: " << i << " ping-pong speed: " << diff << " per.sec." << std::endl;
 
-    std::cout << "#: " << i << " ping/pong speed: " << new_ping - last_ping << " per.sec."
-              << std::endl;
+    ENSURE(diff != size_t(0));
   }
 }
