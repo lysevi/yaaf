@@ -39,9 +39,9 @@ public:
     THROW_EXCEPTION("context is nullptr");
   }
 
-  actor_ptr get_actor(id_t id) {
+  actor_ptr get_actor(const actor_address &addr)const {
     if (auto c = _ctx.lock()) {
-      return c->get_actor(id);
+      return c->get_actor(addr);
     }
     THROW_EXCEPTION("context is nullptr");
   }
@@ -144,7 +144,7 @@ actor_address context::add_actor(const std::string &actor_name,
   d->actor = a;
   d->settings = a->on_init(settings);
 
-  actor_address result{new_id};
+  actor_address result{new_id, d->name};
   a->set_self_addr(result);
 
   {
@@ -170,10 +170,10 @@ actor_address context::add_actor(const std::string &actor_name,
   return result;
 }
 
-actor_ptr context::get_actor(id_t id) {
+actor_ptr context::get_actor(const actor_address &addr) const{
   std::shared_lock<std::shared_mutex> lg(_locker);
-  logger_info("context: get actor #", id);
-  auto it = _actors.find(id);
+  logger_info("context: get actor #", addr.to_string());
+  auto it = _actors.find(addr.get_id());
   if (it != _actors.end()) { // actor may be stopped
     return it->second->actor;
   } else {
@@ -183,7 +183,7 @@ actor_ptr context::get_actor(id_t id) {
 
 void context::send_envelope(const actor_address &target, envelope msg) {
   std::shared_lock<std::shared_mutex> lg(_locker);
-  logger_info("context: send to: ", _actors[target.get_id()]->name);
+  logger_info("context: send to: ", target.to_string());
   auto it = _mboxes.find(target.get_id());
   if (it != _mboxes.end()) { // actor may be stopped
     it->second->push(msg);

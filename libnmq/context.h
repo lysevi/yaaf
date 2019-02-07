@@ -51,7 +51,7 @@ public:
   EXPORT actor_address add_actor(const std::string &actor_name,
                                  const actor_address &parent, const actor_ptr a);
   EXPORT void stop_actor(const actor_address &addr) override;
-  EXPORT actor_ptr get_actor(id_t id) override;
+  EXPORT actor_ptr get_actor(const actor_address&addr) const override;
   EXPORT std::string name() const override;
 
 private:
@@ -64,7 +64,7 @@ private:
   std::string _name;
   std::unique_ptr<utils::async::thread_manager> _thread_manager;
 
-  std::shared_mutex _locker;
+  mutable std::shared_mutex _locker;
   std::atomic_uint64_t _next_actor_id{1};
 
   std::unordered_map<id_t, std::shared_ptr<inner::description>> _actors;

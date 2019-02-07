@@ -26,6 +26,8 @@ TEST_CASE("context. sending", "[context]") {
   auto c1_addr = ctx->make_actor<nmq::actor_for_delegate>("c1", c1);
   auto c2_addr = ctx->make_actor<nmq::actor_for_delegate>("c2", c2);
 
+  EXPECT_NE(c1_addr.to_string(), "null");
+  EXPECT_NE(c2_addr.to_string(), "null");
   EXPECT_NE(c1_addr.get_id(), c2_addr.get_id());
 
   SECTION("context. many values") {

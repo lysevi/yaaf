@@ -52,7 +52,7 @@ int steps = 10;
 nmq::utils::logging::abstract_logger *_raw_logger_ptr = nullptr;
 
 void parse_args(int argc, char **argv) {
-  cxxopts::Options options("ping-poing", "benchmark via ping-pong");
+  cxxopts::Options options("ping-pong", "benchmark via ping-pong");
   options.allow_unrecognised_options();
   options.positional_help("[optional args]").show_positional_help();
 

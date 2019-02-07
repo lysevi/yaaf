@@ -8,7 +8,6 @@ namespace nmq {
 class actor_address;
 struct envelope;
 class base_actor;
-class actor_for_delegate;
 
 using actor_ptr = std::shared_ptr<base_actor>;
 
@@ -28,14 +27,13 @@ public:
     send(target, e);
   }
 
-  EXPORT actor_ptr get_actor(const actor_address &a);
   EXPORT void send(const actor_address &target, envelope e);
 
   virtual actor_address add_actor(const std::string &actor_name, const actor_ptr a) = 0;
   virtual void send_envelope(const actor_address &target, envelope msg) = 0;
 
   virtual void stop_actor(const actor_address &addr) = 0;
-  virtual actor_ptr get_actor(id_t id) = 0;
+  virtual actor_ptr get_actor(const actor_address &addr) const = 0;
   virtual std::string name() const = 0;
 };
 } // namespace nmq
