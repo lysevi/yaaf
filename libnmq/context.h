@@ -36,10 +36,11 @@ public:
     size_t sys_threads;
   };
 
-  EXPORT static std::shared_ptr<context> make_context();
-  EXPORT static std::shared_ptr<context> make_context(const params_t &params);
+  EXPORT static std::shared_ptr<context> make_context(std::string name = "");
+  EXPORT static std::shared_ptr<context> make_context(const params_t &params,
+                                                      std::string name = "");
 
-  EXPORT context(const params_t &p);
+  EXPORT context(const params_t &p, std::string name = "");
   EXPORT ~context();
   void start();
 
@@ -48,6 +49,7 @@ public:
   EXPORT actor_address add_actor(const actor_address &parent, const actor_ptr a);
   EXPORT void stop_actor(const actor_address &addr) override;
   EXPORT actor_ptr get_actor(id_t id) override;
+  EXPORT std::string name() const override;
 
 private:
   void mailbox_worker();
@@ -56,7 +58,7 @@ private:
 
 private:
   params_t _params;
-
+  std::string _name;
   std::unique_ptr<utils::async::thread_manager> _thread_manager;
 
   std::shared_mutex _locker;
@@ -64,6 +66,8 @@ private:
 
   std::unordered_map<id_t, std::shared_ptr<inner::description>> _actors;
   std::unordered_map<id_t, std::shared_ptr<mailbox>> _mboxes;
+
+  static std::atomic_size_t _ctx_id;
 };
 
 } // namespace nmq

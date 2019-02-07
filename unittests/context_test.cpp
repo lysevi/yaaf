@@ -7,6 +7,13 @@
 using namespace nmq;
 using namespace nmq::utils::logging;
 
+TEST_CASE("context. name", "[context]") {
+  auto ctx = nmq::context::make_context();
+  auto ctx2 = nmq::context::make_context();
+
+  EXPECT_NE(ctx->name(), ctx2->name());
+}
+
 TEST_CASE("context. sending", "[context]") {
   auto ctx = nmq::context::make_context();
   int summ = 0;
@@ -57,6 +64,9 @@ TEST_CASE("context. actor_start_stop", "[context]") {
       if (ctx == nullptr) {
         throw std::logic_error("context is nullptr");
       }
+      auto n = ctx->name();
+      EXPECT_TRUE(n != std::string(""));
+
       is_on_init_called = true;
       return nmq::base_actor::on_init(bs);
     }
@@ -88,7 +98,7 @@ TEST_CASE("context. actor_start_stop", "[context]") {
 
   ctx->stop_actor(aptr_addr);
 
-  SECTION("check start|stop flags") {
+  SECTION("context. check start|stop flags") {
     EXPECT_TRUE(testable_a_ptr->is_on_init_called);
     EXPECT_TRUE(testable_a_ptr->is_on_start_called);
     EXPECT_TRUE(testable_a_ptr->is_on_stop_called);

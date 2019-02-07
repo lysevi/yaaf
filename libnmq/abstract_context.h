@@ -2,7 +2,7 @@
 
 #include <libnmq/envelope.h>
 #include <libnmq/exports.h>
-#include <functional>
+#include <string>
 
 namespace nmq {
 class actor_address;
@@ -35,5 +35,6 @@ public:
 
   virtual void stop_actor(const actor_address &addr) = 0;
   virtual actor_ptr get_actor(id_t id) = 0;
+  virtual std::string name() const = 0;
 };
 } // namespace nmq

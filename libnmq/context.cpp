@@ -6,14 +6,16 @@ using namespace nmq;
 using namespace nmq::utils::logging;
 using namespace nmq::utils::async;
 
+std::atomic_size_t context::_ctx_id = {0};
+
 namespace {
 const thread_kind_t USER = 1;
 const thread_kind_t SYSTEM = 2;
 
 class user_context : public abstract_context {
 public:
-  user_context(std::weak_ptr<context> ctx, const actor_address &addr)
-      : _ctx(ctx), _addr(addr) {}
+  user_context(std::weak_ptr<context> ctx, const actor_address &addr, std::string name)
+      : _ctx(ctx), _addr(addr), _name(name) {}
 
   actor_address add_actor(const actor_ptr a) override {
     if (auto c = _ctx.lock()) {
@@ -44,9 +46,12 @@ public:
     THROW_EXCEPTION("context is nullptr");
   }
 
+  std::string name() const override { return _name; }
+
 private:
   std::weak_ptr<context> _ctx;
   actor_address _addr;
+  std::string _name;
 };
 } // namespace
 
@@ -57,24 +62,29 @@ context::params_t context::params_t::defparams() {
   return r;
 }
 
-
-std::shared_ptr<context> context::make_context() {
-  return context::make_context(params_t::defparams());
+std::shared_ptr<context> context::make_context(std::string name) {
+  return context::make_context(params_t::defparams(), name);
 }
 
-std::shared_ptr<context> context::make_context(const params_t &params) {
-  auto result = std::make_shared<context>(params);
+std::shared_ptr<context> context::make_context(const params_t &params, std::string name) {
+  auto result = std::make_shared<context>(params, name);
   result->start();
   return result;
 }
 
-context::context(const context::params_t &p) : abstract_context(), _params(p) {
+context::context(const context::params_t &p, std::string name)
+    : abstract_context(), _params(p) {
 
   std::vector<threads_pool::params_t> pools{
       threads_pool::params_t(_params.user_threads, USER),
       threads_pool::params_t(_params.sys_threads, SYSTEM)};
   thread_manager::params_t tparams(pools);
-
+  if (name == "") {
+    auto self_id = _ctx_id.fetch_add(1);
+    _name = "system_" + std::to_string(self_id);
+  } else {
+    _name = name;
+  }
   _thread_manager = std::make_unique<thread_manager>(tparams);
 }
 
@@ -99,6 +109,9 @@ void context::start() {
   _thread_manager->post(SYSTEM, wrapped);
 }
 
+std::string context::name() const {
+  return _name;
+}
 actor_address context::add_actor(const actor_ptr a) {
   actor_address empty;
   return add_actor(empty, a);
@@ -111,7 +124,8 @@ actor_address context::add_actor(const actor_address &parent, const actor_ptr a)
   auto self = shared_from_this();
 
   auto d = std::make_shared<inner::description>();
-  d->usrcont = std::make_shared<user_context>(self, actor_address{new_id});
+  auto ucname = name() + "/_usercontext_" + std::to_string(new_id.value);
+  d->usrcont = std::make_shared<user_context>(self, actor_address{new_id}, ucname);
   a->set_context(d->usrcont);
 
   auto settings = actor_settings::defsettings();
