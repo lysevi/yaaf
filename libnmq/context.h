@@ -84,7 +84,7 @@ private:
   void mailbox_worker();
   void stop_actor_impl_safety(const actor_address &addr, actor_stopping_reason reason);
   void stop_actor_impl(const actor_address &addr, actor_stopping_reason reason);
-
+  
 private:
   params_t _params;
 

@@ -132,6 +132,12 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
       stopped[addr.get_id()] = reason;
     }
 
+    void on_child_status(const nmq::actor_address &addr,
+                         nmq::actor_status_kinds k) override {
+      statuses_count++;
+      statuses[addr.get_id()] = k;
+    }
+
     nmq::actor_settings on_init(const nmq::actor_settings &bs) override {
       EXPECT_FALSE(bs.stop_on_any_error);
       nmq::actor_settings result = bs;
@@ -165,8 +171,12 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
     bool is_on_start_called = false;
     bool is_on_stop_called = false;
     std::vector<nmq::actor_address> children;
+
     size_t stopped_childs_count = 0;
     std::map<nmq::id_t, nmq::actor_stopping_reason> stopped;
+
+    size_t statuses_count = 0;
+    std::map<nmq::id_t, nmq::actor_status_kinds> statuses;
   };
 
   auto ctx = nmq::context::make_context();
@@ -227,6 +237,21 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
     EXPECT_EQ(root_ptr_raw->stopped.size(), size_t(3));
     for (auto &kv : root_ptr_raw->stopped) {
       EXPECT_EQ(kv.second, nmq::actor_stopping_reason::EXCEPT);
+    }
+  }
+
+  SECTION("context. children send calculation status after each apply") {
+    for (auto c : children_addresses) {
+      ctx->send(c, int(1));
+    }
+
+    while (root_ptr_raw->statuses_count != children_addresses.size()) {
+      logger_info("wait while status from each child");
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    for (auto &kv : root_ptr_raw->statuses) {
+      EXPECT_EQ(kv.second, nmq::actor_status_kinds::NORMAL);
     }
   }
 }

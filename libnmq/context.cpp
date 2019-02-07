@@ -233,10 +233,19 @@ void context::mailbox_worker() {
         if (mb->empty()) {
           target_actor_description->actor->reset_busy();
         } else {
-          task t = [this, target_actor_description, id, mb](const thread_info &tinfo) {
+          actor_ptr parent = nullptr;
+          if (!target_actor_description->parent.empty()) {
+            parent = _actors[target_actor_description->parent]->actor;
+          }
+
+          task t = [this, target_actor_description, id, parent,
+                    mb](const thread_info &tinfo) {
             TKIND_CHECK(tinfo.kind, USER);
             try {
               target_actor_description->actor->apply(*mb);
+              if (parent != nullptr) {
+                parent->on_child_status(actor_address{id}, actor_status_kinds::NORMAL);
+              }
             } catch (std::exception &ex) {
               logger_warn(ex.what());
               if (target_actor_description->settings.stop_on_any_error) {
