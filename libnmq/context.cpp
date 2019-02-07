@@ -70,7 +70,9 @@ std::shared_ptr<context> context::make_context() {
 }
 
 std::shared_ptr<context> context::make_context(const params_t &params) {
-  return std::make_shared<context>(params);
+  auto result = std::make_shared<context>(params);
+  result->start();
+  return result;
 }
 
 context::context(const context::params_t &p) : abstract_context(), _params(p) {
@@ -81,12 +83,6 @@ context::context(const context::params_t &p) : abstract_context(), _params(p) {
   thread_manager::params_t tparams(pools);
 
   _thread_manager = std::make_unique<thread_manager>(tparams);
-  task t = [this](const thread_info &) {
-    this->mailbox_worker();
-    return CONTINUATION_STRATEGY::REPEAT;
-  };
-  auto wrapped = wrap_task(t);
-  _thread_manager->post(SYSTEM, wrapped);
 }
 
 context ::~context() {
@@ -94,11 +90,20 @@ context ::~context() {
   _thread_manager->stop();
   _thread_manager = nullptr;
   for (auto kv : _actors) {
-    kv.second.actor->on_stop();
+    kv.second->actor->on_stop();
   }
   _actors.clear();
   _mboxes.clear();
   logger_info("context: stoped");
+}
+
+void context::start() {
+  task t = [this](const thread_info &) {
+    this->mailbox_worker();
+    return CONTINUATION_STRATEGY::REPEAT;
+  };
+  auto wrapped = wrap_task(t);
+  _thread_manager->post(SYSTEM, wrapped);
 }
 
 actor_address context::add_actor(const actor_ptr a) {
@@ -112,20 +117,30 @@ actor_address context::add_actor(const actor_address &parent, const actor_ptr a)
   logger_info("context: add actor #", new_id);
   auto self = shared_from_this();
 
-  inner::description d;
-  d.usrcont = std::make_shared<user_context>(self, actor_address{new_id});
-  d.actor = a;
-  d.settings = a->on_init(actor_settings::defsettings());
+  auto d = std::make_shared<inner::description>();
+  d->usrcont = std::make_shared<user_context>(self, actor_address{new_id});
+  a->set_context(d->usrcont);
+
+  auto settings = actor_settings::defsettings();
   if (!parent.empty()) {
-    d.parent = parent.get_id();
+    auto parent_ac = _actors[parent.get_id()];
+    d->parent = parent.get_id();
+    settings = parent_ac->settings;
   }
+
+  d->actor = a;
+  d->settings = a->on_init(settings);
 
   actor_address result{new_id};
   a->set_self_addr(result);
-  a->set_context(d.usrcont);
 
   {
     std::lock_guard<std::shared_mutex> lg(_locker);
+    if (!parent.empty()) {
+      auto parent_desc = _actors[parent.get_id()];
+      parent_desc->children.insert(new_id);
+    }
+
     _actors[new_id] = d;
     _mboxes[new_id] = std::make_shared<mailbox>();
   }
@@ -147,7 +162,7 @@ actor_ptr context::get_actor(id_t id) {
   logger_info("context: get actor #", id);
   auto it = _actors.find(id);
   if (it != _actors.end()) { // actor may be stopped
-    return it->second.actor;
+    return it->second->actor;
   } else {
     return nullptr;
   }
@@ -163,11 +178,34 @@ void context::send_envelope(const actor_address &target, envelope msg) {
 }
 
 void context::stop_actor(const actor_address &addr) {
+  return stop_actor_impl_safety(addr.get_id(), actor_stopping_reason::MANUAL);
+}
+
+void context::stop_actor_impl_safety(const actor_address &addr,
+                                     actor_stopping_reason reason) {
   std::lock_guard<std::shared_mutex> lg(_locker);
-  auto it = _actors.find(addr.get_id());
+  return stop_actor_impl(addr.get_id(), reason);
+}
+
+void context::stop_actor_impl(const actor_address &addr, actor_stopping_reason reason) {
+  auto id = addr.get_id();
+  logger_info("context: stop #", id);
+  auto it = _actors.find(id);
   if (it != _actors.end()) { // double-stop protection;
-    it->second.actor->on_stop();
-    _mboxes.erase(addr.get_id());
+    auto desc = it->second;
+
+    for (auto &&c : desc->children) {
+      stop_actor_impl(c, reason);
+    }
+
+    desc->actor->on_stop();
+    if (!desc->parent.empty()) {
+      auto parent = _actors.find(desc->parent);
+      if (parent != _actors.end()) {
+        parent->second->actor->on_child_stopped(addr, reason);
+      }
+    }
+    _mboxes.erase(id);
     _actors.erase(it);
   }
 }
@@ -188,20 +226,23 @@ void context::mailbox_worker() {
         to_remove.insert(kv.first);
         continue;
       }
+      auto id = it->first;
+      auto target_actor_description = it->second;
 
-      auto target_actor = it->second.actor;
-
-      if (target_actor->try_lock()) {
+      if (target_actor_description->actor->try_lock()) {
         if (mb->empty()) {
-          target_actor->reset_busy();
+          target_actor_description->actor->reset_busy();
         } else {
-          task t = [target_actor, mb](const thread_info &tinfo) {
-            UNUSED(tinfo);
+          task t = [this, target_actor_description, id, mb](const thread_info &tinfo) {
             TKIND_CHECK(tinfo.kind, USER);
             try {
-              target_actor->apply(*mb);
+              target_actor_description->actor->apply(*mb);
             } catch (std::exception &ex) {
               logger_warn(ex.what());
+              if (target_actor_description->settings.stop_on_any_error) {
+                this->stop_actor_impl_safety(actor_address(id),
+                                             actor_stopping_reason::EXCEPT);
+              }
             }
             return CONTINUATION_STRATEGY::SINGLE;
           };
@@ -220,5 +261,6 @@ void context::mailbox_worker() {
       _mboxes.erase(v);
     }
   }
+
   // TODO need a sleeping?
 }

@@ -17,7 +17,8 @@ using actor_ptr = std::shared_ptr<base_actor>;
 // TODO rm
 // using actor_weak = std::weak_ptr<base_actor>;
 
-enum class actor_status_kinds { NORMAL, WITH_ERROR };
+enum class actor_status_kinds { NORMAL, WITH_ERROR, STOPED };
+enum class actor_stopping_reason { MANUAL, EXCEPT };
 
 class base_actor : public std::enable_shared_from_this<base_actor> {
 public:
@@ -34,6 +35,8 @@ public:
   EXPORT virtual actor_settings on_init(const actor_settings &base_settings);
   EXPORT virtual void on_start();
   EXPORT virtual void on_stop();
+  EXPORT virtual void on_child_stopped(const actor_address &addr,
+                                       const actor_stopping_reason reason);
   EXPORT virtual void apply(mailbox &mbox);
   virtual void action_handle(const envelope &e) = 0;
 

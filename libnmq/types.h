@@ -14,6 +14,8 @@ struct id_t {
   id_t(std::uint64_t value_) { value = value_; }
   id_t(const id_t &other) : value(other.value) {}
 
+  bool empty() const { return value == std::numeric_limits<uint64_t>::max(); }
+
   id_t &operator=(const id_t &other) {
     if (this != &other) {
       value = other.value;

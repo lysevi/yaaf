@@ -10,7 +10,15 @@ actor_settings base_actor::on_init(const actor_settings &base_settings) {
 }
 
 void base_actor::on_start() {}
-void base_actor::on_stop() {}
+void base_actor::on_stop() {
+  update_status(actor_status_kinds::STOPED);
+}
+
+void base_actor::on_child_stopped(const actor_address &addr,
+                                  const actor_stopping_reason reason) {
+	UNUSED(addr);
+	UNUSED(reason);
+}
 
 void base_actor::apply(mailbox &mbox) {
   if (mbox.empty()) {

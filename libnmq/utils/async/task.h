@@ -83,16 +83,13 @@ private:
 
 using task_wrapper_ptr = std::shared_ptr<task_wrapper>;
 
-template <class TASK> task_wrapper_ptr wrap_task(TASK &&t) {
-  return std::make_shared<task_wrapper>(std::forward<TASK>(t), std::string(__FUNCTION__),
-                                        std::string(__FILE__), __LINE__);
-}
+#define wrap_task(t)                                                                     \
+  std::make_shared<task_wrapper>(t, std::string(__FUNCTION__), std::string(__FILE__),    \
+                                 __LINE__)
 
-template <class TASK> task_wrapper_ptr wrap_task(TASK &&t, TASK_PRIORITY pr) {
-  return std::make_shared<task_wrapper>(std::forward<TASK>(t), std::string(__FUNCTION__),
-                                        std::string(__FILE__), __LINE__, pr);
-}
-
+#define wrap_task_with_priority(t, pr)                                                   \
+  std::make_shared<task_wrapper>(t, std::string(__FUNCTION__), std::string(__FILE__),    \
+                                 __LINE__, pr)
 } // namespace async
 } // namespace utils
 } // namespace nmq

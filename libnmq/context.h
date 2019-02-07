@@ -8,7 +8,7 @@
 
 #include <memory>
 #include <shared_mutex>
-#include <type_traits>
+#include <unordered_set>
 
 namespace nmq {
 class abstract_context;
@@ -20,6 +20,7 @@ struct description {
   actor_settings settings;
   std::shared_ptr<abstract_context> usrcont;
   id_t parent;
+  std::unordered_set<id_t> children;
 };
 } // namespace inner
 
@@ -71,8 +72,9 @@ public:
 
   EXPORT context(const params_t &p);
   EXPORT ~context();
+  void start();
 
-  EXPORT void send_envelope(const actor_address &target, envelope msg)override;
+  EXPORT void send_envelope(const actor_address &target, envelope msg) override;
   EXPORT actor_address add_actor(const actor_ptr a) override;
   EXPORT actor_address add_actor(const actor_address &parent, const actor_ptr a);
   EXPORT void stop_actor(const actor_address &addr) override;
@@ -80,6 +82,8 @@ public:
 
 private:
   void mailbox_worker();
+  void stop_actor_impl_safety(const actor_address &addr, actor_stopping_reason reason);
+  void stop_actor_impl(const actor_address &addr, actor_stopping_reason reason);
 
 private:
   params_t _params;
@@ -89,7 +93,7 @@ private:
   std::shared_mutex _locker;
   std::atomic_uint64_t _next_actor_id{1};
 
-  std::unordered_map<id_t, inner::description> _actors;
+  std::unordered_map<id_t, std::shared_ptr<inner::description>> _actors;
   std::unordered_map<id_t, std::shared_ptr<mailbox>> _mboxes;
 };
 

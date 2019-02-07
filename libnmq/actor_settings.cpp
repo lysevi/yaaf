@@ -3,5 +3,7 @@
 using namespace nmq;
 
 actor_settings actor_settings::defsettings() {
-  return actor_settings();
+  actor_settings result;
+  result.stop_on_any_error = false;
+  return result;
 }

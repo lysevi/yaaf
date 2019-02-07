@@ -1,8 +1,8 @@
+#include <libnmq/utils/async/thread_manager.h>
+#include <libnmq/utils/async/thread_pool.h>
 #include <libnmq/utils/initialized_resource.h>
 #include <libnmq/utils/strings.h>
 #include <libnmq/utils/utils.h>
-#include <libnmq/utils/async/thread_manager.h>
-#include <libnmq/utils/async/thread_pool.h>
 
 #include "helpers.h"
 #include <catch.hpp>
@@ -173,7 +173,7 @@ TEST_CASE("utils.threads_manager") {
   {
     const size_t tasks_count = 10;
 
-    thread_manager  t_manager(tpm_params);
+    thread_manager t_manager(tpm_params);
     int called = 0;
     uint64_t inf_calls = 0;
     task infinite_worker = [&inf_calls](const thread_info &) {
@@ -204,8 +204,7 @@ TEST_CASE("utils.threads_manager") {
       }
       return CONTINUATION_STRATEGY::SINGLE;
     };
-    t_manager.post(
-        tk1, wrap_task(infinite_worker, nmq::utils::async::TASK_PRIORITY::WORKER));
+    t_manager.post(tk1, wrap_task_with_priority(infinite_worker, nmq::utils::async::TASK_PRIORITY::WORKER));
     auto at_while_res = t_manager.post(tk1, wrap_task(at_while));
     for (size_t i = 0; i < tasks_count; ++i) {
       t_manager.post(tk1, wrap_task(at1));
