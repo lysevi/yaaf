@@ -16,7 +16,7 @@ using namespace nmq;
 using namespace nmq::utils::logging;
 using namespace nmq::utils;
 
-namespace listener_test {
+namespace {
 
 struct Listener : public nmq::network::abstract_listener_consumer {
   bool on_new_connection(nmq::network::listener_client_ptr) override {
@@ -84,9 +84,14 @@ void server_thread() {
   delete service;
   server = nullptr;
 }
+} // namespace
 
-void testForConnection(const size_t clients_count) {
+TEST_CASE("listener.client", "[network]") {
+  size_t clients_count = 0;
   network::connection::params p("localhost", 4040);
+
+  SECTION("listener.client: 1") { clients_count = 1; }
+  SECTION("listener.client: 10") { clients_count = 10; }
 
   server_stop = false;
   std::thread t(server_thread);
@@ -126,15 +131,4 @@ void testForConnection(const size_t clients_count) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
   t.join();
-}
-} // namespace listener_test
-
-TEST_CASE("listener.client.1", "[network]") {
-  const size_t connections_count = 1;
-  listener_test::testForConnection(connections_count);
-}
-
-TEST_CASE("listener.client.10", "[network]") {
-  const size_t connections_count = 10;
-  listener_test::testForConnection(connections_count);
 }
