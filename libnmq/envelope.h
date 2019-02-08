@@ -9,11 +9,18 @@ struct envelope;
 
 class actor_address {
 public:
-  actor_address(const actor_address &other) = default;
-  actor_address &operator=(const actor_address &other) = default;
   actor_address() : _id(0) {}
   actor_address(id_t id_) : _id(id_), _addr("null") {}
   actor_address(id_t id_, std::string addr_) : _id(id_), _addr(addr_) {}
+  actor_address(const actor_address &other) : _id(other._id), _addr(other._addr) {}
+
+  actor_address &operator=(const actor_address &other) {
+    if (this != &other) {
+      _id = other._id;
+      _addr = other._addr;
+    }
+    return *this;
+  }
   ~actor_address() {}
 
   bool empty() const { return _id == 0; }

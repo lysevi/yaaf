@@ -36,9 +36,10 @@ void threads_pool::stop() {
     std::unique_lock<std::shared_mutex> lock(_queue_mutex);
     _stop_flag = true;
   }
-  _condition.notify_all();
-  for (std::thread &worker : _threads)
+  for (std::thread &worker : _threads){
+    _condition.notify_all();
     worker.join();
+  }
   _is_stoped = true;
 }
 

@@ -43,7 +43,8 @@ public:
 
   EXPORT context(const params_t &p, std::string name = "");
   EXPORT ~context();
-  void start();
+  EXPORT void start();
+  EXPORT void stop();
 
   EXPORT void send_envelope(const actor_address &target, envelope msg) override;
   EXPORT actor_address add_actor(const std::string &actor_name,
@@ -51,8 +52,10 @@ public:
   EXPORT actor_address add_actor(const std::string &actor_name,
                                  const actor_address &parent, const actor_ptr a);
   EXPORT void stop_actor(const actor_address &addr) override;
-  EXPORT actor_ptr get_actor(const actor_address&addr) const override;
+  EXPORT actor_weak get_actor(const actor_address &addr) const override;
   EXPORT std::string name() const override;
+
+  bool is_stopping_begin() const { return _stopping_begin; }
 
 private:
   void mailbox_worker();
@@ -71,6 +74,7 @@ private:
   std::unordered_map<id_t, std::shared_ptr<mailbox>> _mboxes;
 
   static std::atomic_size_t _ctx_id;
+  bool _stopping_begin = false;
 };
 
 } // namespace nmq

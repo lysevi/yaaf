@@ -15,35 +15,51 @@ const thread_kind_t SYSTEM = 2;
 class user_context : public abstract_context {
 public:
   user_context(std::weak_ptr<context> ctx, const actor_address &addr, std::string name)
-      : _ctx(ctx), _addr(addr), _name(name) {}
+      : _ctx(ctx), _addr(addr), _name(name) {
+    ENSURE(_addr.to_string() != "null");
+    ENSURE(_addr.to_string() != "");
+    ENSURE(_name != "null");
+    ENSURE(_name != _addr.to_string());
+  }
 
   actor_address add_actor(const std::string &actor_name, const actor_ptr a) override {
     if (auto c = _ctx.lock()) {
-      return c->add_actor(actor_name, _addr, a);
+      if (!c->is_stopping_begin()) {
+        return c->add_actor(actor_name, _addr, a);
+      }
     }
-    THROW_EXCEPTION("context is nullptr");
+    return actor_address();
+    // THROW_EXCEPTION("context is nullptr");
   }
 
   void send_envelope(const actor_address &target, envelope msg) override {
     if (auto c = _ctx.lock()) {
-      msg.sender = _addr;
-      return c->send_envelope(target, msg);
+      if (!c->is_stopping_begin()) {
+        envelope cp{msg.payload, _addr};
+        c->send_envelope(target, cp);
+      }
     }
-    THROW_EXCEPTION("context is nullptr");
+    // THROW_EXCEPTION("context is nullptr");
   }
 
   void stop_actor(const actor_address &addr) {
     if (auto c = _ctx.lock()) {
-      return c->stop_actor(addr);
+      if (!c->is_stopping_begin()) {
+        c->stop_actor(addr);
+      }
     }
-    THROW_EXCEPTION("context is nullptr");
+    // THROW_EXCEPTION("context is nullptr");
   }
 
-  actor_ptr get_actor(const actor_address &addr)const {
+  actor_weak get_actor(const actor_address &addr) const {
+    actor_weak result;
     if (auto c = _ctx.lock()) {
-      return c->get_actor(addr);
+      if (!c->is_stopping_begin()) {
+        result = c->get_actor(addr);
+      }
     }
-    THROW_EXCEPTION("context is nullptr");
+    return result;
+    // THROW_EXCEPTION("context is nullptr");
   }
 
   std::string name() const override { return _name; }
@@ -89,24 +105,42 @@ context::context(const context::params_t &p, std::string name)
 }
 
 context ::~context() {
-  logger_info("context: stoping....");
-  _thread_manager->stop();
-  _thread_manager = nullptr;
-  for (auto kv : _actors) {
-    kv.second->actor->on_stop();
+  logger_info("context: ~context()");
+  if (_thread_manager != nullptr) {
+    stop();
   }
-  _actors.clear();
-  _mboxes.clear();
-  logger_info("context: stoped");
 }
 
 void context::start() {
+  logger_info("context: start...");
   task t = [this](const thread_info &) {
     this->mailbox_worker();
     return CONTINUATION_STRATEGY::REPEAT;
   };
   auto wrapped = wrap_task(t);
   _thread_manager->post(SYSTEM, wrapped);
+}
+
+void context::stop() {
+  logger_info("context: stoping....");
+  _stopping_begin = true;
+  std::lock_guard<std::shared_mutex> lg(_locker);
+
+  _thread_manager->stop();
+  _thread_manager = nullptr;
+
+  logger_info("context: threads pools stopped.");
+
+  for (auto kv : _actors) {
+    logger_info("context: ", kv.second->name, " stopped.");
+    kv.second->actor->on_stop();
+    kv.second->usrcont = nullptr;
+  }
+  logger_info("context: clear buffer.");
+  _actors.clear();
+  _mboxes.clear();
+
+  logger_info("context: stoped");
 }
 
 std::string context::name() const {
@@ -126,9 +160,6 @@ actor_address context::add_actor(const std::string &actor_name,
   auto d = std::make_shared<inner::description>();
   auto ucname = name() + "/#usercontext#" + std::to_string(new_id.value);
 
-  d->usrcont = std::make_shared<user_context>(self, actor_address{new_id}, ucname);
-  a->set_context(d->usrcont);
-
   auto settings = actor_settings::defsettings();
   std::string parent_name = "";
   if (!parent.empty()) {
@@ -139,12 +170,14 @@ actor_address context::add_actor(const std::string &actor_name,
   } else {
     parent_name = "";
   }
-  
+
   d->name = parent_name + "/" + actor_name;
+  actor_address result{new_id, d->name};
+  d->usrcont = std::make_shared<user_context>(self, result, ucname);
+  a->set_context(d->usrcont);
   d->actor = a;
   d->settings = a->on_init(settings);
 
-  actor_address result{new_id, d->name};
   a->set_self_addr(result);
 
   {
@@ -170,19 +203,21 @@ actor_address context::add_actor(const std::string &actor_name,
   return result;
 }
 
-actor_ptr context::get_actor(const actor_address &addr) const{
+actor_weak context::get_actor(const actor_address &addr) const {
   std::shared_lock<std::shared_mutex> lg(_locker);
   logger_info("context: get actor #", addr.to_string());
   auto it = _actors.find(addr.get_id());
+  actor_weak result;
   if (it != _actors.end()) { // actor may be stopped
-    return it->second->actor;
-  } else {
-    return nullptr;
+    result = it->second->actor;
   }
+  return result;
 }
 
 void context::send_envelope(const actor_address &target, envelope msg) {
   std::shared_lock<std::shared_mutex> lg(_locker);
+  ENSURE(target.to_string() != "null");
+  ENSURE(msg.sender.to_string() != "null");
   logger_info("context: send to: ", target.to_string());
   auto it = _mboxes.find(target.get_id());
   if (it != _mboxes.end()) { // actor may be stopped
@@ -226,7 +261,9 @@ void context::stop_actor_impl(const actor_address &addr, actor_stopping_reason r
 void context::mailbox_worker() {
   logger_info("context: mailbox_worker");
 
-  _locker.lock_shared();
+  if (!_locker.try_lock_shared()) {
+    return;
+  }
   std::unordered_set<id_t> to_remove;
 
   for (auto kv : _mboxes) {
@@ -234,8 +271,6 @@ void context::mailbox_worker() {
     if (!mb->empty()) {
       auto it = _actors.find(kv.first);
       if (it == _actors.end()) {
-        envelope e;
-        mb->try_pop(e);
         to_remove.insert(kv.first);
         continue;
       }
@@ -280,9 +315,11 @@ void context::mailbox_worker() {
   _locker.unlock_shared();
 
   if (!to_remove.empty()) {
-    std::lock_guard<std::shared_mutex> lg(_locker);
-    for (auto v : to_remove) {
-      _mboxes.erase(v);
+    if (_locker.try_lock()) {
+      for (auto v : to_remove) {
+        _mboxes.erase(v);
+      }
+      _locker.unlock();
     }
   }
 

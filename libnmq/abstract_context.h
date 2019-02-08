@@ -10,6 +10,7 @@ struct envelope;
 class base_actor;
 
 using actor_ptr = std::shared_ptr<base_actor>;
+using actor_weak = std::weak_ptr<base_actor>;
 
 class abstract_context {
 public:
@@ -33,7 +34,7 @@ public:
   virtual void send_envelope(const actor_address &target, envelope msg) = 0;
 
   virtual void stop_actor(const actor_address &addr) = 0;
-  virtual actor_ptr get_actor(const actor_address &addr) const = 0;
+  virtual actor_weak get_actor(const actor_address &addr) const = 0;
   virtual std::string name() const = 0;
 };
 } // namespace nmq

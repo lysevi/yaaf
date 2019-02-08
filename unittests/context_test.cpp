@@ -12,6 +12,8 @@ TEST_CASE("context. name", "[context]") {
   auto ctx2 = nmq::context::make_context();
 
   EXPECT_NE(ctx->name(), ctx2->name());
+  ctx = nullptr;
+  ctx2 = nullptr;
 }
 
 TEST_CASE("context. sending", "[context]") {
@@ -92,7 +94,7 @@ TEST_CASE("context. actor_start_stop", "[context]") {
   auto ctx = nmq::context::make_context();
 
   auto aptr_addr = ctx->make_actor<testable_actor>("testable", int(1));
-  nmq::actor_ptr aptr = ctx->get_actor(aptr_addr);
+  nmq::actor_ptr aptr = ctx->get_actor(aptr_addr).lock();
 
   auto testable_a_ptr = dynamic_cast<testable_actor *>(aptr.get());
 
@@ -194,7 +196,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
   auto ctx = nmq::context::make_context();
   auto root_address = ctx->make_actor<root_a>("root_a");
 
-  auto root_ptr = ctx->get_actor(root_address);
+  auto root_ptr = ctx->get_actor(root_address).lock();
   auto root_ptr_raw = dynamic_cast<root_a *>(root_ptr.get());
   while (!root_ptr_raw->is_on_start_called) {
     logger_info("wait while the root was not started...");
@@ -206,8 +208,9 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
   std::vector<nmq::actor_address> children_addresses = root_ptr_raw->children;
   std::vector<nmq::actor_ptr> children_actors;
 
-  range::transform(children_addresses, std::back_inserter(children_actors),
-                   [ctx](nmq::actor_address addr) { return ctx->get_actor(addr); });
+  range::transform(
+      children_addresses, std::back_inserter(children_actors),
+      [ctx](nmq::actor_address addr) { return ctx->get_actor(addr).lock(); });
 
   for (auto &ac : children_actors) {
     EXPECT_TRUE(ac->status().kind == nmq::actor_status_kinds::NORMAL);
@@ -266,4 +269,81 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
       EXPECT_EQ(kv.second, nmq::actor_status_kinds::NORMAL);
     }
   }
+
+  root_ptr = nullptr;
+  children_actors.clear();
+}
+
+TEST_CASE("context. ping-pong", "[context]") {
+
+  class pong_actor : public base_actor {
+  public:
+    void action_handle(const envelope &e) override {
+      auto v = boost::any_cast<int>(e.payload);
+      UNUSED(v);
+      pongs++;
+      auto ctx = get_context();
+      if (ctx != nullptr) {
+        ctx->send(e.sender, int(2));
+      }
+    }
+
+    std::atomic_size_t pongs = 0;
+  };
+
+  class ping_actor : public base_actor {
+  public:
+    void on_start() override {
+      auto ctx = get_context();
+      if (ctx != nullptr) {
+        pong_addr = ctx->make_actor<pong_actor>("pong");
+      }
+      ping();
+    }
+
+    void action_handle(const envelope &e) override {
+      auto v = boost::any_cast<int>(e.payload);
+      UNUSED(v);
+      pings++;
+      ping();
+    }
+
+    void ping() {
+      auto ctx = get_context();
+      if (ctx != nullptr) {
+        ctx->send(pong_addr, int(1));
+      }
+    }
+    std::atomic_size_t pings = 0;
+    nmq::actor_address pong_addr;
+  };
+
+  nmq::context::params_t ctx_params;
+  SECTION("context. ping-pong with default settings") {
+    ctx_params = nmq::context::params_t::defparams();
+  }
+
+  SECTION("context. ping-pong with custom settings") {
+    ctx_params = nmq::context::params_t::defparams();
+    ctx_params.user_threads = 2;
+    ctx_params.sys_threads = 2;
+  }
+
+  auto ctx = nmq::context::make_context(ctx_params);
+  auto ping_addr = ctx->make_actor<ping_actor>("ping");
+
+  auto ping_ptr = ctx->get_actor(ping_addr);
+  ping_actor *ping_raw_ptr = nullptr;
+  if (auto p = ping_ptr.lock()) {
+    ping_raw_ptr = dynamic_cast<ping_actor *>(p.get());
+  } else {
+    EXPECT_FALSE(true);
+  }
+
+  while (ping_raw_ptr->pings.load() < 100) {
+    logger_info("ping_act_ptr->pings.load() < 100");
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+  ctx->stop();
+  ctx = nullptr;
 }
