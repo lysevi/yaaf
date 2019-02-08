@@ -69,6 +69,12 @@ private:
   actor_address _addr;
   std::string _name;
 };
+
+class usr_actor : public base_actor {
+public:
+  void action_handle(const envelope &e) { UNUSED(e); }
+};
+
 } // namespace
 
 context::params_t context::params_t::defparams() {
@@ -115,6 +121,8 @@ void context::start() {
   logger_info("context: start...");
 
   sys_post([this]() { this->mailbox_worker(); }, CONTINUATION_STRATEGY::REPEAT);
+
+  usr_root = make_actor<usr_actor>("usr");
 }
 
 void context::stop() {
@@ -164,6 +172,7 @@ void context::sys_post(const std::function<void()> &f,
 std::string context::name() const {
   return _name;
 }
+
 actor_address context::add_actor(const std::string &actor_name, const actor_ptr a) {
   return add_actor(actor_name, actor_address{}, a);
 }
@@ -180,11 +189,15 @@ actor_address context::add_actor(const std::string &actor_name,
 
   auto settings = actor_settings::defsettings();
   std::string parent_name = "";
-  if (!parent.empty()) {
-    auto parent_ac = _actors[parent.get_id()];
-    d->parent = parent.get_id();
-    settings = parent_ac->settings;
-    parent_name = parent_ac->name;
+
+  actor_address cur_parent = parent.empty() ? usr_root : parent;
+  std::shared_ptr<inner::description> parent_description = nullptr;
+
+  if (!cur_parent.empty()) {
+    parent_description = _actors[cur_parent.get_id()];
+    d->parent = cur_parent.get_id();
+    settings = parent_description->settings;
+    parent_name = parent_description->name;
   } else {
     parent_name = "";
   }
@@ -200,9 +213,8 @@ actor_address context::add_actor(const std::string &actor_name,
 
   {
     std::lock_guard<std::shared_mutex> lg(_locker);
-    if (!parent.empty()) {
-      auto parent_desc = _actors[parent.get_id()];
-      parent_desc->children.insert(new_id);
+    if (parent_description != nullptr) {
+      parent_description->children.insert(new_id);
     }
 
     _actors[new_id] = d;
@@ -297,11 +309,13 @@ void context::mailbox_worker() {
   for (auto kv : _mboxes) {
     auto mb = kv.second;
     if (!mb->empty()) {
+
       auto it = _actors.find(kv.first);
       if (it == _actors.end()) {
         to_remove.insert(kv.first);
         continue;
       }
+
       auto id = it->first;
       auto target_actor_description = it->second;
 

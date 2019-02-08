@@ -86,6 +86,8 @@ private:
 
   static std::atomic_size_t _ctx_id;
   bool _stopping_begin = false;
+
+  actor_address usr_root;
 };
 
 } // namespace nmq
