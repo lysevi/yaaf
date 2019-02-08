@@ -23,6 +23,9 @@ struct description {
 };
 } // namespace inner
 
+using nmq::utils::async::CONTINUATION_STRATEGY;
+using nmq::utils::async::task_result_ptr;
+
 class context : public abstract_context, public std::enable_shared_from_this<context> {
 public:
   using abstract_context::add_actor;
@@ -62,12 +65,13 @@ private:
   void stop_actor_impl_safety(const actor_address &addr, actor_stopping_reason reason);
   void stop_actor_impl(const actor_address &addr, actor_stopping_reason reason);
 
-  void user_post(const std::function<void()> &f,
-                 utils::async::CONTINUATION_STRATEGY strategy =
-                     utils::async::CONTINUATION_STRATEGY::SINGLE);
-  void sys_post(const std::function<void()> &f,
-                utils::async::CONTINUATION_STRATEGY strategy =
-                    utils::async::CONTINUATION_STRATEGY::SINGLE);
+  task_result_ptr
+  user_post(const std::function<void()> &f,
+            CONTINUATION_STRATEGY strategy = CONTINUATION_STRATEGY::SINGLE);
+
+  task_result_ptr
+  sys_post(const std::function<void()> &f,
+           CONTINUATION_STRATEGY strategy = CONTINUATION_STRATEGY::SINGLE);
 
   void apply_actor_to_mailbox(
       const std::shared_ptr<inner::description> target_actor_description, const id_t id,

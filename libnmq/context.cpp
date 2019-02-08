@@ -147,26 +147,26 @@ void context::stop() {
   logger_info("context: stoped");
 }
 
-void context::user_post(const std::function<void()> &f,
-                        utils::async::CONTINUATION_STRATEGY strategy) {
+task_result_ptr context::user_post(const std::function<void()> &f,
+                                   utils::async::CONTINUATION_STRATEGY strategy) {
   task t = [f, strategy](const thread_info &tinfo) {
     TKIND_CHECK(tinfo.kind, USER);
     f();
     return strategy;
   };
 
-  _thread_manager->post(USER, wrap_task(t));
+  return _thread_manager->post(USER, wrap_task(t));
 }
 
-void context::sys_post(const std::function<void()> &f,
-                       utils::async::CONTINUATION_STRATEGY strategy) {
+task_result_ptr context::sys_post(const std::function<void()> &f,
+                                  utils::async::CONTINUATION_STRATEGY strategy) {
   task t = [f, strategy](const thread_info &tinfo) {
     TKIND_CHECK(tinfo.kind, SYSTEM);
     f();
     return strategy;
   };
 
-  _thread_manager->post(SYSTEM, wrap_task(t));
+  return _thread_manager->post(SYSTEM, wrap_task(t));
 }
 
 std::string context::name() const {
