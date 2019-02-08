@@ -38,7 +38,7 @@ void base_actor::apply(mailbox &mbox) {
   auto self = shared_from_this();
   try {
     envelope el;
-    if (mbox.try_pop(el)) {
+    while (mbox.try_pop(el)) {
       action_handle(el);
     }
     update_status(actor_status_kinds::NORMAL);
@@ -70,7 +70,7 @@ void base_actor::set_self_addr(const actor_address &sa) {
 }
 
 actor_for_delegate::actor_for_delegate(actor_for_delegate::delegate_t callback)
-    :  _handle(callback) {}
+    : _handle(callback) {}
 
 void actor_for_delegate::action_handle(const envelope &e) {
   _handle(e);
