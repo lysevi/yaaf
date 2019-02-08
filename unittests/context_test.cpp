@@ -205,7 +205,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
-  EXPECT_TRUE(root_ptr_raw->status().kind == nmq::actor_status_kinds::NORMAL);
+  EXPECT_EQ(root_ptr_raw->status().kind, nmq::actor_status_kinds::NORMAL);
 
   std::vector<nmq::actor_address> children_addresses = root_ptr_raw->children;
   std::vector<nmq::actor_ptr> children_actors;
@@ -215,7 +215,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
       [ctx](nmq::actor_address addr) { return ctx->get_actor(addr).lock(); });
 
   for (auto &ac : children_actors) {
-    EXPECT_TRUE(ac->status().kind == nmq::actor_status_kinds::NORMAL);
+    EXPECT_EQ(ac->status().kind, nmq::actor_status_kinds::NORMAL);
   }
 
   SECTION("context. root stoping") {
