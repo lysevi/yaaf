@@ -2,6 +2,8 @@
 #include <libnmq/context.h>
 #include <libnmq/utils/logger.h>
 #include <boost/range/algorithm.hpp>
+#include <algorithm>
+
 #include <catch.hpp>
 
 using namespace nmq;
@@ -318,32 +320,72 @@ TEST_CASE("context. ping-pong", "[context]") {
     nmq::actor_address pong_addr;
   };
 
-  nmq::context::params_t ctx_params;
+  nmq::context::params_t ctx_params = nmq::context::params_t::defparams();
+  size_t pingers_count = 1;
+
   SECTION("context. ping-pong with default settings") {
     ctx_params = nmq::context::params_t::defparams();
+
+    SECTION("context: pin-pong 1") { pingers_count = 1; }
+    SECTION("context: pin-pong 2") { pingers_count = 2; }
+    SECTION("context: pin-pong 5") { pingers_count = 5; }
   }
 
   SECTION("context. ping-pong with custom settings") {
     ctx_params = nmq::context::params_t::defparams();
-    ctx_params.user_threads = 2;
+    ctx_params.user_threads = 10;
     ctx_params.sys_threads = 2;
+
+    SECTION("context: pin-pong 1") { pingers_count = 1; }
+    SECTION("context: pin-pong 5") { pingers_count = 5; }
+    SECTION("context: pin-pong 10") { pingers_count = 10; }
   }
 
   auto ctx = nmq::context::make_context(ctx_params);
-  auto ping_addr = ctx->make_actor<ping_actor>("ping");
 
-  auto ping_ptr = ctx->get_actor(ping_addr);
-  ping_actor *ping_raw_ptr = nullptr;
-  if (auto p = ping_ptr.lock()) {
-    ping_raw_ptr = dynamic_cast<ping_actor *>(p.get());
-  } else {
-    EXPECT_FALSE(true);
+  std::vector<nmq::actor_address> pingers(pingers_count);
+  for (size_t i = 0; i < pingers_count; ++i) {
+    pingers[i] = ctx->make_actor<ping_actor>("ping");
   }
 
-  while (ping_raw_ptr->pings.load() < 100) {
-    logger_info("ping_act_ptr->pings.load() < 100");
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  auto addr_to_pointer = [ctx](const nmq::actor_address &addr) {
+    auto ping_ptr = ctx->get_actor(addr);
+    ping_actor *raw_ptr = nullptr;
+    if (auto p = ping_ptr.lock()) {
+      raw_ptr = dynamic_cast<ping_actor *>(p.get());
+    } else {
+      EXPECT_FALSE(true);
+    }
+    return raw_ptr;
+  };
+
+  std::vector<ping_actor *> pingers_raw_ptrs;
+  pingers_raw_ptrs.reserve(pingers.size());
+  boost::range::transform(pingers, std::back_inserter(pingers_raw_ptrs), addr_to_pointer);
+
+  while (true) {
+    std::vector<size_t> pings_count;
+    pings_count.reserve(pingers_count);
+
+    boost::range::transform(pingers_raw_ptrs, std::back_inserter(pings_count),
+                            [](const ping_actor *a) { return a->pings.load(); });
+
+    auto all_more_than_100 = std::all_of(pings_count.cbegin(), pings_count.cend(),
+                                         [](size_t p) { return p >= 100; });
+    if (all_more_than_100) {
+      break;
+    } else {
+      std::stringstream ss;
+      ss << "[";
+      for (auto &v : pings_count) {
+        ss << v << " ";
+      }
+      ss << "]";
+      logger_info("pings count < 100: ", ss.str());
+      std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
   }
+
   ctx->stop();
   ctx = nullptr;
 }
