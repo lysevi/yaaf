@@ -113,12 +113,8 @@ context ::~context() {
 
 void context::start() {
   logger_info("context: start...");
-  task t = [this](const thread_info &) {
-    this->mailbox_worker();
-    return CONTINUATION_STRATEGY::REPEAT;
-  };
-  auto wrapped = wrap_task(t);
-  _thread_manager->post(SYSTEM, wrapped);
+
+  sys_post([this]() { this->mailbox_worker(); }, CONTINUATION_STRATEGY::REPEAT);
 }
 
 void context::stop() {
@@ -141,6 +137,28 @@ void context::stop() {
   _mboxes.clear();
 
   logger_info("context: stoped");
+}
+
+void context::user_post(const std::function<void()> &f,
+                        utils::async::CONTINUATION_STRATEGY strategy) {
+  task t = [f, strategy](const thread_info &tinfo) {
+    TKIND_CHECK(tinfo.kind, USER);
+    f();
+    return strategy;
+  };
+
+  _thread_manager->post(USER, wrap_task(t));
+}
+
+void context::sys_post(const std::function<void()> &f,
+                       utils::async::CONTINUATION_STRATEGY strategy) {
+  task t = [f, strategy](const thread_info &tinfo) {
+    TKIND_CHECK(tinfo.kind, SYSTEM);
+    f();
+    return strategy;
+  };
+
+  _thread_manager->post(SYSTEM, wrap_task(t));
 }
 
 std::string context::name() const {
@@ -191,14 +209,7 @@ actor_address context::add_actor(const std::string &actor_name,
     _mboxes[new_id] = std::make_shared<mailbox>();
   }
 
-  task t = [a](const thread_info &tinfo) {
-    UNUSED(tinfo);
-    TKIND_CHECK(tinfo.kind, USER);
-    a->on_start();
-    return CONTINUATION_STRATEGY::SINGLE;
-  };
-
-  _thread_manager->post(USER, wrap_task(t));
+  user_post([this, a]() { a->on_start(); });
 
   return result;
 }
@@ -258,6 +269,23 @@ void context::stop_actor_impl(const actor_address &addr, actor_stopping_reason r
   }
 }
 
+void context::apply_actor_to_mailbox(
+    const std::shared_ptr<inner::description> target_actor_description, const id_t id,
+    actor_ptr parent, std::shared_ptr<mailbox> mb) {
+  logger_info("context: apply ", target_actor_description->name);
+  try {
+    target_actor_description->actor->apply(*mb);
+    if (parent != nullptr) {
+      parent->on_child_status(actor_address{id}, actor_status_kinds::NORMAL);
+    }
+  } catch (std::exception &ex) {
+    logger_warn(ex.what());
+    if (target_actor_description->settings.stop_on_any_error) {
+      this->stop_actor_impl_safety(actor_address(id), actor_stopping_reason::EXCEPT);
+    }
+  }
+}
+
 void context::mailbox_worker() {
   logger_info("context: mailbox_worker");
 
@@ -282,31 +310,14 @@ void context::mailbox_worker() {
           target_actor_description->actor->reset_busy();
         } else {
           actor_ptr parent = nullptr;
+
           if (!target_actor_description->parent.empty()) {
             parent = _actors[target_actor_description->parent]->actor;
           }
 
-          task t = [this, target_actor_description, id, parent,
-                    mb](const thread_info &tinfo) {
-            logger_info("context: apply ", target_actor_description->name);
-
-            TKIND_CHECK(tinfo.kind, USER);
-            try {
-              target_actor_description->actor->apply(*mb);
-              if (parent != nullptr) {
-                parent->on_child_status(actor_address{id}, actor_status_kinds::NORMAL);
-              }
-            } catch (std::exception &ex) {
-              logger_warn(ex.what());
-              if (target_actor_description->settings.stop_on_any_error) {
-                this->stop_actor_impl_safety(actor_address(id),
-                                             actor_stopping_reason::EXCEPT);
-              }
-            }
-            return CONTINUATION_STRATEGY::SINGLE;
-          };
-
-          _thread_manager->post(USER, wrap_task(t));
+          user_post([this, target_actor_description, id, parent, mb]() {
+            this->apply_actor_to_mailbox(target_actor_description, id, parent, mb);
+          });
         }
       }
     }

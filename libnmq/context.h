@@ -62,6 +62,16 @@ private:
   void stop_actor_impl_safety(const actor_address &addr, actor_stopping_reason reason);
   void stop_actor_impl(const actor_address &addr, actor_stopping_reason reason);
 
+  void user_post(const std::function<void()> &f,
+                 utils::async::CONTINUATION_STRATEGY strategy =
+                     utils::async::CONTINUATION_STRATEGY::SINGLE);
+  void sys_post(const std::function<void()> &f,
+                utils::async::CONTINUATION_STRATEGY strategy =
+                    utils::async::CONTINUATION_STRATEGY::SINGLE);
+
+  void apply_actor_to_mailbox(const std::shared_ptr<inner::description> target_actor_description,
+              const id_t id, actor_ptr parent, std::shared_ptr<mailbox> mb);
+
 private:
   params_t _params;
   std::string _name;
