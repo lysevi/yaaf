@@ -294,30 +294,35 @@ TEST_CASE("context. ping-pong", "[context]") {
   };
 
   class ping_actor : public base_actor {
+    size_t _pongs_count;
+
   public:
+    ping_actor(size_t pongs_count) : _pongs_count(pongs_count) {}
+
     void on_start() override {
       auto ctx = get_context();
       if (ctx != nullptr) {
-        pong_addr = ctx->make_actor<pong_actor>("pong");
+        for (size_t i = 0; i < _pongs_count; ++i) {
+          auto pong_addr = ctx->make_actor<pong_actor>("pong_" + std::to_string(i));
+          ping(pong_addr);
+        }
       }
-      ping();
     }
 
     void action_handle(const envelope &e) override {
       auto v = boost::any_cast<int>(e.payload);
       UNUSED(v);
       pings++;
-      ping();
+      ping(e.sender);
     }
 
-    void ping() {
+    void ping(const nmq::actor_address &pong_addr) {
       auto ctx = get_context();
       if (ctx != nullptr) {
         ctx->send(pong_addr, int(1));
       }
     }
     std::atomic_size_t pings = 0;
-    nmq::actor_address pong_addr;
   };
 
   nmq::context::params_t ctx_params = nmq::context::params_t::defparams();
@@ -326,9 +331,9 @@ TEST_CASE("context. ping-pong", "[context]") {
   SECTION("context. ping-pong with default settings") {
     ctx_params = nmq::context::params_t::defparams();
 
-    SECTION("context: pin-pong 1") { pingers_count = 1; }
-    SECTION("context: pin-pong 2") { pingers_count = 2; }
-    SECTION("context: pin-pong 5") { pingers_count = 5; }
+    SECTION("context: ping-pong 1") { pingers_count = 1; }
+    SECTION("context: ping-pong 2") { pingers_count = 2; }
+    SECTION("context: ping-pong 5") { pingers_count = 5; }
   }
 
   SECTION("context. ping-pong with custom settings") {
@@ -336,16 +341,16 @@ TEST_CASE("context. ping-pong", "[context]") {
     ctx_params.user_threads = 10;
     ctx_params.sys_threads = 2;
 
-    SECTION("context: pin-pong 1") { pingers_count = 1; }
-    SECTION("context: pin-pong 5") { pingers_count = 5; }
-    SECTION("context: pin-pong 10") { pingers_count = 10; }
+    SECTION("context: ping-pong 1") { pingers_count = 1; }
+    SECTION("context: ping-pong 5") { pingers_count = 5; }
+    SECTION("context: ping-pong 10") { pingers_count = 10; }
   }
 
   auto ctx = nmq::context::make_context(ctx_params);
 
   std::vector<nmq::actor_address> pingers(pingers_count);
   for (size_t i = 0; i < pingers_count; ++i) {
-    pingers[i] = ctx->make_actor<ping_actor>("ping");
+    pingers[i] = ctx->make_actor<ping_actor>("ping", pingers_count);
   }
 
   auto addr_to_pointer = [ctx](const nmq::actor_address &addr) {
