@@ -35,7 +35,7 @@ struct task_result {
   bool runned;
   locker
       m; // dont use mutex. mutex::lock() requires that the calling thread owns the mutex.
-  task_result() {
+  task_result() noexcept {
     runned = true;
     m.lock();
   }

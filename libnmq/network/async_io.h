@@ -22,7 +22,7 @@ public:
       std::function<void(const message_ptr &d, const boost::system::error_code &err)>;
 
   EXPORT async_io(boost::asio::io_service *service);
-  EXPORT ~async_io() noexcept(false);
+  EXPORT ~async_io() noexcept;
   EXPORT void send(const message_ptr d);
   EXPORT void start(data_handler_t onRecv, error_handler_t onErr);
   EXPORT void fullStop(bool waitAllMessages = false); /// stop thread, clean queue

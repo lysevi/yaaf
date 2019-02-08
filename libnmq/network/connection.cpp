@@ -23,7 +23,7 @@ void abstract_connection_consumer::add_connection(std::shared_ptr<connection> c)
 }
 
 connection::connection(boost::asio::io_service *service, const params &params)
-    : _service(service), _params(params) {}
+    : _service(service), _params(params), _consumers() {}
 
 connection::~connection() {
   disconnect();
@@ -118,7 +118,7 @@ void connection::send_async(const message_ptr &d) {
   }
 }
 
-void connection::add_consumer(const abstract_connection_consumerPtr &c) {
+void connection::add_consumer(const abstract_connection_consumer_ptr &c) {
   _consumers = c;
   c->add_connection(shared_from_this());
 }

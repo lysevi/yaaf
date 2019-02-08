@@ -28,7 +28,7 @@ public:
 private:
   std::shared_ptr<connection> _connection;
 };
-using abstract_connection_consumerPtr = abstract_connection_consumer *;
+using abstract_connection_consumer_ptr = abstract_connection_consumer *;
 
 class connection : public std::enable_shared_from_this<connection>,
                    public utils::initialized_resource {
@@ -52,7 +52,7 @@ public:
   EXPORT void on_data_receive(message_ptr &&d, bool &cancel);
   EXPORT void send_async(const message_ptr &d);
 
-  EXPORT void add_consumer(const abstract_connection_consumerPtr &c);
+  EXPORT void add_consumer(const abstract_connection_consumer_ptr &c);
   EXPORT void erase_consumer();
 
 protected:
@@ -60,7 +60,7 @@ protected:
   boost::asio::io_service *_service = nullptr;
   params _params;
 
-  abstract_connection_consumerPtr _consumers;
+  abstract_connection_consumer_ptr _consumers;
 };
 
 } // namespace network

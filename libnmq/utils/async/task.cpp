@@ -5,8 +5,8 @@ using namespace nmq::utils;
 using namespace nmq::utils::logging;
 using namespace nmq::utils::async;
 
-task_wrapper::task_wrapper(task &t, const std::string &_function,
-                                       const std::string &file, int line) {
+task_wrapper::task_wrapper(task &t, const std::string &_function, const std::string &file,
+                           int line): _tinfo() {
   priority = TASK_PRIORITY::DEFAULT;
   _task = t;
   _parent_function = _function;
@@ -15,8 +15,8 @@ task_wrapper::task_wrapper(task &t, const std::string &_function,
   _result = std::make_shared<task_result>();
 }
 
-task_wrapper::task_wrapper(task &t, const std::string &_function,
-                                       const std::string &file, int line, TASK_PRIORITY p)
+task_wrapper::task_wrapper(task &t, const std::string &_function, const std::string &file,
+                           int line, TASK_PRIORITY p)
     : task_wrapper(t, _function, file, line) {
   this->priority = p;
 }

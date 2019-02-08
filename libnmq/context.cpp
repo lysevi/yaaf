@@ -120,7 +120,8 @@ context ::~context() {
 void context::start() {
   logger_info("context: start...");
 
-  sys_post([this]() { this->mailbox_worker(); }, CONTINUATION_STRATEGY::REPEAT);
+  auto t=sys_post([this]() { this->mailbox_worker(); }, CONTINUATION_STRATEGY::REPEAT);
+  t=nullptr;
 
   usr_root = make_actor<usr_actor>("usr");
 }

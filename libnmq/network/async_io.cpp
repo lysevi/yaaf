@@ -6,14 +6,14 @@ using namespace boost::asio;
 using namespace nmq::utils::logging;
 using namespace nmq::network;
 
-async_io::async_io(boost::asio::io_service *service) : _sock(*service) {
+async_io::async_io(boost::asio::io_service *service) : _sock(*service), next_message_size(0) {
   _messages_to_send = 0;
   _is_stoped = true;
   ENSURE(service != nullptr);
   _service = service;
 }
 
-async_io::~async_io() noexcept(false) {
+async_io::~async_io() noexcept{
   fullStop();
 }
 

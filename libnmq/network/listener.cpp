@@ -28,7 +28,7 @@ void abstract_listener_consumer::send_to(id_t id, network::message_ptr &d) {
 }
 
 listener::listener(boost::asio::io_service *service, listener::params p)
-    : _service(service), _params(p) {
+    : _service(service), _params(p), _consumer() {
   _next_id.store(0);
 }
 
