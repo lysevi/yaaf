@@ -46,7 +46,7 @@ public:
   EXPORT void start();
   EXPORT void stop();
 
-  EXPORT void send_envelope(const actor_address &target, envelope msg) override;
+  EXPORT void send_envelope(const actor_address &target, const envelope &e) override;
   EXPORT actor_address add_actor(const std::string &actor_name,
                                  const actor_ptr a) override;
   EXPORT actor_address add_actor(const std::string &actor_name,
@@ -69,8 +69,9 @@ private:
                 utils::async::CONTINUATION_STRATEGY strategy =
                     utils::async::CONTINUATION_STRATEGY::SINGLE);
 
-  void apply_actor_to_mailbox(const std::shared_ptr<inner::description> target_actor_description,
-              const id_t id, actor_ptr parent, std::shared_ptr<mailbox> mb);
+  void apply_actor_to_mailbox(
+      const std::shared_ptr<inner::description> target_actor_description, const id_t id,
+      actor_ptr parent, std::shared_ptr<mailbox> mb);
 
 private:
   params_t _params;

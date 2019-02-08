@@ -6,10 +6,6 @@
 using namespace nmq;
 using namespace nmq::utils::logging;
 
-void abstract_context::send(const actor_address &target, envelope e) {
-  send_envelope(target, e);
-}
-
 
 abstract_context::~abstract_context() {
   logger_info("~abstract_context");
