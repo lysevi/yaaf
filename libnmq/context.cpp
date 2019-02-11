@@ -36,10 +36,19 @@ public:
     if (auto c = _ctx.lock()) {
       if (!c->is_stopping_begin()) {
         envelope cp{e.payload, _addr};
-        c->send_envelope(target, cp);
+        c->send_envelope(target, std::move(cp));
       }
     }
     // THROW_EXCEPTION("context is nullptr");
+  }
+
+  void send_envelope(const actor_address &target, const envelope &&e) override {
+    if (auto c = _ctx.lock()) {
+      if (!c->is_stopping_begin()) {
+        envelope cp{e.payload, _addr};
+        c->send_envelope(target, std::move(cp));
+      }
+    }
   }
 
   void stop_actor(const actor_address &addr) {
@@ -283,6 +292,17 @@ void context::send_envelope(const actor_address &target, const envelope &e) {
   auto it = _mboxes.find(target.get_id());
   if (it != _mboxes.end()) { // actor may be stopped
     it->second->push(e);
+  }
+}
+
+void context::send_envelope(const actor_address &target, const envelope &&e) {
+  std::shared_lock<std::shared_mutex> lg(_locker);
+  ENSURE(target.to_string() != "null");
+  ENSURE(e.sender.to_string() != "null");
+  logger_info("context: send to: ", target.to_string());
+  auto it = _mboxes.find(target.get_id());
+  if (it != _mboxes.end()) { // actor may be stopped
+    it->second->push(std::move(e));
   }
 }
 

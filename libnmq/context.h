@@ -50,6 +50,7 @@ public:
   EXPORT void stop();
 
   EXPORT void send_envelope(const actor_address &target, const envelope &e) override;
+  EXPORT void send_envelope(const actor_address &target, const envelope &&e)override;
   EXPORT actor_address add_actor(const std::string &actor_name,
                                  const actor_ptr a) override;
   EXPORT actor_address add_actor(const std::string &actor_name,

@@ -30,6 +30,7 @@ public:
 
   virtual actor_address add_actor(const std::string &actor_name, const actor_ptr a) = 0;
   virtual void send_envelope(const actor_address &target, const envelope &e) = 0;
+  virtual void send_envelope(const actor_address &target, const envelope &&e) = 0;
   virtual void stop_actor(const actor_address &addr) = 0;
   virtual actor_weak get_actor(const actor_address &addr) const = 0;
   virtual actor_weak get_actor(const std::string &name) const = 0;
