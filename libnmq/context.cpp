@@ -51,7 +51,7 @@ public:
     // THROW_EXCEPTION("context is nullptr");
   }
 
-  actor_weak get_actor(const actor_address &addr) const {
+  actor_weak get_actor(const actor_address &addr) const override {
     actor_weak result;
     if (auto c = _ctx.lock()) {
       if (!c->is_stopping_begin()) {
@@ -60,6 +60,16 @@ public:
     }
     return result;
     // THROW_EXCEPTION("context is nullptr");
+  }
+
+  actor_weak get_actor(const std::string &name) const override {
+    actor_weak result;
+    if (auto c = _ctx.lock()) {
+      if (!c->is_stopping_begin()) {
+        result = c->get_actor(name);
+      }
+    }
+    return result;
   }
 
   std::string name() const override { return _name; }
@@ -75,6 +85,15 @@ public:
   void action_handle(const envelope &e) { UNUSED(e); }
 };
 
+class sys_actor : public base_actor {
+public:
+  void action_handle(const envelope &e) { UNUSED(e); }
+};
+
+class root_actor : public base_actor {
+public:
+  void action_handle(const envelope &e) { UNUSED(e); }
+};
 } // namespace
 
 context::params_t context::params_t::defparams() {
@@ -120,10 +139,12 @@ context ::~context() {
 void context::start() {
   logger_info("context: start...");
 
-  auto t=sys_post([this]() { this->mailbox_worker(); }, CONTINUATION_STRATEGY::REPEAT);
-  t=nullptr;
+  auto t = sys_post([this]() { this->mailbox_worker(); }, CONTINUATION_STRATEGY::REPEAT);
+  t = nullptr;
 
-  usr_root = make_actor<usr_actor>("usr");
+  _root = make_actor<root_actor>("root");
+  _usr_root = this->add_actor("usr", _root, std::make_shared<usr_actor>());
+  _sys_root = this->add_actor("sys", _root, std::make_shared<sys_actor>());
 }
 
 void context::stop() {
@@ -144,7 +165,7 @@ void context::stop() {
   logger_info("context: clear buffer.");
   _actors.clear();
   _mboxes.clear();
-
+  _id_by_name.clear();
   logger_info("context: stoped");
 }
 
@@ -191,10 +212,11 @@ actor_address context::add_actor(const std::string &actor_name,
   auto settings = actor_settings::defsettings();
   std::string parent_name = "";
 
-  actor_address cur_parent = parent.empty() ? usr_root : parent;
+  actor_address cur_parent = parent.empty() ? _usr_root : parent;
   std::shared_ptr<inner::description> parent_description = nullptr;
 
   if (!cur_parent.empty()) {
+    std::shared_lock<std::shared_mutex> lg(_locker);
     parent_description = _actors[cur_parent.get_id()];
     d->parent = cur_parent.get_id();
     settings = parent_description->settings;
@@ -219,6 +241,7 @@ actor_address context::add_actor(const std::string &actor_name,
     }
 
     _actors[new_id] = d;
+    _id_by_name[d->name] = new_id;
     _mboxes[new_id] = std::make_shared<mailbox>();
   }
 
@@ -234,6 +257,20 @@ actor_weak context::get_actor(const actor_address &addr) const {
   actor_weak result;
   if (it != _actors.end()) { // actor may be stopped
     result = it->second->actor;
+  }
+  return result;
+}
+
+actor_weak context::get_actor(const std::string &name) const {
+  std::shared_lock<std::shared_mutex> lg(_locker);
+  logger_info("context: get actor by name '", name, "'");
+  actor_weak result;
+  auto id_it = _id_by_name.find(name);
+  if (id_it != _id_by_name.end()) { // actor may be stopped
+    auto it = _actors.find(id_it->second);
+    if (it != _actors.end()) {
+      result = it->second->actor;
+    }
   }
   return result;
 }

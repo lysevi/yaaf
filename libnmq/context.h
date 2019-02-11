@@ -56,6 +56,7 @@ public:
                                  const actor_address &parent, const actor_ptr a);
   EXPORT void stop_actor(const actor_address &addr) override;
   EXPORT actor_weak get_actor(const actor_address &addr) const override;
+  EXPORT actor_weak get_actor(const std::string &name) const override;
   EXPORT std::string name() const override;
 
   bool is_stopping_begin() const { return _stopping_begin; }
@@ -86,12 +87,15 @@ private:
   std::atomic_uint64_t _next_actor_id{1};
 
   std::unordered_map<id_t, std::shared_ptr<inner::description>> _actors;
+  std::unordered_map<std::string, id_t> _id_by_name;
   std::unordered_map<id_t, std::shared_ptr<mailbox>> _mboxes;
 
   static std::atomic_size_t _ctx_id;
   bool _stopping_begin = false;
 
-  actor_address usr_root;
+  actor_address _root;
+  actor_address _usr_root;
+  actor_address _sys_root;
 };
 
 } // namespace nmq
