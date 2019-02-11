@@ -1,5 +1,7 @@
 #include "helpers.h"
 
+#if YAAF_NETWORK_ENABLED
+
 #include <boost/asio.hpp>
 
 #include <libyaaf/network/connection.h>
@@ -132,3 +134,4 @@ TEST_CASE("listener.client", "[network]") {
   }
   t.join();
 }
+#endif

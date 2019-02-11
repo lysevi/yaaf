@@ -15,6 +15,7 @@ MESSAGE( STATUS "CMAKE_BUILD_TYPE: " ${CMAKE_BUILD_TYPE} )
 
 option(yaaf_ENABLE_TESTS "Enable testing of the yaaf." ON)
 option(yaaf_ENABLE_DOUBLECHECKS "More checks in code." OFF)
+option(yaaf_ENABLE_NETWORK "Enable network." OFF)
 option(yaaf_ASIO_DEBUG "Enable asio debug flag." OFF)
 option(yaaf_ENABLE_BENCHMARKS "Enable build benchmarks." ON)
 
@@ -44,7 +45,8 @@ ENDIF()
 
 
 ########## BOOST
-
+if(yaaf_ENABLE_NETWORK)
+add_definitions(-DYAAF_NETWORK_ENABLED)
 set(BOOST_DEP system date_time)
 
 set(Boost_USE_STATIC_LIBS OFF)
@@ -69,6 +71,7 @@ else()
   EXIT()
 ENDIF()
 
+endif(yaaf_ENABLE_NETWORK)
 
 ##### THREADS
 find_package (Threads)

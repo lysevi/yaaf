@@ -3,6 +3,7 @@
 #include <libyaaf/utils/logger.h>
 #include <algorithm>
 
+#include <map>
 #include <catch.hpp>
 
 using namespace yaaf;
