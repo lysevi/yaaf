@@ -8,7 +8,7 @@ TEST_CASE("actor.apply", "[actor]") {
 
   auto clbk = [&summ](nmq::envelope el) {
 
-    int v = boost::any_cast<int>(el.payload);
+    int v = el.payload.cast<int>();
     summ += v;
   };
 

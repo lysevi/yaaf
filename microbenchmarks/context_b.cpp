@@ -7,7 +7,7 @@ static void BM_Context(benchmark::State &state) {
   auto ctx = std::make_shared<context>(context::params_t::defparams());
 
   auto c1 = [](nmq::envelope e) {
-    auto v = boost::any_cast<int>(e.payload);
+    auto v = e.payload.cast<int>();
     UNUSED(v);
     ENSURE(v == 1);
   };

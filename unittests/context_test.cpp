@@ -1,7 +1,6 @@
 #include "helpers.h"
 #include <libnmq/context.h>
 #include <libnmq/utils/logger.h>
-#include <boost/range/algorithm.hpp>
 #include <algorithm>
 
 #include <catch.hpp>
@@ -22,7 +21,7 @@ TEST_CASE("context. sending", "[context]") {
   auto ctx = nmq::context::make_context();
   int summ = 0;
   auto c1 = [&summ](nmq::envelope e) {
-    auto v = boost::any_cast<int>(e.payload);
+    auto v = e.payload.cast<int>();
     summ += v;
   };
 
@@ -114,7 +113,6 @@ TEST_CASE("context. actor_start_stop", "[context]") {
 }
 
 TEST_CASE("context. hierarchy initialize", "[context]") {
-  using namespace boost;
 
   class child1_a : public nmq::base_actor {
   public:
@@ -130,9 +128,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
       nmq::base_actor::on_stop();
     }
 
-    void action_handle(const nmq::envelope &e) override {
-      boost::any_cast<int>(e.payload);
-    }
+    void action_handle(const nmq::envelope &e) override { e.payload.cast<int>(); }
 
     bool is_on_init_called = false;
     bool is_on_stop_called = false;
@@ -214,9 +210,10 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
   std::vector<nmq::actor_address> children_addresses = root_ptr_raw->children;
   std::vector<nmq::actor_ptr> children_actors;
 
-  range::transform(
-      children_addresses, std::back_inserter(children_actors),
-      [ctx](nmq::actor_address addr) { return ctx->get_actor(addr).lock(); });
+  std::transform(
+      children_addresses.cbegin(), children_addresses.cend(),
+      std::back_inserter(children_actors),
+      [ctx](const nmq::actor_address addr) { return ctx->get_actor(addr).lock(); });
 
   for (auto &ac : children_actors) {
     EXPECT_EQ(ac->status().kind, nmq::actor_status_kinds::NORMAL);
@@ -289,7 +286,7 @@ TEST_CASE("context. ping-pong", "[context]") {
   class pong_actor : public base_actor {
   public:
     void action_handle(const envelope &e) override {
-      auto v = boost::any_cast<int>(e.payload);
+      auto v = e.payload.cast<int>();
       UNUSED(v);
       pongs++;
       auto ctx = get_context();
@@ -318,7 +315,7 @@ TEST_CASE("context. ping-pong", "[context]") {
     }
 
     void action_handle(const envelope &e) override {
-      auto v = boost::any_cast<int>(e.payload);
+      auto v = e.payload.cast<int>();
       UNUSED(v);
       pings++;
       ping(e.sender);
@@ -374,14 +371,16 @@ TEST_CASE("context. ping-pong", "[context]") {
 
   std::vector<ping_actor *> pingers_raw_ptrs;
   pingers_raw_ptrs.reserve(pingers.size());
-  boost::range::transform(pingers, std::back_inserter(pingers_raw_ptrs), addr_to_pointer);
+  std::transform(pingers.cbegin(), pingers.cend(), std::back_inserter(pingers_raw_ptrs),
+                 addr_to_pointer);
 
   while (true) {
     std::vector<size_t> pings_count;
     pings_count.reserve(pingers_count);
 
-    boost::range::transform(pingers_raw_ptrs, std::back_inserter(pings_count),
-                            [](const ping_actor *a) { return a->pings.load(); });
+    std::transform(pingers_raw_ptrs.cbegin(), pingers_raw_ptrs.cend(),
+                   std::back_inserter(pings_count),
+                   [](const ping_actor *a) { return a->pings.load(); });
 
     auto all_more_than_100 = std::all_of(pings_count.cbegin(), pings_count.cend(),
                                          [](size_t p) { return p >= 100; });

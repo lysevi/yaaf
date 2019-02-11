@@ -12,7 +12,7 @@ std::atomic_size_t pongs = 0;
 class pong_actor : public base_actor {
 public:
   void action_handle(const envelope &e) override {
-    auto v = boost::any_cast<int>(e.payload);
+    auto v = e.payload.cast<int>();
     UNUSED(v);
     pongs++;
     auto ctx = get_context();
@@ -37,7 +37,7 @@ public:
   }
 
   void action_handle(const envelope &e) override {
-    auto v = boost::any_cast<int>(e.payload);
+    auto v = e.payload.cast<int>();
     UNUSED(v);
     pings++;
     ping(e.sender);
@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
     std::this_thread::sleep_for(std::chrono::seconds(1));
 
     size_t new_ping = pings.load();
-    size_t diff = (new_ping - last_ping)/pongs_count;
+    size_t diff = (new_ping - last_ping) / pongs_count;
     std::cout << "#: " << i << " ping-pong speed: " << diff << " per.sec." << std::endl;
 
     ENSURE(diff != size_t(0));

@@ -2,7 +2,7 @@
 
 #include <libnmq/exports.h>
 #include <libnmq/types.h>
-#include <boost/any.hpp>
+#include <libnmq/payload.h>
 
 namespace nmq {
 struct envelope;
@@ -33,7 +33,7 @@ private:
 };
 
 struct envelope {
-  boost::any payload;
+  payload_t payload;
   actor_address sender;
 };
 } // namespace nmq
