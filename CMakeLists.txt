@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.1)
-set(PROJECT "nmq")
+set(PROJECT "yaaf")
 project (${PROJECT} VERSION 0.0.1)
 
 set(CMAKE_CXX_STANDARD 14)
@@ -13,14 +13,14 @@ ENDIF()
 
 MESSAGE( STATUS "CMAKE_BUILD_TYPE: " ${CMAKE_BUILD_TYPE} )
 
-option(NMQ_ENABLE_TESTS "Enable testing of the nmq." ON)
-option(NMQ_ENABLE_DOUBLECHECKS "More checks in code." OFF)
-option(NMQ_ASIO_DEBUG "Enable asio debug flag." OFF)
-option(NMQ_ENABLE_BENCHMARKS "Enable build benchmarks." ON)
+option(yaaf_ENABLE_TESTS "Enable testing of the yaaf." ON)
+option(yaaf_ENABLE_DOUBLECHECKS "More checks in code." OFF)
+option(yaaf_ASIO_DEBUG "Enable asio debug flag." OFF)
+option(yaaf_ENABLE_BENCHMARKS "Enable build benchmarks." ON)
 
 MESSAGE(STATUS "Options: ")
-MESSAGE(STATUS "NMQ_ENABLE_TESTS - " ${NMQ_ENABLE_TESTS})
-MESSAGE(STATUS "NMQ_ENABLE_DOUBLECHECKS - " ${NMQ_ENABLE_DOUBLECHECKS})
+MESSAGE(STATUS "yaaf_ENABLE_TESTS - " ${yaaf_ENABLE_TESTS})
+MESSAGE(STATUS "yaaf_ENABLE_DOUBLECHECKS - " ${yaaf_ENABLE_DOUBLECHECKS})
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/cotire/CMake")
@@ -34,11 +34,11 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-IF(NMQ_ASIO_DEBUG)
+IF(yaaf_ASIO_DEBUG)
  add_definitions(-DBOOST_ASIO_ENABLE_HANDLER_TRACKING)
 ENDIF()
 
-IF(NMQ_ENABLE_DOUBLECHECKS)
+IF(yaaf_ENABLE_DOUBLECHECKS)
  add_definitions(-DDOUBLE_CHECKS)
 ENDIF()
 
@@ -62,8 +62,8 @@ ENDIF()
 IF(Boost_FOUND)
   INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
   LINK_DIRECTORIES(${Boost_LIBRARY_DIRS})
-  SET(NMQ_LIB_PATH ${Boost_LIBRARY_DIRS}
-              CACHE STRING "NMQ libs path.")
+  SET(yaaf_LIB_PATH ${Boost_LIBRARY_DIRS}
+              CACHE STRING "yaaf libs path.")
 else()	
   MESSAGE(FATAL_ERROR "boost not found")
   EXIT()
@@ -76,22 +76,22 @@ find_package (Threads)
 ##### MISC
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
-if(NMQ_ENABLE_TESTS)
+if(yaaf_ENABLE_TESTS)
    include_directories(extern/Catch2/single_include/catch2/)
-endif(NMQ_ENABLE_TESTS)
+endif(yaaf_ENABLE_TESTS)
 
 #########
 
-SET(NMQ_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_BINARY_DIR} CACHE STRING "nmq include dir.")
+SET(yaaf_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_BINARY_DIR} CACHE STRING "yaaf include dir.")
 
-add_subdirectory (libnmq)
+add_subdirectory (libyaaf)
 
-if (NMQ_ENABLE_TESTS)
+if (yaaf_ENABLE_TESTS)
   enable_testing()
   add_subdirectory(unittests)
 endif()
 
-if(NMQ_ENABLE_BENCHMARKS)
+if(yaaf_ENABLE_BENCHMARKS)
    set(BENCHMARK_ENABLE_TESTING OFF)
    add_subdirectory(extern/benchmark)
    include_directories(extern/benchmark/include)
@@ -104,5 +104,5 @@ if(NMQ_ENABLE_BENCHMARKS)
    include_directories(extern/cxxopts/include)
 
    add_subdirectory(benchmarks)
-endif(NMQ_ENABLE_BENCHMARKS)
+endif(yaaf_ENABLE_BENCHMARKS)
 

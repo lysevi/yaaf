@@ -1,7 +1,7 @@
-#include <libnmq/context.h>
+#include <libyaaf/context.h>
 #include <benchmark/benchmark.h>
 
-using namespace nmq;
+using namespace yaaf;
 
 static void BM_MailBoxIsEmpty(benchmark::State &state) {
   mailbox mbox;

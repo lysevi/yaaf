@@ -1,11 +1,11 @@
-#include <libnmq/network/queries.h>
-#include <libnmq/serialization/serialization.h>
+#include <libyaaf/network/queries.h>
+#include <libyaaf/serialization/serialization.h>
 #include <benchmark/benchmark.h>
 
 #include <array>
 
-using namespace nmq;
-using namespace nmq::network::queries;
+using namespace yaaf;
+using namespace yaaf::network::queries;
 namespace {
 const std::string small_string = "small";
 const std::string medium_string =
@@ -26,7 +26,7 @@ template <class T> void BM_serialisation_pack(benchmark::State &state, T arg) {
 
   for (auto _ : state) {
     auto it = buffer.data();
-    nmq::serialization::binary_io<T>::write(it, arg);
+    yaaf::serialization::binary_io<T>::write(it, arg);
   }
 }
 BENCHMARK_CAPTURE(BM_serialisation_pack, uint8_t, uint8_t(10));
@@ -37,18 +37,18 @@ BENCHMARK_CAPTURE(BM_serialisation_pack, std::string_small, small_string);
 BENCHMARK_CAPTURE(BM_serialisation_pack, std::string_medium, medium_string);
 
 template <class T> void BM_serialisation_unpack(benchmark::State &state, T arg) {
-  auto cap = nmq::serialization::binary_io<T>::capacity(arg);
+  auto cap = yaaf::serialization::binary_io<T>::capacity(arg);
 
   std::vector<uint8_t> buffer(cap);
   std::fill(buffer.begin(), buffer.end(), uint8_t(0));
 
   auto it = buffer.data();
-  nmq::serialization::binary_io<T>::write(it, arg);
+  yaaf::serialization::binary_io<T>::write(it, arg);
 
   for (auto _ : state) {
     it = buffer.data();
     T result;
-    nmq::serialization::binary_io<T>::read(it, result);
+    yaaf::serialization::binary_io<T>::read(it, result);
   }
 }
 

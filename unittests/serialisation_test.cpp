@@ -1,15 +1,15 @@
 #include "helpers.h"
-#include <libnmq/network/queries.h>
-#include <libnmq/serialization/serialization.h>
-#include <libnmq/utils/utils.h>
+#include <libyaaf/network/queries.h>
+#include <libyaaf/serialization/serialization.h>
+#include <libyaaf/utils/utils.h>
 #include <algorithm>
 
 #include <catch.hpp>
 
-using namespace nmq;
-using namespace nmq::utils;
-using namespace nmq::network;
-using namespace nmq::network::queries;
+using namespace yaaf;
+using namespace yaaf::utils;
+using namespace yaaf::network;
+using namespace yaaf::network::queries;
 
 TEST_CASE("serialization.ok") {
   ok qok{std::numeric_limits<uint64_t>::max()};
@@ -81,10 +81,10 @@ struct SchemeTestObject {
   std::string login;
 };
 
-namespace nmq {
+namespace yaaf {
 namespace serialization {
 template <> struct object_packer<SchemeTestObject> {
-  using Scheme = nmq::serialization::binary_io<uint64_t, std::string>;
+  using Scheme = yaaf::serialization::binary_io<uint64_t, std::string>;
 
   static size_t capacity(const SchemeTestObject &t) {
     return Scheme::capacity(t.id, t.login);
@@ -99,20 +99,20 @@ template <> struct object_packer<SchemeTestObject> {
   }
 };
 } // namespace serialization
-} // namespace nmq
+} // namespace yaaf
 
 TEST_CASE("serialization.objectscheme") {
   SchemeTestObject ok{std::numeric_limits<uint64_t>::max(), std::string("test_login")};
 
   network::message::size_t neededSize = static_cast<network::message::size_t>(
-      nmq::serialization::object_packer<SchemeTestObject>::capacity(ok));
+      yaaf::serialization::object_packer<SchemeTestObject>::capacity(ok));
 
   auto nd = std::make_shared<network::message>(
       neededSize, (network::message::kind_t)messagekinds::LOGIN);
 
-  nmq::serialization::object_packer<SchemeTestObject>::pack(nd->value(), ok);
+  yaaf::serialization::object_packer<SchemeTestObject>::pack(nd->value(), ok);
 
-  auto repacked = nmq::serialization::object_packer<SchemeTestObject>::unpack(nd->value());
+  auto repacked = yaaf::serialization::object_packer<SchemeTestObject>::unpack(nd->value());
   EXPECT_EQ(repacked.id, ok.id);
   EXPECT_EQ(repacked.login, ok.login);
 }
@@ -121,7 +121,7 @@ TEST_CASE("serialization.message") {
   SchemeTestObject msg_inner{std::numeric_limits<uint64_t>::max(),
                              std::string("test_login")};
 
-  queries::packed_message<SchemeTestObject> lg{uint64_t(1), nmq::id_t(1), nmq::id_t(2), msg_inner};
+  queries::packed_message<SchemeTestObject> lg{uint64_t(1), yaaf::id_t(1), yaaf::id_t(2), msg_inner};
   auto nd = lg.get_message();
   EXPECT_EQ(nd->get_header()->kind, (network::message::kind_t)messagekinds::MSG);
 

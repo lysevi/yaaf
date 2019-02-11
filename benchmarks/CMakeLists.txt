@@ -1,4 +1,4 @@
-INCLUDE_DIRECTORIES(${NMQ_INCLUDE_DIR})
+INCLUDE_DIRECTORIES(${yaaf_INCLUDE_DIR})
 
 MESSAGE(STATUS "Benchmarks: ")
 
@@ -7,7 +7,7 @@ function(ADD_BENCHARK name src)
 
 		SET(trgt benchmark_${name})
         add_executable(${trgt} ${src})
-        target_link_libraries(${trgt} ${NMQ_LIBS})
+        target_link_libraries(${trgt} ${YAAF_LIBS})
         set_target_properties(${trgt} PROPERTIES FOLDER Benchmarks)
 		add_test(${name} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${trgt}) 
 		cotire(${trgt})

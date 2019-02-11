@@ -1,12 +1,12 @@
-#include <libnmq/context.h>
+#include <libyaaf/context.h>
 #include <benchmark/benchmark.h>
 
-using namespace nmq;
+using namespace yaaf;
 
 static void BM_Context(benchmark::State &state) {
   auto ctx = std::make_shared<context>(context::params_t::defparams());
 
-  auto c1 = [](nmq::envelope e) {
+  auto c1 = [](yaaf::envelope e) {
     auto v = e.payload.cast<int>();
     UNUSED(v);
     ENSURE(v == 1);

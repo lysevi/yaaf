@@ -1,8 +1,8 @@
-#include <libnmq/network/message.h>
+#include <libyaaf/network/message.h>
 #include <benchmark/benchmark.h>
 
-using namespace nmq;
-using namespace nmq::network;
+using namespace yaaf;
+using namespace yaaf::network;
 
 class Network : public benchmark::Fixture {
   virtual void SetUp(const ::benchmark::State &) {}

@@ -1,37 +1,37 @@
 #define CATCH_CONFIG_RUNNER
-#include <libnmq/utils/logger.h>
+#include <libyaaf/utils/logger.h>
 #include <catch.hpp>
 #include <cstring>
 #include <iostream>
 #include <list>
 #include <sstream>
 
-class UnitTestLogger : public nmq::utils::logging::abstract_logger {
+class UnitTestLogger : public yaaf::utils::logging::abstract_logger {
 public:
   static bool verbose;
   UnitTestLogger() {}
   ~UnitTestLogger() {}
 
-  void message(nmq::utils::logging::message_kind kind, const std::string &msg) noexcept {
+  void message(yaaf::utils::logging::message_kind kind, const std::string &msg) noexcept {
     std::lock_guard<std::mutex> lg(_locker);
 
     std::stringstream ss;
     switch (kind) {
-    case nmq::utils::logging::message_kind::fatal:
+    case yaaf::utils::logging::message_kind::fatal:
       ss << "[err] " << msg << std::endl;
       break;
-    case nmq::utils::logging::message_kind::info:
+    case yaaf::utils::logging::message_kind::info:
       ss << "[inf] " << msg << std::endl;
       break;
-    case nmq::utils::logging::message_kind::warn:
+    case yaaf::utils::logging::message_kind::warn:
       ss << "[wrn] " << msg << std::endl;
       break;
-    case nmq::utils::logging::message_kind::message:
+    case yaaf::utils::logging::message_kind::message:
       ss << "[dbg] " << msg << std::endl;
       break;
     }
 
-    if (kind == nmq::utils::logging::message_kind::fatal) {
+    if (kind == yaaf::utils::logging::message_kind::fatal) {
       std::cerr << ss.str();
     } else {
       if (verbose) {
@@ -61,19 +61,19 @@ struct LoggerControl : Catch::TestEventListenerBase {
 
   virtual void testCaseStarting(Catch::TestCaseInfo const &) override {
     _raw_ptr = new UnitTestLogger();
-    _logger = nmq::utils::logging::abstract_logger_ptr{_raw_ptr};
-    nmq::utils::logging::logger_manager::start(_logger);
+    _logger = yaaf::utils::logging::abstract_logger_ptr{_raw_ptr};
+    yaaf::utils::logging::logger_manager::start(_logger);
   }
 
   virtual void testCaseEnded(Catch::TestCaseStats const &testCaseStats) override {
     if (testCaseStats.testInfo.expectedToFail()) {
       _raw_ptr->dump_all();
     }
-    nmq::utils::logging::logger_manager::stop();
+    yaaf::utils::logging::logger_manager::stop();
     _logger = nullptr;
   }
   UnitTestLogger *_raw_ptr;
-  nmq::utils::logging::abstract_logger_ptr _logger;
+  yaaf::utils::logging::abstract_logger_ptr _logger;
 };
 
 CATCH_REGISTER_LISTENER(LoggerControl);

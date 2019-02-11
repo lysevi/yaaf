@@ -1,20 +1,20 @@
-#include <libnmq/context.h>
+#include <libyaaf/context.h>
 
 #include "helpers.h"
 #include <catch.hpp>
 
 TEST_CASE("mailbox") {
-  nmq::mailbox mbox;
+  yaaf::mailbox mbox;
   EXPECT_TRUE(mbox.empty());
 
-  mbox.push(std::string("svalue"), nmq::actor_address());
-  mbox.push(int(1), nmq::actor_address());
-  mbox.push(std::make_shared<std::string>("shared string"), nmq::actor_address());
+  mbox.push(std::string("svalue"), yaaf::actor_address());
+  mbox.push(int(1), yaaf::actor_address());
+  mbox.push(std::make_shared<std::string>("shared string"), yaaf::actor_address());
 
   EXPECT_FALSE(mbox.empty());
   EXPECT_EQ(mbox.size(), size_t(3));
 
-  nmq::envelope out_v;
+  yaaf::envelope out_v;
 
   EXPECT_TRUE(mbox.try_pop(out_v));
   EXPECT_EQ(out_v.payload.cast<std::string>(), std::string("svalue"));

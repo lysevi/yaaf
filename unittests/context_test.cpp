@@ -1,16 +1,16 @@
 #include "helpers.h"
-#include <libnmq/context.h>
-#include <libnmq/utils/logger.h>
+#include <libyaaf/context.h>
+#include <libyaaf/utils/logger.h>
 #include <algorithm>
 
 #include <catch.hpp>
 
-using namespace nmq;
-using namespace nmq::utils::logging;
+using namespace yaaf;
+using namespace yaaf::utils::logging;
 
 TEST_CASE("context. name", "[context]") {
-  auto ctx = nmq::context::make_context();
-  auto ctx2 = nmq::context::make_context();
+  auto ctx = yaaf::context::make_context();
+  auto ctx2 = yaaf::context::make_context();
 
   EXPECT_NE(ctx->name(), ctx2->name());
   ctx = nullptr;
@@ -18,23 +18,23 @@ TEST_CASE("context. name", "[context]") {
 }
 
 TEST_CASE("context. sending", "[context]") {
-  auto ctx = nmq::context::make_context();
+  auto ctx = yaaf::context::make_context();
   int summ = 0;
-  auto c1 = [&summ](nmq::envelope e) {
+  auto c1 = [&summ](yaaf::envelope e) {
     auto v = e.payload.cast<int>();
     summ += v;
   };
 
-  auto c2 = [](nmq::envelope) {};
-  auto c1_addr = ctx->make_actor<nmq::actor_for_delegate>("c1", c1);
-  auto c2_addr = ctx->make_actor<nmq::actor_for_delegate>("c2", c2);
+  auto c2 = [](yaaf::envelope) {};
+  auto c1_addr = ctx->make_actor<yaaf::actor_for_delegate>("c1", c1);
+  auto c2_addr = ctx->make_actor<yaaf::actor_for_delegate>("c2", c2);
 
   EXPECT_NE(c1_addr.to_string(), "null");
   EXPECT_NE(c2_addr.to_string(), "null");
   EXPECT_NE(c1_addr.get_id(), c2_addr.get_id());
 
   SECTION("context. many values") {
-    nmq::envelope e;
+    yaaf::envelope e;
     e.sender = c2_addr;
 
     auto send_helper = [c1_addr, ctx](auto v) { ctx->send(c1_addr, v); };
@@ -53,18 +53,18 @@ TEST_CASE("context. sending", "[context]") {
 
   SECTION("context. to stopped actor") {
     ctx->stop_actor(c1_addr);
-    ctx->send(c1_addr, nmq::envelope{int(1), c2_addr});
+    ctx->send(c1_addr, yaaf::envelope{int(1), c2_addr});
   }
 
   ctx = nullptr;
 }
 
 TEST_CASE("context. actor_start_stop", "[context]") {
-  class testable_actor : public nmq::base_actor {
+  class testable_actor : public yaaf::base_actor {
   public:
     testable_actor(int ctor_arg_) : ctor_arg(ctor_arg_) {}
 
-    nmq::actor_settings on_init(const nmq::actor_settings &bs) override {
+    yaaf::actor_settings on_init(const yaaf::actor_settings &bs) override {
       auto ctx = get_context();
       if (ctx == nullptr) {
         throw std::logic_error("context is nullptr");
@@ -73,18 +73,18 @@ TEST_CASE("context. actor_start_stop", "[context]") {
       EXPECT_TRUE(n != std::string(""));
 
       is_on_init_called = true;
-      return nmq::base_actor::on_init(bs);
+      return yaaf::base_actor::on_init(bs);
     }
     void on_start() override {
       is_on_start_called = true;
-      nmq::base_actor::on_start();
+      yaaf::base_actor::on_start();
     }
     void on_stop() override {
       is_on_stop_called = true;
-      nmq::base_actor::on_stop();
+      yaaf::base_actor::on_stop();
     }
 
-    void action_handle(const nmq::envelope &) override {}
+    void action_handle(const yaaf::envelope &) override {}
 
     int ctor_arg;
     bool is_on_init_called = false;
@@ -92,14 +92,14 @@ TEST_CASE("context. actor_start_stop", "[context]") {
     bool is_on_stop_called = false;
   };
 
-  auto ctx = nmq::context::make_context();
+  auto ctx = yaaf::context::make_context();
 
   auto aptr_addr = ctx->make_actor<testable_actor>("testable", int(1));
-  nmq::actor_ptr aptr = ctx->get_actor(aptr_addr).lock();
+  yaaf::actor_ptr aptr = ctx->get_actor(aptr_addr).lock();
 
   auto testable_a_ptr = dynamic_cast<testable_actor *>(aptr.get());
 
-  EXPECT_TRUE(testable_a_ptr->status().kind == nmq::actor_status_kinds::NORMAL);
+  EXPECT_TRUE(testable_a_ptr->status().kind == yaaf::actor_status_kinds::NORMAL);
 
   ctx->stop_actor(aptr_addr);
 
@@ -107,54 +107,54 @@ TEST_CASE("context. actor_start_stop", "[context]") {
     EXPECT_TRUE(testable_a_ptr->is_on_init_called);
     EXPECT_TRUE(testable_a_ptr->is_on_start_called);
     EXPECT_TRUE(testable_a_ptr->is_on_stop_called);
-    EXPECT_TRUE(testable_a_ptr->status().kind == nmq::actor_status_kinds::STOPED);
+    EXPECT_TRUE(testable_a_ptr->status().kind == yaaf::actor_status_kinds::STOPED);
   }
   ctx = nullptr;
 }
 
 TEST_CASE("context. hierarchy initialize", "[context]") {
 
-  class child1_a : public nmq::base_actor {
+  class child1_a : public yaaf::base_actor {
   public:
     child1_a() {}
 
-    nmq::actor_settings on_init(const nmq::actor_settings &bs) override {
+    yaaf::actor_settings on_init(const yaaf::actor_settings &bs) override {
       EXPECT_TRUE(bs.stop_on_any_error);
       is_on_init_called = true;
-      return nmq::base_actor::on_init(bs);
+      return yaaf::base_actor::on_init(bs);
     }
     void on_stop() override {
       is_on_stop_called = true;
-      nmq::base_actor::on_stop();
+      yaaf::base_actor::on_stop();
     }
 
-    void action_handle(const nmq::envelope &e) override { e.payload.cast<int>(); }
+    void action_handle(const yaaf::envelope &e) override { e.payload.cast<int>(); }
 
     bool is_on_init_called = false;
     bool is_on_stop_called = false;
   };
 
-  class root_a : public nmq::base_actor {
+  class root_a : public yaaf::base_actor {
   public:
     root_a() {}
 
-    void on_child_stopped(const nmq::actor_address &addr,
-                          nmq::actor_stopping_reason reason) override {
+    void on_child_stopped(const yaaf::actor_address &addr,
+                          yaaf::actor_stopping_reason reason) override {
       stopped_childs_count++;
       stopped[addr.get_id()] = reason;
     }
 
-    void on_child_status(const nmq::actor_address &addr,
-                         nmq::actor_status_kinds k) override {
+    void on_child_status(const yaaf::actor_address &addr,
+                         yaaf::actor_status_kinds k) override {
       statuses_count++;
       statuses[addr.get_id()] = k;
     }
 
-    nmq::actor_settings on_init(const nmq::actor_settings &bs) override {
+    yaaf::actor_settings on_init(const yaaf::actor_settings &bs) override {
       EXPECT_FALSE(bs.stop_on_any_error);
-      nmq::actor_settings result = bs;
+      yaaf::actor_settings result = bs;
       result.stop_on_any_error = true;
-      return nmq::base_actor::on_init(result);
+      return yaaf::base_actor::on_init(result);
     }
 
     void on_start() override {
@@ -170,28 +170,28 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
       }
 
       is_on_start_called = true;
-      nmq::base_actor::on_start();
+      yaaf::base_actor::on_start();
     }
 
     void on_stop() override {
       is_on_stop_called = true;
-      nmq::base_actor::on_stop();
+      yaaf::base_actor::on_stop();
     }
 
-    void action_handle(const nmq::envelope &) override {}
+    void action_handle(const yaaf::envelope &) override {}
 
     bool is_on_start_called = false;
     bool is_on_stop_called = false;
-    std::vector<nmq::actor_address> children;
+    std::vector<yaaf::actor_address> children;
 
     size_t stopped_childs_count = 0;
-    std::map<nmq::id_t, nmq::actor_stopping_reason> stopped;
+    std::map<yaaf::id_t, yaaf::actor_stopping_reason> stopped;
 
     size_t statuses_count = 0;
-    std::map<nmq::id_t, nmq::actor_status_kinds> statuses;
+    std::map<yaaf::id_t, yaaf::actor_status_kinds> statuses;
   };
 
-  auto ctx = nmq::context::make_context();
+  auto ctx = yaaf::context::make_context();
   auto root_address = ctx->make_actor<root_a>("root_a");
 
   auto root_ptr = ctx->get_actor(root_address).lock();
@@ -205,25 +205,25 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
   auto sp = root_weak.lock();
   EXPECT_TRUE(sp != nullptr);
 
-  EXPECT_EQ(root_ptr_raw->status().kind, nmq::actor_status_kinds::NORMAL);
+  EXPECT_EQ(root_ptr_raw->status().kind, yaaf::actor_status_kinds::NORMAL);
 
-  std::vector<nmq::actor_address> children_addresses = root_ptr_raw->children;
-  std::vector<nmq::actor_ptr> children_actors;
+  std::vector<yaaf::actor_address> children_addresses = root_ptr_raw->children;
+  std::vector<yaaf::actor_ptr> children_actors;
 
   std::transform(
       children_addresses.cbegin(), children_addresses.cend(),
       std::back_inserter(children_actors),
-      [ctx](const nmq::actor_address addr) { return ctx->get_actor(addr).lock(); });
+      [ctx](const yaaf::actor_address addr) { return ctx->get_actor(addr).lock(); });
 
   for (auto &ac : children_actors) {
-    EXPECT_EQ(ac->status().kind, nmq::actor_status_kinds::NORMAL);
+    EXPECT_EQ(ac->status().kind, yaaf::actor_status_kinds::NORMAL);
   }
 
   SECTION("context. root stoping") {
     ctx->stop_actor(root_address);
 
     for (auto &ac : children_actors) {
-      EXPECT_TRUE(ac->status().kind == nmq::actor_status_kinds::STOPED);
+      EXPECT_TRUE(ac->status().kind == yaaf::actor_status_kinds::STOPED);
     }
 
     root_weak = ctx->get_actor("/root/usr/root_a");
@@ -236,10 +236,10 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
     auto child_a = children_actors.front();
     ctx->stop_actor(child);
 
-    EXPECT_TRUE(child_a->status().kind == nmq::actor_status_kinds::STOPED);
+    EXPECT_TRUE(child_a->status().kind == yaaf::actor_status_kinds::STOPED);
 
     EXPECT_EQ(root_ptr_raw->stopped.size(), size_t(1));
-    EXPECT_EQ(root_ptr_raw->stopped[child.get_id()], nmq::actor_stopping_reason::MANUAL);
+    EXPECT_EQ(root_ptr_raw->stopped[child.get_id()], yaaf::actor_stopping_reason::MANUAL);
   }
 
   SECTION("context. child stoping with exception") {
@@ -253,12 +253,12 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
     }
 
     for (auto &ac : children_actors) {
-      EXPECT_TRUE(ac->status().kind == nmq::actor_status_kinds::STOPED);
+      EXPECT_TRUE(ac->status().kind == yaaf::actor_status_kinds::STOPED);
     }
 
     EXPECT_EQ(root_ptr_raw->stopped.size(), size_t(3));
     for (auto &kv : root_ptr_raw->stopped) {
-      EXPECT_EQ(kv.second, nmq::actor_stopping_reason::EXCEPT);
+      EXPECT_EQ(kv.second, yaaf::actor_stopping_reason::EXCEPT);
     }
   }
 
@@ -273,7 +273,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
     }
 
     for (auto &kv : root_ptr_raw->statuses) {
-      EXPECT_EQ(kv.second, nmq::actor_status_kinds::NORMAL);
+      EXPECT_EQ(kv.second, yaaf::actor_status_kinds::NORMAL);
     }
   }
 
@@ -321,7 +321,7 @@ TEST_CASE("context. ping-pong", "[context]") {
       ping(e.sender);
     }
 
-    void ping(const nmq::actor_address &pong_addr) {
+    void ping(const yaaf::actor_address &pong_addr) {
       auto ctx = get_context();
       if (ctx != nullptr) {
         ctx->send(pong_addr, int(1));
@@ -330,11 +330,11 @@ TEST_CASE("context. ping-pong", "[context]") {
     std::atomic_size_t pings = 0;
   };
 
-  nmq::context::params_t ctx_params = nmq::context::params_t::defparams();
+  yaaf::context::params_t ctx_params = yaaf::context::params_t::defparams();
   size_t pingers_count = 1;
 
   SECTION("context. ping-pong with default settings") {
-    ctx_params = nmq::context::params_t::defparams();
+    ctx_params = yaaf::context::params_t::defparams();
 
     SECTION("context: ping-pong 1") { pingers_count = 1; }
     SECTION("context: ping-pong 2") { pingers_count = 2; }
@@ -342,7 +342,7 @@ TEST_CASE("context. ping-pong", "[context]") {
   }
 
   SECTION("context. ping-pong with custom settings") {
-    ctx_params = nmq::context::params_t::defparams();
+    ctx_params = yaaf::context::params_t::defparams();
     ctx_params.user_threads = 10;
     ctx_params.sys_threads = 2;
 
@@ -351,14 +351,14 @@ TEST_CASE("context. ping-pong", "[context]") {
     SECTION("context: ping-pong 10") { pingers_count = 10; }
   }
 
-  auto ctx = nmq::context::make_context(ctx_params);
+  auto ctx = yaaf::context::make_context(ctx_params);
 
-  std::vector<nmq::actor_address> pingers(pingers_count);
+  std::vector<yaaf::actor_address> pingers(pingers_count);
   for (size_t i = 0; i < pingers_count; ++i) {
     pingers[i] = ctx->make_actor<ping_actor>("ping", pingers_count);
   }
 
-  auto addr_to_pointer = [ctx](const nmq::actor_address &addr) {
+  auto addr_to_pointer = [ctx](const yaaf::actor_address &addr) {
     auto ping_ptr = ctx->get_actor(addr);
     ping_actor *raw_ptr = nullptr;
     if (auto p = ping_ptr.lock()) {

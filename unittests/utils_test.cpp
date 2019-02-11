@@ -1,8 +1,8 @@
-#include <libnmq/utils/async/thread_manager.h>
-#include <libnmq/utils/async/thread_pool.h>
-#include <libnmq/utils/initialized_resource.h>
-#include <libnmq/utils/strings.h>
-#include <libnmq/utils/utils.h>
+#include <libyaaf/utils/async/thread_manager.h>
+#include <libyaaf/utils/async/thread_pool.h>
+#include <libyaaf/utils/initialized_resource.h>
+#include <libyaaf/utils/strings.h>
+#include <libyaaf/utils/utils.h>
 
 #include "helpers.h"
 #include <catch.hpp>
@@ -15,7 +15,7 @@ TEST_CASE("utils.split") {
   std::iota(tst_a.begin(), tst_a.end(), 1);
 
   std::string str = "1 2 3 4 5 6 7 8";
-  auto splitted_s = nmq::utils::strings::tokens(str);
+  auto splitted_s = yaaf::utils::strings::tokens(str);
 
   std::vector<int> splitted(splitted_s.size());
   std::transform(splitted_s.begin(), splitted_s.end(), splitted.begin(),
@@ -30,18 +30,18 @@ TEST_CASE("utils.split") {
 
 TEST_CASE("utils.to_upper") {
   auto s = "lower string";
-  auto res = nmq::utils::strings::to_upper(s);
+  auto res = yaaf::utils::strings::to_upper(s);
   EXPECT_EQ(res, "LOWER STRING");
 }
 
 TEST_CASE("utils.to_lower") {
   auto s = "UPPER STRING";
-  auto res = nmq::utils::strings::to_lower(s);
+  auto res = yaaf::utils::strings::to_lower(s);
   EXPECT_EQ(res, "upper string");
 }
 
 TEST_CASE("utils.long_process") {
-  nmq::utils::long_process run(std::string("run"), true);
+  yaaf::utils::long_process run(std::string("run"), true);
   EXPECT_FALSE(run.is_started());
   EXPECT_FALSE(run.is_complete());
 
@@ -59,7 +59,7 @@ TEST_CASE("utils.long_process") {
 }
 
 TEST_CASE("utils.initialized_resource") {
-  nmq::utils::initialized_resource child_w, parent_w;
+  yaaf::utils::initialized_resource child_w, parent_w;
   {
     EXPECT_FALSE(child_w.is_initialisation_begin());
 
@@ -106,7 +106,7 @@ TEST_CASE("utils.initialized_resource") {
 }
 
 TEST_CASE("utils.threads_pool") {
-  using namespace nmq::utils::async;
+  using namespace yaaf::utils::async;
 
   const thread_kind_t tk = 1;
   {
@@ -161,7 +161,7 @@ TEST_CASE("utils.threads_pool") {
 }
 
 TEST_CASE("utils.threads_manager") {
-  using namespace nmq::utils::async;
+  using namespace yaaf::utils::async;
 
   const thread_kind_t tk1 = 1;
   const thread_kind_t tk2 = 2;
@@ -191,7 +191,7 @@ TEST_CASE("utils.threads_manager") {
     task at1 = [tk1](const thread_info &ti) {
       if (tk1 != ti.kind) {
         INFO("(tk != ti.kind)");
-        nmq::utils::sleep_mls(400);
+        yaaf::utils::sleep_mls(400);
         throw MAKE_EXCEPTION("(tk1 != ti.kind)");
       }
       return CONTINUATION_STRATEGY::SINGLE;
@@ -199,12 +199,12 @@ TEST_CASE("utils.threads_manager") {
     task at2 = [tk2](const thread_info &ti) {
       if (tk2 != ti.kind) {
         INFO("(tk != ti.kind)");
-        nmq::utils::sleep_mls(400);
+        yaaf::utils::sleep_mls(400);
         throw MAKE_EXCEPTION("(tk2 != ti.kind)");
       }
       return CONTINUATION_STRATEGY::SINGLE;
     };
-    t_manager.post(tk1, wrap_task_with_priority(infinite_worker, nmq::utils::async::TASK_PRIORITY::WORKER));
+    t_manager.post(tk1, wrap_task_with_priority(infinite_worker, yaaf::utils::async::TASK_PRIORITY::WORKER));
     auto at_while_res = t_manager.post(tk1, wrap_task(at_while));
     for (size_t i = 0; i < tasks_count; ++i) {
       t_manager.post(tk1, wrap_task(at1));

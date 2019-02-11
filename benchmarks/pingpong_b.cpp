@@ -1,10 +1,10 @@
-#include <libnmq/context.h>
-#include <libnmq/utils/logger.h>
+#include <libyaaf/context.h>
+#include <libyaaf/utils/logger.h>
 #include <iostream>
 
 #include <cxxopts.hpp>
 
-using namespace nmq;
+using namespace yaaf;
 
 std::atomic_size_t pings = 0;
 std::atomic_size_t pongs = 0;
@@ -43,20 +43,20 @@ public:
     ping(e.sender);
   }
 
-  void ping(const nmq::actor_address &pa) {
+  void ping(const yaaf::actor_address &pa) {
     auto ctx = get_context();
     if (ctx != nullptr) {
       ctx->send(pa, int(1));
     }
   }
   size_t pongs_count;
-  std::vector<nmq::actor_address> pongs_addrs;
+  std::vector<yaaf::actor_address> pongs_addrs;
 };
 
 int steps = 10;
 size_t pongs_count = 1;
 size_t userspace_threads = 1;
-nmq::utils::logging::abstract_logger *_raw_logger_ptr = nullptr;
+yaaf::utils::logging::abstract_logger *_raw_logger_ptr = nullptr;
 
 void parse_args(int argc, char **argv) {
   cxxopts::Options options("ping-pong", "benchmark via ping-pong");
@@ -80,9 +80,9 @@ void parse_args(int argc, char **argv) {
     }
 
     if (result["verbose"].as<bool>()) {
-      _raw_logger_ptr = new nmq::utils::logging::console_logger();
+      _raw_logger_ptr = new yaaf::utils::logging::console_logger();
     } else {
-      _raw_logger_ptr = new nmq::utils::logging::quiet_logger();
+      _raw_logger_ptr = new yaaf::utils::logging::quiet_logger();
     }
   } catch (cxxopts::OptionException &ex) {
     std::cerr << ex.what() << std::endl;
@@ -96,14 +96,14 @@ void parse_args(int argc, char **argv) {
 int main(int argc, char **argv) {
   parse_args(argc, argv);
 
-  auto _logger = nmq::utils::logging::abstract_logger_ptr{_raw_logger_ptr};
-  nmq::utils::logging::logger_manager::start(_logger);
+  auto _logger = yaaf::utils::logging::abstract_logger_ptr{_raw_logger_ptr};
+  yaaf::utils::logging::logger_manager::start(_logger);
 
   context::params_t params = context::params_t::defparams();
   params.user_threads = userspace_threads;
   params.sys_threads = 1;
 
-  auto ctx = nmq::context::make_context(params);
+  auto ctx = yaaf::context::make_context(params);
 
   ctx->make_actor<ping_actor>("ping", pongs_count);
 

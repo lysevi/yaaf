@@ -1,8 +1,8 @@
-#include <libnmq/actor.h>
-#include <libnmq/mailbox.h>
+#include <libyaaf/actor.h>
+#include <libyaaf/mailbox.h>
 #include <benchmark/benchmark.h>
 
-using namespace nmq;
+using namespace yaaf;
 
 static void BM_ActorCtor(benchmark::State &state) {
   auto clbk = [](envelope) {};

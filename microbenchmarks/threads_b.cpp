@@ -1,10 +1,10 @@
-#include <libnmq/utils/async/thread_manager.h>
+#include <libyaaf/utils/async/thread_manager.h>
 #include <benchmark/benchmark.h>
 
-using namespace nmq;
-using namespace nmq::utils::async;
+using namespace yaaf;
+using namespace yaaf::utils::async;
 
-using namespace nmq::utils::async;
+using namespace yaaf::utils::async;
 
 const thread_kind_t tk = 1;
 const size_t threads_count = 2;

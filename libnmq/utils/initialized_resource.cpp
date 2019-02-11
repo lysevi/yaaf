@@ -1,1 +1,0 @@
-#include <libnmq/utils/initialized_resource.h>
