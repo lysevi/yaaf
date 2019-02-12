@@ -239,6 +239,7 @@ actor_address context::add_actor(const std::string &actor_name,
   d->usrcont = std::make_shared<user_context>(self, result, ucname);
   a->set_context(d->usrcont);
   d->actor = a;
+  d->address = result;
   d->settings = a->on_init(settings);
 
   a->set_self_addr(result);
@@ -346,13 +347,36 @@ void context::apply_actor_to_mailbox(
   try {
     target_actor_description->actor->apply(*mb);
     if (parent != nullptr) {
-      parent->on_child_status(actor_address{id}, actor_status_kinds::NORMAL);
+      parent->on_child_status(target_actor_description->address,
+                              actor_status_kinds::NORMAL);
     }
   } catch (std::exception &ex) {
     logger_warn(ex.what());
-    if (target_actor_description->settings.stop_on_any_error) {
-      this->stop_actor_impl_safety(actor_address(id), actor_stopping_reason::EXCEPT);
+
+    if (parent != nullptr) {
+      auto action = parent->on_child_error(target_actor_description->address);
+      on_actor_error(action, target_actor_description, id);
+    } else {
+      this->stop_actor_impl_safety(target_actor_description->address,
+                                   actor_stopping_reason::EXCEPT);
     }
+  }
+}
+
+void context::on_actor_error(
+    actor_action_when_error action,
+    const std::shared_ptr<inner::description> target_actor_description, const id_t id) {
+  switch (action) {
+  case actor_action_when_error::RESTART:
+    break;
+  case actor_action_when_error::STOP:
+    stop_actor_impl_safety(target_actor_description->address,
+                           actor_stopping_reason::EXCEPT);
+    break;
+  case actor_action_when_error::ESCALATE:
+    break;
+  case actor_action_when_error::RESUME:
+    break;
   }
 }
 

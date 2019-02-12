@@ -15,6 +15,7 @@ namespace inner {
 
 struct description {
   actor_ptr actor;
+  actor_address address;
   actor_settings settings;
   std::shared_ptr<abstract_context> usrcont;
   std::string name;
@@ -50,7 +51,7 @@ public:
   EXPORT void stop();
 
   EXPORT void send_envelope(const actor_address &target, const envelope &e) override;
-  EXPORT void send_envelope(const actor_address &target, const envelope &&e)override;
+  EXPORT void send_envelope(const actor_address &target, const envelope &&e) override;
   EXPORT actor_address add_actor(const std::string &actor_name,
                                  const actor_ptr a) override;
   EXPORT actor_address add_actor(const std::string &actor_name,
@@ -78,6 +79,10 @@ private:
   void apply_actor_to_mailbox(
       const std::shared_ptr<inner::description> target_actor_description, const id_t id,
       actor_ptr parent, std::shared_ptr<mailbox> mb);
+
+  void on_actor_error(actor_action_when_error action,
+                      const std::shared_ptr<inner::description> target_actor_description,
+                      const id_t id);
 
 private:
   params_t _params;

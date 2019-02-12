@@ -3,8 +3,8 @@
 #include <libyaaf/utils/logger.h>
 #include <algorithm>
 
-#include <map>
 #include <catch.hpp>
+#include <map>
 
 using namespace yaaf;
 using namespace yaaf::utils::logging;
@@ -120,7 +120,6 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
     child1_a() {}
 
     yaaf::actor_settings on_init(const yaaf::actor_settings &bs) override {
-      EXPECT_TRUE(bs.stop_on_any_error);
       is_on_init_called = true;
       return yaaf::base_actor::on_init(bs);
     }
@@ -136,8 +135,13 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
   };
 
   class root_a : public yaaf::base_actor {
+
   public:
     root_a() {}
+
+    yaaf::actor_action_when_error on_child_error(const actor_address &addr) {
+      return on_error_flag;
+    }
 
     void on_child_stopped(const yaaf::actor_address &addr,
                           yaaf::actor_stopping_reason reason) override {
@@ -152,9 +156,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
     }
 
     yaaf::actor_settings on_init(const yaaf::actor_settings &bs) override {
-      EXPECT_FALSE(bs.stop_on_any_error);
       yaaf::actor_settings result = bs;
-      result.stop_on_any_error = true;
       return yaaf::base_actor::on_init(result);
     }
 
@@ -190,6 +192,8 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
 
     size_t statuses_count = 0;
     std::map<yaaf::id_t, yaaf::actor_status_kinds> statuses;
+
+    yaaf::actor_action_when_error on_error_flag;
   };
 
   auto ctx = yaaf::context::make_context();
@@ -244,22 +248,30 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
   }
 
   SECTION("context. child stoping with exception") {
-    for (auto c : children_addresses) {
-      ctx->send(c, std::string("bad cast"));
-    }
+    root_weak = ctx->get_actor("/root/usr/root_a");
+    sp = root_weak.lock();
+    auto raw_ptr = dynamic_cast<root_a *>(sp.get());
 
-    while (root_ptr_raw->stopped_childs_count != children_addresses.size()) {
-      logger_info("wait while all childs is not stopped...");
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
+    SECTION("context. actor_action_when_error::STOP") {
+      raw_ptr->on_error_flag = yaaf::actor_action_when_error::STOP;
 
-    for (auto &ac : children_actors) {
-      EXPECT_TRUE(ac->status().kind == yaaf::actor_status_kinds::STOPED);
-    }
+      for (auto c : children_addresses) {
+        ctx->send(c, std::string("bad cast"));
+      }
 
-    EXPECT_EQ(root_ptr_raw->stopped.size(), size_t(3));
-    for (auto &kv : root_ptr_raw->stopped) {
-      EXPECT_EQ(kv.second, yaaf::actor_stopping_reason::EXCEPT);
+      while (root_ptr_raw->stopped_childs_count != children_addresses.size()) {
+        logger_info("wait while all childs is not stopped...");
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      }
+
+      for (auto &ac : children_actors) {
+        EXPECT_TRUE(ac->status().kind == yaaf::actor_status_kinds::STOPED);
+      }
+
+      EXPECT_EQ(root_ptr_raw->stopped.size(), size_t(3));
+      for (auto &kv : root_ptr_raw->stopped) {
+        EXPECT_EQ(kv.second, yaaf::actor_stopping_reason::EXCEPT);
+      }
     }
   }
 

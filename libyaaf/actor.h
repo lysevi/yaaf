@@ -13,12 +13,13 @@ class abstract_context;
 
 enum class actor_status_kinds { NORMAL, WITH_ERROR, STOPED };
 enum class actor_stopping_reason { MANUAL, EXCEPT };
+enum class actor_action_when_error { RESTART, STOP, ESCALATE, RESUME };
 
 class base_actor : public std::enable_shared_from_this<base_actor> {
 public:
   struct status_t {
     actor_status_kinds kind = actor_status_kinds::NORMAL;
-    std::string msg="";
+    std::string msg = "";
   };
 
   base_actor() {
@@ -27,13 +28,12 @@ public:
   }
 
   EXPORT virtual ~base_actor();
-  EXPORT virtual actor_settings on_init(const actor_settings &base_settings) ;
-  EXPORT virtual void on_start() ;
-  EXPORT virtual void on_stop() ;
-  EXPORT virtual void on_child_status(const actor_address &addr,
-                                      actor_status_kinds k) ;
-  EXPORT virtual void on_child_stopped(const actor_address &addr,
-                                       const actor_stopping_reason reason) ;
+  EXPORT virtual actor_settings on_init(const actor_settings &base_settings);
+  EXPORT virtual void on_start();
+  EXPORT virtual void on_stop();
+  EXPORT virtual void on_child_status(const actor_address &addr, actor_status_kinds k);
+  EXPORT virtual actor_action_when_error on_child_error(const actor_address &addr);
+  EXPORT virtual void on_child_stopped(const actor_address &addr, const actor_stopping_reason reason);
   EXPORT virtual void apply(mailbox &mbox);
 
   virtual void action_handle(const envelope &e) = 0;
