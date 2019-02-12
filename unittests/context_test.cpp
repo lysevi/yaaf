@@ -481,14 +481,23 @@ TEST_CASE("context. ping-pong", "[context]") {
   std::transform(pingers.cbegin(), pingers.cend(), std::back_inserter(pingers_raw_ptrs),
                  addr_to_pointer);
 
+  std::vector<size_t> pings_count;
+  pings_count.reserve(pingers_count);
   while (true) {
-    std::vector<size_t> pings_count;
-    pings_count.reserve(pingers_count);
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    std::vector<size_t> pings_count_cur;
+    pings_count_cur.reserve(pingers_count);
 
     std::transform(pingers_raw_ptrs.cbegin(), pingers_raw_ptrs.cend(),
-                   std::back_inserter(pings_count),
-                   [](const ping_actor *a) { return a->pings.load(); });
+                   std::back_inserter(pings_count_cur),
+                   [](auto a) { return a->pings.load(); });
 
+    if (!pings_count.empty()) {
+      bool is_eq =
+          std::equal(pings_count.cbegin(), pings_count_cur.cbegin(), pings_count.cend());
+      EXPECT_FALSE(is_eq);
+    }
+    pings_count = std::move(pings_count_cur);
     auto all_more_than_100 = std::all_of(pings_count.cbegin(), pings_count.cend(),
                                          [](size_t p) { return p >= 100; });
     if (all_more_than_100) {
@@ -501,7 +510,6 @@ TEST_CASE("context. ping-pong", "[context]") {
       }
       ss << "]";
       logger_info("pings count < 100: ", ss.str());
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
   }
 
