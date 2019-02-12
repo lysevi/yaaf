@@ -11,7 +11,7 @@ using namespace yaaf::utils;
 using namespace yaaf::network;
 using namespace yaaf::network::queries;
 
-TEST_CASE("serialization.ok") {
+TEST_CASE("serialization.ok", "[serialization]") {
   ok qok{std::numeric_limits<uint64_t>::max()};
   auto nd = qok.get_message();
   EXPECT_EQ(nd->get_header()->kind, (network::message::kind_t)messagekinds::OK);
@@ -20,7 +20,7 @@ TEST_CASE("serialization.ok") {
   EXPECT_EQ(repacked.id, qok.id);
 }
 
-TEST_CASE("serialization.login") {
+TEST_CASE("serialization.login", "[serialization]") {
   login lg{"login"};
   auto nd = lg.get_message();
   EXPECT_EQ(nd->get_header()->kind, (network::message::kind_t)messagekinds::LOGIN);
@@ -29,7 +29,7 @@ TEST_CASE("serialization.login") {
   EXPECT_EQ(repacked.login_str, lg.login_str);
 }
 
-TEST_CASE("serialization.login_confirm") {
+TEST_CASE("serialization.login_confirm", "[serialization]") {
   login_confirm lg{uint64_t(1)};
   auto nd = lg.get_message();
   EXPECT_EQ(nd->get_header()->kind, (network::message::kind_t)messagekinds::LOGIN_CONFIRM);
@@ -38,7 +38,7 @@ TEST_CASE("serialization.login_confirm") {
   EXPECT_EQ(repacked.id, lg.id);
 }
 
-TEST_CASE("serialization.size_of_args") {
+TEST_CASE("serialization.size_of_args", "[serialization]") {
   EXPECT_EQ(serialization::binary_io<int>::capacity(int(1)), sizeof(int));
   auto sz = serialization::binary_io<int, int>::capacity(int(1), int(1));
   EXPECT_EQ(sz, sizeof(int) * 2);
@@ -52,7 +52,7 @@ TEST_CASE("serialization.size_of_args") {
   EXPECT_EQ(sz, sizeof(uint32_t) + str.size());
 }
 
-TEST_CASE("serialization.scheme") {
+TEST_CASE("serialization.scheme", "[serialization]") {
   std::vector<uint8_t> buffer(1024);
 
   auto it = buffer.data();
@@ -101,7 +101,7 @@ template <> struct object_packer<SchemeTestObject> {
 } // namespace serialization
 } // namespace yaaf
 
-TEST_CASE("serialization.objectscheme") {
+TEST_CASE("serialization.objectscheme", "[serialization]") {
   SchemeTestObject ok{std::numeric_limits<uint64_t>::max(), std::string("test_login")};
 
   network::message::size_t neededSize = static_cast<network::message::size_t>(
@@ -117,7 +117,7 @@ TEST_CASE("serialization.objectscheme") {
   EXPECT_EQ(repacked.login, ok.login);
 }
 
-TEST_CASE("serialization.message") {
+TEST_CASE("serialization.message", "[serialization]") {
   SchemeTestObject msg_inner{std::numeric_limits<uint64_t>::max(),
                              std::string("test_login")};
 
