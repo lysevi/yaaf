@@ -88,7 +88,7 @@ void parse_args(int argc, char **argv) {
     std::cerr << ex.what() << std::endl;
   }
 
-  std::cout << "pingers: " << pongs_count << std::endl;
+  std::cout << "pongers: " << pongs_count << std::endl;
   std::cout << "steps: " << steps << std::endl;
   std::cout << "userspace threads: " << userspace_threads << std::endl;
 }
