@@ -5,8 +5,6 @@
 #include <string>
 
 namespace yaaf {
-class actor_address;
-struct envelope;
 class base_actor;
 
 using actor_ptr = std::shared_ptr<base_actor>;
