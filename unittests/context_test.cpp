@@ -201,8 +201,38 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
     yaaf::actor_action_when_error on_error_flag;
   };
 
+  class core_a : public yaaf::base_actor {
+  public:
+    void on_start() override {
+      auto ctx = get_context();
+      if (ctx != nullptr) {
+        root_addr = ctx->make_actor<root_a>("root_a");
+      }
+    }
+
+    void action_handle(const yaaf::envelope &) override {}
+
+    yaaf::actor_action_when_error on_child_error(const actor_address &addr) {
+      child_has_error = true;
+      EXPECT_EQ(addr, root_addr);
+      return yaaf::actor_action_when_error::RESUME;
+    }
+
+    yaaf::actor_address root_addr;
+    bool child_has_error = false;
+  };
+
   auto ctx = yaaf::context::make_context();
-  auto root_address = ctx->make_actor<root_a>("root_a");
+  auto core_addr = ctx->make_actor<core_a>("core_a");
+  auto core_aptr = ctx->get_actor(core_addr).lock();
+  auto core_raw_ptr = dynamic_cast<core_a *>(core_aptr.get());
+
+  while (core_raw_ptr->root_addr.empty()) {
+    logger_info("wait while the core was not started...");
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+
+  auto root_address = core_raw_ptr->root_addr;
 
   auto root_ptr = ctx->get_actor(root_address).lock();
   auto root_ptr_raw = dynamic_cast<root_a *>(root_ptr.get());
@@ -211,7 +241,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
-  auto root_weak = ctx->get_actor("/root/usr/root_a");
+  auto root_weak = ctx->get_actor("/root/usr/core_a/root_a");
   auto sp = root_weak.lock();
   EXPECT_TRUE(sp != nullptr);
 
@@ -236,9 +266,10 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
       EXPECT_TRUE(ac->status().kind == yaaf::actor_status_kinds::STOPED);
     }
 
-    root_weak = ctx->get_actor("/root/usr/root_a");
+    root_weak = ctx->get_actor("/root/usr/core_a/root_a");
     sp = root_weak.lock();
     EXPECT_FALSE(sp != nullptr);
+    EXPECT_FALSE(core_raw_ptr->child_has_error);
   }
 
   SECTION("context. child stoping") {
@@ -253,7 +284,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
   }
 
   SECTION("context. child stoping with exception") {
-    root_weak = ctx->get_actor("/root/usr/root_a");
+    root_weak = ctx->get_actor("/root/usr/core_a/root_a");
     sp = root_weak.lock();
     auto raw_ptr = dynamic_cast<root_a *>(sp.get());
 
@@ -277,6 +308,8 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
       for (auto &kv : root_ptr_raw->stopped) {
         EXPECT_EQ(kv.second, yaaf::actor_stopping_reason::EXCEPT);
       }
+
+      EXPECT_FALSE(core_raw_ptr->child_has_error);
     }
 
     SECTION("context. actor_action_when_error::REINIT") {
@@ -301,7 +334,10 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
         logger_info("wait while all childs is not restarted...");
       }
+
+      EXPECT_FALSE(core_raw_ptr->child_has_error);
     }
+
     SECTION("context. actor_action_when_error::RESUME") {
       raw_ptr->on_error_flag = yaaf::actor_action_when_error::RESUME;
       for (auto c : children_addresses) {
@@ -315,6 +351,20 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
 
       for (auto &ac : children_actors) {
         EXPECT_TRUE(ac->status().kind == yaaf::actor_status_kinds::WITH_ERROR);
+      }
+
+      EXPECT_FALSE(core_raw_ptr->child_has_error);
+    }
+
+    SECTION("context. actor_action_when_error::ESCALATE") {
+      raw_ptr->on_error_flag = yaaf::actor_action_when_error::ESCALATE;
+      for (auto c : children_addresses) {
+        ctx->send(c, std::string("bad cast"));
+      }
+
+      while (!core_raw_ptr->child_has_error) {
+        logger_info("wait while core::on_child_error was not called ...");
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
       }
     }
   }

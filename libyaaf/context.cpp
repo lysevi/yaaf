@@ -355,6 +355,15 @@ void context::apply_actor_to_mailbox(
 
     if (parent != nullptr) {
       auto action = parent->on_child_error(target_actor_description->address);
+      if (action == actor_action_when_error::ESCALATE) {
+        std::shared_lock<std::shared_mutex> lg(_locker);
+        auto descr = target_actor_description;
+        while (action == actor_action_when_error::ESCALATE) {
+          auto parent_it = _actors.find(descr->parent);
+          action = parent_it->second->actor->on_child_error(descr->address);
+          descr = parent_it->second;
+        }
+      }
       on_actor_error(action, target_actor_description, parent);
     } else {
       this->stop_actor_impl_safety(target_actor_description->address,
