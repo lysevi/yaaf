@@ -3,6 +3,8 @@
 #include <libyaaf/exports.h>
 #include <libyaaf/payload.h>
 #include <libyaaf/types.h>
+#include <string>
+#include <utility>
 
 namespace yaaf {
 struct envelope;
@@ -26,7 +28,7 @@ public:
 
   bool empty() const { return _id == 0; }
   id_t get_id() const { return _id; }
-  std::string to_string() const { return _pathname; }
+  std::string get_pathname() const { return _pathname; }
 
   bool operator==(const actor_address &other) const {
     return _id == other._id && _pathname == other._pathname;
@@ -41,4 +43,20 @@ struct envelope {
   payload_t payload;
   actor_address sender;
 };
+
 } // namespace yaaf
+
+namespace std {
+template <> class hash<yaaf::actor_address> {
+public:
+  size_t operator()(const yaaf::actor_address &s) const {
+    size_t h_id = std::hash<yaaf::id_t>()(s.get_id());
+    size_t h_str = std::hash<std::string>()(s.get_pathname());
+    return h_id ^ h_str;
+  }
+};
+
+inline std::string to_string(const yaaf::actor_address&a) {
+  return a.get_pathname();
+}
+} // namespace std

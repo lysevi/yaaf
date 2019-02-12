@@ -30,8 +30,8 @@ TEST_CASE("context. sending", "[context]") {
   auto c1_addr = ctx->make_actor<yaaf::actor_for_delegate>("c1", c1);
   auto c2_addr = ctx->make_actor<yaaf::actor_for_delegate>("c2", c2);
 
-  EXPECT_NE(c1_addr.to_string(), "null");
-  EXPECT_NE(c2_addr.to_string(), "null");
+  EXPECT_NE(c1_addr.get_pathname(), "null");
+  EXPECT_NE(c2_addr.get_pathname(), "null");
   EXPECT_NE(c1_addr.get_id(), c2_addr.get_id());
 
   SECTION("context. many values") {
@@ -100,16 +100,20 @@ TEST_CASE("context. actor_start_stop", "[context]") {
 
   auto testable_a_ptr = dynamic_cast<testable_actor *>(aptr.get());
 
+  while (!testable_a_ptr->is_on_init_called) {
+    logger_info("wait while the testable_actor was not started...");
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+
   EXPECT_TRUE(testable_a_ptr->status().kind == yaaf::actor_status_kinds::NORMAL);
 
   ctx->stop_actor(aptr_addr);
 
-  SECTION("context. check start|stop flags") {
-    EXPECT_TRUE(testable_a_ptr->is_on_init_called);
-    EXPECT_TRUE(testable_a_ptr->is_on_start_called);
-    EXPECT_TRUE(testable_a_ptr->is_on_stop_called);
-    EXPECT_TRUE(testable_a_ptr->status().kind == yaaf::actor_status_kinds::STOPED);
-  }
+  EXPECT_TRUE(testable_a_ptr->is_on_init_called);
+  EXPECT_TRUE(testable_a_ptr->is_on_start_called);
+  EXPECT_TRUE(testable_a_ptr->is_on_stop_called);
+  EXPECT_TRUE(testable_a_ptr->status().kind == yaaf::actor_status_kinds::STOPED);
+
   ctx = nullptr;
 }
 
@@ -145,6 +149,8 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
 
     yaaf::actor_action_when_error on_child_error(const actor_address &addr) {
       UNUSED(addr);
+      auto it = children.find(addr);
+      EXPECT_TRUE(it != children.end());
       return on_error_flag;
     }
 
@@ -174,7 +180,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
 
       for (int i = 0; i < 3; ++i) {
         auto a = ctx->make_actor<child1_a>("child_" + std::to_string(i));
-        children.push_back(a);
+        children.insert(a);
       }
 
       is_on_start_called = true;
@@ -190,7 +196,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
 
     bool is_on_start_called = false;
     bool is_on_stop_called = false;
-    std::vector<yaaf::actor_address> children;
+    std::unordered_set<yaaf::actor_address> children;
 
     size_t stopped_childs_count = 0;
     std::map<yaaf::id_t, yaaf::actor_stopping_reason> stopped;
@@ -247,7 +253,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
 
   EXPECT_EQ(root_ptr_raw->status().kind, yaaf::actor_status_kinds::NORMAL);
 
-  std::vector<yaaf::actor_address> children_addresses = root_ptr_raw->children;
+  std::unordered_set<yaaf::actor_address> children_addresses = root_ptr_raw->children;
   std::vector<yaaf::actor_ptr> children_actors;
 
   std::transform(
@@ -273,7 +279,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
   }
 
   SECTION("context. child stoping") {
-    auto child = children_addresses.front();
+    auto child = *children_addresses.begin();
     auto child_a = children_actors.front();
     ctx->stop_actor(child);
 

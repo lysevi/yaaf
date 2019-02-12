@@ -16,10 +16,10 @@ class user_context : public abstract_context {
 public:
   user_context(std::weak_ptr<context> ctx, const actor_address &addr, std::string name)
       : _ctx(ctx), _addr(addr), _name(name) {
-    ENSURE(_addr.to_string() != "null");
-    ENSURE(_addr.to_string() != "");
+    ENSURE(_addr.get_pathname() != "null");
+    ENSURE(_addr.get_pathname() != "");
     ENSURE(_name != "null");
-    ENSURE(_name != _addr.to_string());
+    ENSURE(_name != _addr.get_pathname());
   }
 
   actor_address add_actor(const std::string &actor_name, const actor_ptr a) override {
@@ -262,7 +262,7 @@ actor_address context::add_actor(const std::string &actor_name,
 
 actor_weak context::get_actor(const actor_address &addr) const {
   std::shared_lock<std::shared_mutex> lg(_locker);
-  logger_info("context: get actor #", addr.to_string());
+  logger_info("context: get actor #", addr);
   auto it = _actors.find(addr.get_id());
   actor_weak result;
   if (it != _actors.end()) { // actor may be stopped
@@ -287,9 +287,9 @@ actor_weak context::get_actor(const std::string &name) const {
 
 void context::send_envelope(const actor_address &target, const envelope &e) {
   std::shared_lock<std::shared_mutex> lg(_locker);
-  ENSURE(target.to_string() != "null");
-  ENSURE(e.sender.to_string() != "null");
-  logger_info("context: send to: ", target.to_string());
+  ENSURE(target.get_pathname() != "null");
+  ENSURE(e.sender.get_pathname() != "null");
+  logger_info("context: send to: ", target);
   auto it = _mboxes.find(target.get_id());
   if (it != _mboxes.end()) { // actor may be stopped
     it->second->push(e);
@@ -298,9 +298,9 @@ void context::send_envelope(const actor_address &target, const envelope &e) {
 
 void context::send_envelope(const actor_address &target, const envelope &&e) {
   std::shared_lock<std::shared_mutex> lg(_locker);
-  ENSURE(target.to_string() != "null");
-  ENSURE(e.sender.to_string() != "null");
-  logger_info("context: send to: ", target.to_string());
+  ENSURE(target.get_pathname() != "null");
+  ENSURE(e.sender.get_pathname() != "null");
+  logger_info("context: send to: ", target);
   auto it = _mboxes.find(target.get_id());
   if (it != _mboxes.end()) { // actor may be stopped
     it->second->push(std::move(e));
@@ -377,29 +377,24 @@ void context::on_actor_error(
     const std::shared_ptr<inner::description> target_actor_description,
     actor_ptr parent) {
 
+  auto &target_addr = target_actor_description->address;
+
   switch (action) {
   case actor_action_when_error::REINIT:
-    logger_info("context: on_actor_error ", target_actor_description->address.to_string(),
-                " action: REINIT");
-    stop_actor_impl_safety(target_actor_description->address,
-                           actor_stopping_reason::EXCEPT);
+    logger_info("context: on_actor_error ", target_addr, " action: REINIT");
+    stop_actor_impl_safety(target_addr, actor_stopping_reason::EXCEPT);
     target_actor_description->actor->on_start();
     break;
   case actor_action_when_error::STOP:
-    logger_info("context: on_actor_error ", target_actor_description->address.to_string(),
-                " action: STOP");
-    stop_actor_impl_safety(target_actor_description->address,
-                           actor_stopping_reason::EXCEPT);
+    logger_info("context: on_actor_error ", target_addr, " action: STOP");
+    stop_actor_impl_safety(target_addr, actor_stopping_reason::EXCEPT);
     break;
   case actor_action_when_error::ESCALATE:
-    logger_info("context: on_actor_error ", target_actor_description->address.to_string(),
-                " action: ESCALATE");
+    logger_info("context: on_actor_error ", target_addr, " action: ESCALATE");
     break;
   case actor_action_when_error::RESUME:
-    logger_info("context: on_actor_error ", target_actor_description->address.to_string(),
-                " action: RESUME");
-    parent->on_child_status(target_actor_description->address,
-                            actor_status_kinds::WITH_ERROR);
+    logger_info("context: on_actor_error ", target_addr, " action: RESUME");
+    parent->on_child_status(target_addr, actor_status_kinds::WITH_ERROR);
     break;
   }
 }
