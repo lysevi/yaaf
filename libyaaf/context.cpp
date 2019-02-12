@@ -341,8 +341,8 @@ void context::stop_actor_impl(const actor_address &addr, actor_stopping_reason r
 }
 
 void context::apply_actor_to_mailbox(
-    const std::shared_ptr<inner::description> target_actor_description, const id_t id,
-    actor_ptr parent, std::shared_ptr<mailbox> mb) {
+    const std::shared_ptr<inner::description> target_actor_description, actor_ptr parent,
+    std::shared_ptr<mailbox> mb) {
   logger_info("context: apply ", target_actor_description->name);
   try {
     target_actor_description->actor->apply(*mb);
@@ -355,7 +355,7 @@ void context::apply_actor_to_mailbox(
 
     if (parent != nullptr) {
       auto action = parent->on_child_error(target_actor_description->address);
-      on_actor_error(action, target_actor_description, id);
+      on_actor_error(action, target_actor_description, parent);
     } else {
       this->stop_actor_impl_safety(target_actor_description->address,
                                    actor_stopping_reason::EXCEPT);
@@ -365,17 +365,32 @@ void context::apply_actor_to_mailbox(
 
 void context::on_actor_error(
     actor_action_when_error action,
-    const std::shared_ptr<inner::description> target_actor_description, const id_t id) {
+    const std::shared_ptr<inner::description> target_actor_description,
+    actor_ptr parent) {
+
   switch (action) {
-  case actor_action_when_error::RESTART:
+  case actor_action_when_error::REINIT:
+    logger_info("context: on_actor_error ", target_actor_description->address.to_string(),
+                " action: REINIT");
+    stop_actor_impl_safety(target_actor_description->address,
+                           actor_stopping_reason::EXCEPT);
+    target_actor_description->actor->on_start();
     break;
   case actor_action_when_error::STOP:
+    logger_info("context: on_actor_error ", target_actor_description->address.to_string(),
+                " action: STOP");
     stop_actor_impl_safety(target_actor_description->address,
                            actor_stopping_reason::EXCEPT);
     break;
   case actor_action_when_error::ESCALATE:
+    logger_info("context: on_actor_error ", target_actor_description->address.to_string(),
+                " action: ESCALATE");
     break;
   case actor_action_when_error::RESUME:
+    logger_info("context: on_actor_error ", target_actor_description->address.to_string(),
+                " action: RESUME");
+    parent->on_child_status(target_actor_description->address,
+                            actor_status_kinds::WITH_ERROR);
     break;
   }
 }
@@ -398,7 +413,6 @@ void context::mailbox_worker() {
         continue;
       }
 
-      auto id = it->first;
       auto target_actor_description = it->second;
 
       if (target_actor_description->actor->try_lock()) {
@@ -411,8 +425,8 @@ void context::mailbox_worker() {
             parent = _actors[target_actor_description->parent]->actor;
           }
 
-          user_post([this, target_actor_description, id, parent, mb]() {
-            this->apply_actor_to_mailbox(target_actor_description, id, parent, mb);
+          user_post([this, target_actor_description, parent, mb]() {
+            this->apply_actor_to_mailbox(target_actor_description, parent, mb);
           });
         }
       }

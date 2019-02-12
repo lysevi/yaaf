@@ -77,12 +77,12 @@ private:
            CONTINUATION_STRATEGY strategy = CONTINUATION_STRATEGY::SINGLE);
 
   void apply_actor_to_mailbox(
-      const std::shared_ptr<inner::description> target_actor_description, const id_t id,
+      const std::shared_ptr<inner::description> target_actor_description,
       actor_ptr parent, std::shared_ptr<mailbox> mb);
 
   void on_actor_error(actor_action_when_error action,
                       const std::shared_ptr<inner::description> target_actor_description,
-                      const id_t id);
+                      actor_ptr parent);
 
 private:
   params_t _params;

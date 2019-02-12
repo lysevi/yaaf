@@ -123,6 +123,9 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
       is_on_init_called = true;
       return yaaf::base_actor::on_init(bs);
     }
+
+    void on_start() override { is_on_start_called = true; }
+
     void on_stop() override {
       is_on_stop_called = true;
       yaaf::base_actor::on_stop();
@@ -132,6 +135,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
 
     bool is_on_init_called = false;
     bool is_on_stop_called = false;
+    bool is_on_start_called = false;
   };
 
   class root_a : public yaaf::base_actor {
@@ -140,6 +144,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
     root_a() {}
 
     yaaf::actor_action_when_error on_child_error(const actor_address &addr) {
+      UNUSED(addr);
       return on_error_flag;
     }
 
@@ -271,6 +276,45 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
       EXPECT_EQ(root_ptr_raw->stopped.size(), size_t(3));
       for (auto &kv : root_ptr_raw->stopped) {
         EXPECT_EQ(kv.second, yaaf::actor_stopping_reason::EXCEPT);
+      }
+    }
+
+    SECTION("context. actor_action_when_error::REINIT") {
+      for (auto &c : children_actors) {
+        dynamic_cast<child1_a *>(c.get())->is_on_start_called = false;
+      }
+
+      raw_ptr->on_error_flag = yaaf::actor_action_when_error::REINIT;
+
+      for (auto c : children_addresses) {
+        ctx->send(c, std::string("bad cast"));
+      }
+
+      bool is_end = false;
+      while (!is_end) {
+        is_end = std::all_of(
+            children_actors.begin(), children_actors.end(),
+            [](const yaaf::actor_ptr &aptr) {
+              return dynamic_cast<const child1_a *>(aptr.get())->is_on_start_called;
+            });
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        logger_info("wait while all childs is not restarted...");
+      }
+    }
+    SECTION("context. actor_action_when_error::RESUME") {
+      raw_ptr->on_error_flag = yaaf::actor_action_when_error::RESUME;
+      for (auto c : children_addresses) {
+        ctx->send(c, std::string("bad cast"));
+      }
+
+      while (root_ptr_raw->statuses_count != children_addresses.size()) {
+        logger_info("wait while all childs is not called...");
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+      }
+
+      for (auto &ac : children_actors) {
+        EXPECT_TRUE(ac->status().kind == yaaf::actor_status_kinds::WITH_ERROR);
       }
     }
   }

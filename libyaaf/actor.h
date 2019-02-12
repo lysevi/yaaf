@@ -13,7 +13,7 @@ class abstract_context;
 
 enum class actor_status_kinds { NORMAL, WITH_ERROR, STOPED };
 enum class actor_stopping_reason { MANUAL, EXCEPT };
-enum class actor_action_when_error { RESTART, STOP, ESCALATE, RESUME };
+enum class actor_action_when_error { REINIT, STOP, ESCALATE, RESUME };
 
 class base_actor : public std::enable_shared_from_this<base_actor> {
 public:
