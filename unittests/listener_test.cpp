@@ -65,7 +65,7 @@ std::shared_ptr<Listener> lstnr = nullptr;
 boost::asio::io_service *service;
 
 void server_thread() {
-  network::listener::params p;
+  network::listener::params_t p;
   p.port = 4040;
   service = new boost::asio::io_service();
 
@@ -90,7 +90,7 @@ void server_thread() {
 
 TEST_CASE("listener.client", "[network]") {
   size_t clients_count = 0;
-  network::connection::params p("localhost", 4040);
+  network::connection::params_t p("localhost", 4040);
 
   SECTION("listener.client: 1") { clients_count = 1; }
   SECTION("listener.client: 10") { clients_count = 10; }

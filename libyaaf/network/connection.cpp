@@ -22,7 +22,7 @@ void abstract_connection_consumer::add_connection(std::shared_ptr<connection> c)
   _connection = c;
 }
 
-connection::connection(boost::asio::io_service *service, const params &params)
+connection::connection(boost::asio::io_service *service, const params_t &params)
     : _service(service), _params(params), _consumers() {}
 
 connection::~connection() {

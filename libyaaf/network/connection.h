@@ -33,17 +33,17 @@ using abstract_connection_consumer_ptr = abstract_connection_consumer *;
 class connection : public std::enable_shared_from_this<connection>,
                    public utils::initialized_resource {
 public:
-  struct params {
-    params(std::string host_, unsigned short port_, bool auto_reconnection_ = true)
+  struct params_t {
+    params_t(std::string host_, unsigned short port_, bool auto_reconnection_ = true)
         : host(host_), port(port_), auto_reconnection(auto_reconnection_) {}
     std::string host;
     unsigned short port;
     bool auto_reconnection = true;
   };
   connection() = delete;
-  params get_params() const { return _params; }
+  params_t get_params() const { return _params; }
 
-  EXPORT connection(boost::asio::io_service *service, const params &_parms);
+  EXPORT connection(boost::asio::io_service *service, const params_t &_parms);
   EXPORT virtual ~connection();
   EXPORT void disconnect();
   EXPORT void start_async_connection();
@@ -58,7 +58,7 @@ public:
 protected:
   std::shared_ptr<async_io> _async_io = nullptr;
   boost::asio::io_service *_service = nullptr;
-  params _params;
+  params_t _params;
 
   abstract_connection_consumer_ptr _consumers;
 };

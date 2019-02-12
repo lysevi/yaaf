@@ -37,13 +37,13 @@ using abstract_listener_consumer_ptr = abstract_listener_consumer *;
 class listener : public std::enable_shared_from_this<listener>,
                  public utils::initialized_resource {
 public:
-  struct params {
+  struct params_t {
     unsigned short port;
   };
   listener() = delete;
   listener(const listener &) = delete;
 
-  EXPORT listener(boost::asio::io_service *service, params p);
+  EXPORT listener(boost::asio::io_service *service, params_t p);
   EXPORT virtual ~listener();
   EXPORT void start();
   EXPORT void stop();
@@ -84,7 +84,7 @@ protected:
   std::mutex _locker_connections;
   std::list<listener_client_ptr> _connections;
 
-  params _params;
+  params_t _params;
 };
 } // namespace network
 } // namespace yaaf

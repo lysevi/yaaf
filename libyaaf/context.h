@@ -5,6 +5,10 @@
 #include <libyaaf/exports.h>
 #include <libyaaf/types.h>
 #include <libyaaf/utils/async/thread_manager.h>
+#if YAAF_NETWORK_ENABLED
+#include <libyaaf/network/connection.h>
+#include <libyaaf/network/listener.h>
+#endif
 
 #include <memory>
 #include <shared_mutex>
@@ -21,6 +25,11 @@ struct description {
   std::string name;
   id_t parent;
   std::unordered_set<id_t> children;
+
+#if YAAF_NETWORK_ENABLED
+  std::vector<yaaf::network::listener::params_t> listeners_params;
+  std::vector<yaaf::network::connection::params_t> connection_params;
+#endif
 };
 } // namespace inner
 
