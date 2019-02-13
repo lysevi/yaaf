@@ -99,50 +99,47 @@ struct login_failed {
 };
 
 template <typename T> struct packed_message {
-  uint64_t id;
-  uint64_t asyncOperationid;
-  uint64_t clientid;
+  std::string actorname;
   T msg;
-  using BinaryRW = serialization::binary_io<uint64_t, uint64_t, uint64_t>;
 
-  packed_message(uint64_t id_, id_t asyncOperationid_, id_t client, const T &msg_) {
-    id = id_;
+  using BinaryRW = serialization::binary_io<std::string>;
+
+  packed_message(const std::string &actorname_, const T &msg_) {
+    actorname = actorname_;
     msg = msg_;
-    clientid = client.value;
-    asyncOperationid = asyncOperationid_.value;
   }
 
-  packed_message(uint64_t id_, id_t asyncOperationid_, id_t client, T &&msg_)
-      : id(id_), msg(std::move(msg_)), clientid(client.value),
-        asyncOperationid(asyncOperationid_.value) {}
+  packed_message(const std::string &actorname_, T &&msg_)
+      : actorname(actorname_), msg(std::move(msg_)) {}
 
   packed_message(const network::message_ptr &nd) {
     auto iterator = nd->value();
-    BinaryRW::read(iterator, id, asyncOperationid, clientid);
-    msg = serialization::object_packer<T>::unpack(
-        iterator + BinaryRW::capacity(id, asyncOperationid, clientid));
+    BinaryRW::read(iterator, actorname);
+    msg =
+        serialization::object_packer<T>::unpack(iterator + BinaryRW::capacity(actorname));
   }
 
   packed_message(network::message_ptr &&nd) {
     auto iterator = nd->value();
-    BinaryRW::read(iterator, id, asyncOperationid, clientid);
-    msg = serialization::object_packer<T>::unpack(
-        iterator + BinaryRW::capacity(id, asyncOperationid, clientid));
+    BinaryRW::read(iterator, actorname);
+    msg =
+        serialization::object_packer<T>::unpack(iterator + BinaryRW::capacity(actorname));
   }
 
   network::message_ptr get_message() const {
-    auto self_size = BinaryRW::capacity(id, asyncOperationid, clientid);
+    auto self_size = BinaryRW::capacity(actorname);
     network::message::size_t neededSize = static_cast<network::message::size_t>(
         self_size + serialization::object_packer<T>::capacity(msg));
 
-    auto nd = std::make_shared<network::message>(
-        neededSize, (network::message::kind_t)messagekinds::MSG);
+    auto nd = std::make_shared<network::message>(network::message::size_t(self_size) + neededSize,
+                                           (network::message::kind_t)messagekinds::MSG);
 
-    BinaryRW::write(nd->value(), id, asyncOperationid, clientid);
+    BinaryRW::write(nd->value(), actorname);
     serialization::object_packer<T>::pack(nd->value() + self_size, msg);
     return nd;
   }
 };
+
 } // namespace queries
 } // namespace network
 } // namespace yaaf

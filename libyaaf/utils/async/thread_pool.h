@@ -51,7 +51,7 @@ protected:
   task_queue_t _in_queue;
   mutable std::shared_mutex _queue_mutex;
   std::condition_variable_any _condition;
-  bool _stop_flag;                 // true - pool under stop.
+  std::atomic_bool _stop_flag;         // true - pool under stop.
   bool _is_stoped;                 // true - already stopped.
   std::atomic_size_t _task_runned; // count of runned tasks.
 };

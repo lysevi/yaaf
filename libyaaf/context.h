@@ -31,6 +31,13 @@ struct description {
 using yaaf::utils::async::CONTINUATION_STRATEGY;
 using yaaf::utils::async::task_result_ptr;
 
+#ifdef YAAF_NETWORK_ENABLED
+struct network_message {
+  std::string name;
+  std::vector<unsigned char> data;
+};
+#endif
+
 class context : public abstract_context, public std::enable_shared_from_this<context> {
 public:
   using abstract_context::add_actor;
@@ -125,8 +132,6 @@ private:
       _network_con_consumers;
 
   std::vector<std::shared_ptr<network::listener>> _network_listeners;
-  std::vector<std::shared_ptr<yaaf::network::abstract_listener_consumer>>
-      _network_lst_consumers;
 #endif
 };
 

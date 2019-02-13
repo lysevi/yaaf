@@ -1,4 +1,5 @@
 #include <libyaaf/context.h>
+#include <libyaaf/network/queries.h>
 #include <libyaaf/utils/logger.h>
 #include <unordered_set>
 
@@ -167,8 +168,7 @@ void context::start() {
 
 void context::stop() {
   logger_info("context: stoping....");
-
-  std::lock_guard<std::shared_mutex> lg(_locker);
+  _stopping_begin = true;
 
 #ifdef YAAF_NETWORK_ENABLED
   logger_info("context: network stopping");
@@ -181,16 +181,20 @@ void context::stop() {
     l->stop();
     l->wait_stoping();
   }
-  _network_listeners.clear();
+
   _stopping_begin = true;
   for (auto &&t : _net_threads) {
     t.join();
   }
 #endif
-  _stopping_begin = true;
 
   _thread_manager->stop();
   _thread_manager = nullptr;
+
+  std::lock_guard<std::shared_mutex> lg(_locker);
+#ifdef YAAF_NETWORK_ENABLED
+  _network_listeners.clear();
+#endif
 
   logger_info("context: threads pools stopped.");
 
@@ -478,27 +482,39 @@ void context::mailbox_worker() {
 }
 
 #ifdef YAAF_NETWORK_ENABLED
+
+namespace yaaf {
+namespace serialization {
+template <> struct object_packer<network_message> {
+  using Scheme = yaaf::serialization::binary_io<std::string, std::vector<unsigned char>>;
+
+  static size_t capacity(const network_message &t) {
+    return Scheme::capacity(t.name, t.data);
+  }
+
+  template <class Iterator> static void pack(Iterator it, const network_message t) {
+    Scheme::write(it, t.name, t.data);
+  }
+
+  template <class Iterator> static network_message unpack(Iterator ii) {
+    network_message t{};
+    Scheme::read(ii, t.name, t.data);
+    return t;
+  }
+};
+} // namespace serialization
+} // namespace yaaf
+
 namespace {
 class network_actor : public base_actor {
 public:
   void action_handle(const envelope &e) { UNUSED(e); }
 };
 
-class network_lst_actor : public base_actor {
+class network_lst_actor : public base_actor,
+                          public yaaf::network::abstract_listener_consumer {
 public:
   void action_handle(const envelope &e) { UNUSED(e); }
-};
-
-class network_con_actor : public base_actor {
-public:
-  void action_handle(const envelope &e) { UNUSED(e); }
-};
-
-struct listener_consumer : public yaaf::network::abstract_listener_consumer {
-  listener_consumer(context *parent_context_, actor_address a_addr_) {
-    _a_addr = a_addr_;
-    _parent_context = parent_context_;
-  }
 
   bool on_new_connection(yaaf::network::listener_client_ptr c) override { return true; }
 
@@ -506,13 +522,38 @@ struct listener_consumer : public yaaf::network::abstract_listener_consumer {
                         const network::message_ptr & /*d*/,
                         const boost::system::error_code & /*err*/) override {}
 
-  void on_new_message(yaaf::network::listener_client_ptr i, network::message_ptr && /*d*/,
-                      bool & /*cancel*/) override {}
+  void on_new_message(yaaf::network::listener_client_ptr i, network::message_ptr &&d,
+                      bool & /*cancel*/) override {
+    if (d->get_header()->kind == (network::message::kind_t)network::messagekinds::MSG) {
+      network::queries::packed_message<network_message> nm(d);
+      auto ctx = get_context();
+      if (ctx != nullptr) {
+        auto actor_ = ctx->get_actor(nm.actorname);
+        if (auto sp = actor_.lock()) {
+          ctx->send(sp->self_addr(), nm.msg);
+        } else {
+          logger_fatal("context: listener - cannot get actor ", nm.actorname);
+        }
+      }
+    }
+  }
 
   void on_disconnect(const yaaf::network::listener_client_ptr & /*i*/) override {}
+};
 
-  context *_parent_context;
-  actor_address _a_addr;
+class network_con_actor : public base_actor {
+public:
+  network_con_actor(std::shared_ptr<yaaf::network::connection> con_) { _con = con_; }
+
+  void action_handle(const envelope &e) {
+    network_message nm = e.payload.cast<network_message>();
+    yaaf::network::queries::packed_message<yaaf::network_message> pm(nm.name, nm);
+
+    _con->send_async(pm.get_message());
+  }
+
+private:
+  std::shared_ptr<yaaf::network::connection> _con;
 };
 
 struct connection_sonsumer : public yaaf::network::abstract_connection_consumer {
@@ -560,13 +601,10 @@ void context::network_init() {
   for (auto lp : _params.listeners_params) {
     logger_info("context: start listener on ", lp.port);
     auto l = std::make_shared<network::listener>(&this->_net_service, lp);
-    auto lactor = this->add_actor("listen_" + std::to_string(lp.port), _net_root,
-                                  std::make_shared<network_lst_actor>());
+    auto saptr = std::make_shared<network_lst_actor>();
+    auto lactor = this->add_actor("listen_" + std::to_string(lp.port), _net_root, saptr);
 
-    auto cs = std::shared_ptr<yaaf::network::abstract_listener_consumer>(
-        new listener_consumer(this, lactor));
-    _network_lst_consumers.push_back(cs);
-    l->add_consumer(cs.get());
+    l->add_consumer(saptr.get());
     l->start();
     l->wait_starting();
     _network_listeners.emplace_back(l);
@@ -575,12 +613,13 @@ void context::network_init() {
   for (auto lp : _params.connection_params) {
     logger_info("context: connecting to ", lp.host, ':', lp.port);
     auto l = std::make_shared<network::connection>(&this->_net_service, lp);
+    auto actor_name = lp.host + ':' + std::to_string(lp.port);
+    auto lactor =
+        this->add_actor(actor_name, _net_root, std::make_shared<network_con_actor>(l));
 
-    auto lactor = this->add_actor(lp.host + ':' + std::to_string(lp.port), _net_root,
-                                  std::make_shared<network_con_actor>());
-
-    auto cs = std::shared_ptr<yaaf::network::abstract_connection_consumer>(
+    auto cs = std::shared_ptr<network::abstract_connection_consumer>(
         new connection_sonsumer(this, lactor));
+
     _network_con_consumers.push_back(cs);
     l->add_consumer(cs.get());
     l->start_async_connection();
