@@ -100,7 +100,7 @@ TEST_CASE("context. actor_start_stop", "[context]") {
 
   auto testable_a_ptr = dynamic_cast<testable_actor *>(aptr.get());
 
-  while (!testable_a_ptr->is_on_init_called) {
+  while (!testable_a_ptr->is_on_init_called && testable_a_ptr->is_on_start_called) {
     logger_info("wait while the testable_actor was not started...");
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
@@ -499,9 +499,13 @@ TEST_CASE("context. ping-pong", "[context]") {
                    [](auto a) { return a->pings.load(); });
 
     if (!pings_count.empty()) {
-      bool is_eq =
-          std::equal(pings_count.cbegin(), pings_count_cur.cbegin(), pings_count.cend());
-      EXPECT_FALSE(is_eq);
+      int eq_cnt = 0;
+      for (size_t i = 0; i < pings_count.size(); ++i) {
+        if (pings_count.at(i) == pings_count_cur.at(i)) {
+          eq_cnt++;
+        }
+      }
+      EXPECT_NE(eq_cnt, pings_count.size());
     }
     pings_count = std::move(pings_count_cur);
     auto all_more_than_100 = std::all_of(pings_count.cbegin(), pings_count.cend(),
