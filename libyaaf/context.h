@@ -32,10 +32,16 @@ using yaaf::utils::async::CONTINUATION_STRATEGY;
 using yaaf::utils::async::task_result_ptr;
 
 #ifdef YAAF_NETWORK_ENABLED
-struct network_message {
+struct network_actor_message {
   std::string name;
   std::vector<unsigned char> data;
 };
+
+struct listener_message {
+  uint64_t sender;
+  network_actor_message msg;
+};
+
 #endif
 
 class context : public abstract_context, public std::enable_shared_from_this<context> {
@@ -128,8 +134,6 @@ private:
 
   std::vector<std::thread> _net_threads;
   std::vector<std::shared_ptr<network::connection>> _network_connections;
-  std::vector<std::shared_ptr<network::abstract_connection_consumer>>
-      _network_con_consumers;
 
   std::vector<std::shared_ptr<network::listener>> _network_listeners;
 #endif
