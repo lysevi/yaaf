@@ -72,12 +72,12 @@ void listener::OnAcceptHandler(std::shared_ptr<listener> self, network::async_io
       aio->fullStop();
       return;
     } else {
-      THROW_EXCEPTION("yaaf::server: error on accept - ", err.message());
+      THROW_EXCEPTION("listener: error on accept - ", err.message());
     }
   } else {
     ENSURE(!self->is_stoped());
 
-    logger_info("server: accept connection.");
+    logger_info("listener: accept connection");
     std::shared_ptr<listener_client> new_client = nullptr;
     {
       std::lock_guard<std::mutex> lg(self->_locker_connections);
@@ -90,13 +90,13 @@ void listener::OnAcceptHandler(std::shared_ptr<listener> self, network::async_io
       connectionAccepted = self->_consumer->on_new_connection(new_client);
     }
     if (true == connectionAccepted) {
-      logger_info("server: connection was accepted.");
+      logger_info("listener: connection was accepted.");
       std::lock_guard<std::mutex> lg(self->_locker_connections);
       new_client->start();
-      logger_info("server: client connection started.");
+      logger_info("listener: client connection started.");
       self->_connections.push_back(new_client);
     } else {
-      logger_info("server: connection was not accepted.");
+      logger_info("listener: connection was not accepted.");
       aio->fullStop();
     }
   }
@@ -121,7 +121,7 @@ void listener::stop() {
     auto local_copy = [this]() {
       std::lock_guard<std::mutex> lg(_locker_connections);
       return std::vector<std::shared_ptr<listener_client>>(_connections.begin(),
-                                                          _connections.end());
+                                                           _connections.end());
     }();
 
     for (auto con : local_copy) {
@@ -167,7 +167,7 @@ void listener::send_to(id_t id, message_ptr &d) {
       return;
     }
   }
-  THROW_EXCEPTION("server: unknow client #", id);
+  THROW_EXCEPTION("listener: unknow client #", id);
 }
 
 void listener::sendOk(listener_client_ptr i, uint64_t messageid) {
@@ -185,14 +185,14 @@ void listener::erase_consumer() {
 }
 
 void listener::on_network_error(listener_client_ptr i, const network::message_ptr &d,
-                              const boost::system::error_code &err) {
+                                const boost::system::error_code &err) {
   if (_consumer != nullptr) {
     _consumer->on_network_error(i, d, err);
   }
 }
 
-void listener::on_new_message(listener_client_ptr i, network::message_ptr&&d,
-                            bool &cancel) {
+void listener::on_new_message(listener_client_ptr i, network::message_ptr &&d,
+                              bool &cancel) {
   if (_consumer != nullptr) {
     _consumer->on_new_message(i, std::move(d), cancel);
   }

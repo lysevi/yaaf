@@ -25,11 +25,6 @@ struct description {
   std::string name;
   id_t parent;
   std::unordered_set<id_t> children;
-
-#if YAAF_NETWORK_ENABLED
-  std::vector<yaaf::network::listener::params_t> listeners_params;
-  std::vector<yaaf::network::connection::params_t> connection_params;
-#endif
 };
 } // namespace inner
 
@@ -45,9 +40,14 @@ public:
 
   struct params_t {
     EXPORT static params_t defparams();
-
     size_t user_threads;
     size_t sys_threads;
+
+#if YAAF_NETWORK_ENABLED
+    size_t network_threads;
+    std::vector<yaaf::network::listener::params_t> listeners_params;
+    std::vector<yaaf::network::connection::params_t> connection_params;
+#endif
   };
 
   EXPORT static std::shared_ptr<context> make_context(std::string name = "");
@@ -93,6 +93,8 @@ private:
                       const std::shared_ptr<inner::description> target_actor_description,
                       actor_ptr parent);
 
+  void network_init();
+
 private:
   params_t _params;
   std::string _name;
@@ -111,6 +113,21 @@ private:
   actor_address _root;
   actor_address _usr_root;
   actor_address _sys_root;
+
+#if YAAF_NETWORK_ENABLED
+  actor_address _net_root;
+
+  boost::asio::io_service _net_service;
+
+  std::vector<std::thread> _net_threads;
+  std::vector<std::shared_ptr<network::connection>> _network_connections;
+  std::vector<std::shared_ptr<network::abstract_connection_consumer>>
+      _network_con_consumers;
+
+  std::vector<std::shared_ptr<network::listener>> _network_listeners;
+  std::vector<std::shared_ptr<yaaf::network::abstract_listener_consumer>>
+      _network_lst_consumers;
+#endif
 };
 
 } // namespace yaaf

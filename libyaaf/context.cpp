@@ -11,6 +11,7 @@ std::atomic_size_t context::_ctx_id = {0};
 namespace {
 const thread_kind_t USER = 1;
 const thread_kind_t SYSTEM = 2;
+const thread_kind_t NETWORK = 3;
 
 class user_context : public abstract_context {
 public:
@@ -109,6 +110,9 @@ context::params_t context::params_t::defparams() {
   context::params_t r{};
   r.user_threads = 1;
   r.sys_threads = 1;
+#if YAAF_NETWORK_ENABLED
+  r.network_threads = 1;
+#endif
   return r;
 }
 
@@ -128,6 +132,9 @@ context::context(const context::params_t &p, std::string name)
   std::vector<threads_pool::params_t> pools{
       threads_pool::params_t(_params.user_threads, USER),
       threads_pool::params_t(_params.sys_threads, SYSTEM)};
+#ifdef YAAF_NETWORK_ENABLED
+  pools.emplace_back(_params.network_threads, NETWORK);
+#endif
   thread_manager::params_t tparams(pools);
   if (name == "") {
     auto self_id = _ctx_id.fetch_add(1);
@@ -154,6 +161,8 @@ void context::start() {
   _root = make_actor<root_actor>("root");
   _usr_root = this->add_actor("usr", _root, std::make_shared<usr_actor>());
   _sys_root = this->add_actor("sys", _root, std::make_shared<sys_actor>());
+
+  network_init();
 }
 
 void context::stop() {
@@ -163,7 +172,22 @@ void context::stop() {
 
   _thread_manager->stop();
   _thread_manager = nullptr;
+#ifdef YAAF_NETWORK_ENABLED
+  logger_info("context: network stopping");
+  for (auto l : _network_connections) {
+    l->disconnect();
+    l->wait_stoping();
+  }
 
+  for (auto l : _network_listeners) {
+    l->stop();
+    l->wait_stoping();
+  }
+  _network_listeners.clear();
+  for (auto &&t : _net_threads) {
+    t.join();
+  }
+#endif
   logger_info("context: threads pools stopped.");
 
   for (auto kv : _actors) {
@@ -400,8 +424,6 @@ void context::on_actor_error(
 }
 
 void context::mailbox_worker() {
-  logger_info("context: mailbox_worker");
-
   if (!_locker.try_lock_shared()) {
     return;
   }
@@ -428,7 +450,7 @@ void context::mailbox_worker() {
           if (!target_actor_description->parent.empty()) {
             parent = _actors[target_actor_description->parent]->actor;
           }
-
+          logger_info("context: push to run queue #", target_actor_description->address);
           user_post([this, target_actor_description, parent, mb]() {
             this->apply_actor_to_mailbox(target_actor_description, parent, mb);
           });
@@ -450,3 +472,91 @@ void context::mailbox_worker() {
 
   // TODO need a sleeping?
 }
+
+#ifdef YAAF_NETWORK_ENABLED
+namespace {
+struct listener_consumer : public yaaf::network::abstract_listener_consumer {
+  listener_consumer(context *parent_context_) { _parent_context = parent_context_; }
+  bool on_new_connection(yaaf::network::listener_client_ptr c) override { return true; }
+
+  void on_network_error(yaaf::network::listener_client_ptr i,
+                        const network::message_ptr & /*d*/,
+                        const boost::system::error_code & /*err*/) override {}
+
+  void on_new_message(yaaf::network::listener_client_ptr i, network::message_ptr && /*d*/,
+                      bool & /*cancel*/) override {}
+
+  void on_disconnect(const yaaf::network::listener_client_ptr & /*i*/) override {}
+
+  context *_parent_context;
+};
+
+struct connection_sonsumer : public yaaf::network::abstract_connection_consumer {
+  connection_sonsumer(context *parent_context_) { _parent_context = parent_context_; }
+
+  void on_connect() override{};
+  void on_new_message(yaaf::network::message_ptr &&, bool &) override {}
+  void on_network_error(const yaaf::network::message_ptr &,
+                        const boost::system::error_code &err) override {
+    bool isError = err == boost::asio::error::operation_aborted ||
+                   err == boost::asio::error::connection_reset ||
+                   err == boost::asio::error::eof;
+    if (isError && !is_stoped()) {
+      auto msg = err.message();
+      yaaf::utils::logging::logger_fatal(msg);
+    }
+  }
+
+  context *_parent_context;
+};
+
+class network_actor : public base_actor {
+public:
+  void action_handle(const envelope &e) { UNUSED(e); }
+};
+
+} // namespace
+void context::network_init() {
+  logger_info("context: network init...");
+
+  _net_root = this->add_actor("net", _root, std::make_shared<network_actor>());
+
+  if (_params.listeners_params.empty() && _params.connection_params.empty()) {
+    logger_info("context: network params is empty.");
+    return;
+  }
+
+  for (int i = 0; i < _params.network_threads; ++i) {
+    _net_threads.emplace_back([this]() {
+      while (!this->is_stopping_begin()) {
+        this->_net_service.poll_one();
+      }
+    });
+  }
+
+  for (auto lp : _params.listeners_params) {
+    logger_info("context: start listener on ", lp.port);
+    auto l = std::make_shared<network::listener>(&this->_net_service, lp);
+    auto cs = std::shared_ptr<yaaf::network::abstract_listener_consumer>(
+        new listener_consumer(this));
+    _network_lst_consumers.push_back(cs);
+    l->add_consumer(cs.get());
+    l->start();
+    l->wait_starting();
+    _network_listeners.emplace_back(l);
+  }
+
+  for (auto lp : _params.connection_params) {
+    logger_info("context: connecting to ", lp.host, ':', lp.port);
+    auto l = std::make_shared<network::connection>(&this->_net_service, lp);
+    auto cs = std::shared_ptr<yaaf::network::abstract_connection_consumer>(
+        new connection_sonsumer(this));
+    _network_con_consumers.push_back(cs);
+    l->add_consumer(cs.get());
+    l->start_async_connection();
+    _network_connections.emplace_back(l);
+  }
+}
+#else
+void context::network_init() {}
+#endif
