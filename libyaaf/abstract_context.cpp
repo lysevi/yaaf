@@ -4,6 +4,4 @@
 
 using namespace yaaf;
 
-
-abstract_context::~abstract_context() {
-}
+abstract_context::~abstract_context() {}
