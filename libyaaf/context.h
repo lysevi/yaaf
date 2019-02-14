@@ -8,6 +8,7 @@
 #if YAAF_NETWORK_ENABLED
 #include <libyaaf/network/connection.h>
 #include <libyaaf/network/listener.h>
+#include <libyaaf/serialization/serialization.h>
 #endif
 
 #include <memory>
@@ -32,15 +33,36 @@ using yaaf::utils::async::CONTINUATION_STRATEGY;
 using yaaf::utils::async::task_result_ptr;
 
 #ifdef YAAF_NETWORK_ENABLED
+
 struct network_actor_message {
   std::string name;
   std::vector<unsigned char> data;
 };
 
-struct listener_message {
-  uint64_t sender;
-  network_actor_message msg;
+struct listener_actor_message {
+  uint64_t sender_id;
+  std::string name;
+  std::vector<unsigned char> data;
 };
+
+template <> struct serialization::object_packer<network_actor_message> {
+  using Scheme = yaaf::serialization::binary_io<std::string, std::vector<unsigned char>>;
+
+  static size_t capacity(const network_actor_message &t) {
+    return Scheme::capacity(t.name, t.data);
+  }
+
+  template <class Iterator> static void pack(Iterator it, const network_actor_message t) {
+    Scheme::write(it, t.name, t.data);
+  }
+
+  template <class Iterator> static network_actor_message unpack(Iterator ii) {
+    network_actor_message t{};
+    Scheme::read(ii, t.name, t.data);
+    return t;
+  }
+};
+
 
 #endif
 

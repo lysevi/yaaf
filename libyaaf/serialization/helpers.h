@@ -15,7 +15,7 @@ template <class T> std::enable_if_t<std::is_pod_v<T>, size_t> size(const T &) no
 }
 
 inline size_t size(const std::string &s) noexcept {
-  return sizeof(uint32_t) + s.length();
+  return sizeof(uint32_t) + s.size();
 }
 
 inline size_t size(const std::vector<uint8_t> &s) noexcept {

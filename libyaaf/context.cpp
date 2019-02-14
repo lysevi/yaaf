@@ -483,48 +483,7 @@ void context::mailbox_worker() {
 
 #ifdef YAAF_NETWORK_ENABLED
 
-namespace yaaf {
-namespace serialization {
-template <> struct object_packer<network_actor_message> {
-  using Scheme = yaaf::serialization::binary_io<std::string, std::vector<unsigned char>>;
 
-  static size_t capacity(const network_actor_message &t) {
-    return Scheme::capacity(t.name, t.data);
-  }
-
-  template <class Iterator> static void pack(Iterator it, const network_actor_message t) {
-    Scheme::write(it, t.name, t.data);
-  }
-
-  template <class Iterator> static network_actor_message unpack(Iterator ii) {
-    network_actor_message t{};
-    Scheme::read(ii, t.name, t.data);
-    return t;
-  }
-};
-
-template <> struct object_packer<listener_message> {
-  using Scheme = yaaf::serialization::binary_io<uint64_t>;
-
-  static size_t capacity(const listener_message &t) {
-    return Scheme::capacity(t.sender) +
-           object_packer<network_actor_message>::capacity(t.msg);
-  }
-
-  template <class Iterator> static void pack(Iterator it, const listener_message t) {
-    Scheme::write(it, t.sender);
-    object_packer<network_actor_message>::pack(it + Scheme::capacity(t.sender), t);
-  }
-
-  template <class Iterator> static listener_message unpack(Iterator ii) {
-    listener_message t{};
-    Scheme::read(ii, t.sender);
-    object_packer<network_actor_message>::pack(it + Scheme::capacity(t.sender), t.msg);
-    return t;
-  }
-};
-} // namespace serialization
-} // namespace yaaf
 
 namespace {
 class network_actor : public base_actor {
@@ -536,11 +495,13 @@ class network_lst_actor : public base_actor,
                           public yaaf::network::abstract_listener_consumer {
 public:
   void action_handle(const envelope &e) {
-    auto lm = e.payload.cast<listener_message>();
-    yaaf::network::queries::packed_message<yaaf::network_actor_message> pm(lm.msg.name,
-                                                                           lm.msg);
+    auto lm = e.payload.cast<listener_actor_message>();
+    network_actor_message nam;
+    nam.data = lm.data;
+    nam.name = lm.name;
+    yaaf::network::queries::packed_message<yaaf::network_actor_message> pm(nam);
     auto msg_ptr = pm.get_message();
-    send_to(lm.sender, msg_ptr);
+    send_to(lm.sender_id, msg_ptr);
   }
 
   bool on_new_connection(yaaf::network::listener_client_ptr c) override { return true; }
@@ -555,14 +516,15 @@ public:
       network::queries::packed_message<network_actor_message> nm(d);
       auto ctx = get_context();
       if (ctx != nullptr) {
-        auto actor_ = ctx->get_actor(nm.actorname);
+        auto actor_ = ctx->get_actor(nm.msg.name);
         if (auto sp = actor_.lock()) {
-          listener_message lm;
-          lm.msg = nm.msg;
-          lm.sender = i->get_id().value;
+          listener_actor_message lm;
+          lm.name = nm.msg.name;
+          lm.data = nm.msg.data;
+          lm.sender_id = i->get_id().value;
           ctx->send(sp->self_addr(), lm);
         } else {
-          logger_fatal("context: listener - cannot get actor ", nm.actorname);
+          logger_fatal("context: listener - cannot get actor ", nm.msg.name);
         }
       }
     }
@@ -578,7 +540,7 @@ public:
 
   void action_handle(const envelope &e) {
     network_actor_message nm = e.payload.cast<network_actor_message>();
-    yaaf::network::queries::packed_message<yaaf::network_actor_message> pm(nm.name, nm);
+    yaaf::network::queries::packed_message<yaaf::network_actor_message> pm(nm);
 
     _con->send_async(pm.get_message());
   }
@@ -590,11 +552,11 @@ public:
       network::queries::packed_message<network_actor_message> nm(d);
       auto ctx = get_context();
       if (ctx != nullptr) {
-        auto target_actor = ctx->get_actor(nm.actorname);
+        auto target_actor = ctx->get_actor(nm.msg.name);
         if (auto sp = target_actor.lock()) {
           ctx->send(sp->self_addr(), nm.msg);
         } else {
-          logger_fatal("context: connection - cannot get actor ", nm.actorname);
+          logger_fatal("context: connection - cannot get actor ", nm.msg.name);
         }
       }
     }

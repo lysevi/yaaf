@@ -35,14 +35,17 @@ public:
   }
 
   message(size_t sz) {
-    ENSURE((sz + SIZE_OF_SIZE) < MAX_MESSAGE_SIZE);
+    ENSURE((sz + SIZE_OF_SIZE + SIZE_OF_HEADER) < MAX_MESSAGE_SIZE);
     auto realSize = static_cast<size_t>(sz + SIZE_OF_SIZE);
     std::fill(std::begin(data), std::end(data), uint8_t(0));
     size = (size_t *)data.data();
     *size = realSize;
   }
 
-  message(size_t sz, const kind_t &kind_) : message(sz) { get_header()->kind = kind_; }
+  message(size_t sz, const kind_t &kind_) : message(sz) {
+    *size += SIZE_OF_HEADER;
+    get_header()->kind = kind_;
+  }
 
   ~message() {}
 

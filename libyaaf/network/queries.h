@@ -99,43 +99,30 @@ struct login_failed {
 };
 
 template <typename T> struct packed_message {
-  std::string actorname;
   T msg;
 
-  using BinaryRW = serialization::binary_io<std::string>;
+  packed_message(const T &msg_)  { msg = msg_; }
 
-  packed_message(const std::string &actorname_, const T &msg_) {
-    actorname = actorname_;
-    msg = msg_;
-  }
-
-  packed_message(const std::string &actorname_, T &&msg_)
-      : actorname(actorname_), msg(std::move(msg_)) {}
+  packed_message(T &&msg_) : msg(std::move(msg_)) {}
 
   packed_message(const network::message_ptr &nd) {
     auto iterator = nd->value();
-    BinaryRW::read(iterator, actorname);
-    msg =
-        serialization::object_packer<T>::unpack(iterator + BinaryRW::capacity(actorname));
+    msg = serialization::object_packer<T>::unpack(iterator);
   }
 
   packed_message(network::message_ptr &&nd) {
     auto iterator = nd->value();
-    BinaryRW::read(iterator, actorname);
-    msg =
-        serialization::object_packer<T>::unpack(iterator + BinaryRW::capacity(actorname));
+    msg = serialization::object_packer<T>::unpack(iterator);
   }
 
   network::message_ptr get_message() const {
-    auto self_size = BinaryRW::capacity(actorname);
     network::message::size_t neededSize = static_cast<network::message::size_t>(
-        self_size + serialization::object_packer<T>::capacity(msg));
+        serialization::object_packer<T>::capacity(msg));
 
-    auto nd = std::make_shared<network::message>(network::message::size_t(self_size) + neededSize,
-                                           (network::message::kind_t)messagekinds::MSG);
+    auto nd = std::make_shared<network::message>(
+        neededSize, (network::message::kind_t)messagekinds::MSG);
 
-    BinaryRW::write(nd->value(), actorname);
-    serialization::object_packer<T>::pack(nd->value() + self_size, msg);
+    serialization::object_packer<T>::pack(nd->value(), msg);
     return nd;
   }
 };

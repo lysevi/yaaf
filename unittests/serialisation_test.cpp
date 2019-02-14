@@ -1,4 +1,5 @@
 #include "helpers.h"
+#include <libyaaf/context.h>
 #include <libyaaf/network/queries.h>
 #include <libyaaf/serialization/serialization.h>
 #include <libyaaf/utils/utils.h>
@@ -141,13 +142,30 @@ TEST_CASE("serialization.message", "[serialization]") {
   SchemeTestObject msg_inner{std::numeric_limits<uint64_t>::max(),
                              std::string("test_login")};
 
-  queries::packed_message<SchemeTestObject> lg{"long actor name", msg_inner};
+  queries::packed_message<SchemeTestObject> lg{msg_inner};
   auto nd = lg.get_message();
   EXPECT_EQ(nd->get_header()->kind, (network::message::kind_t)messagekinds::MSG);
 
   auto repacked = queries::packed_message<SchemeTestObject>(nd);
-  EXPECT_EQ(repacked.actorname, lg.actorname);
-
   EXPECT_EQ(repacked.msg.id, msg_inner.id);
   EXPECT_EQ(repacked.msg.login, msg_inner.login);
 }
+
+#ifdef YAAF_NETWORK_ENABLED
+TEST_CASE("serialization.message.network", "[serialization]") {
+  yaaf::network_actor_message nam;
+  nam.name = "/1/2/3/4/5/1/2/3/4/5/1/2/3/4/5";
+  nam.data.resize(100);
+  std::iota(nam.data.begin(), nam.data.end(), (unsigned char)0);
+
+  queries::packed_message<yaaf::network_actor_message> lg{nam};
+  auto nd = lg.get_message();
+  EXPECT_EQ(nd->get_header()->kind, (network::message::kind_t)messagekinds::MSG);
+
+  auto repacked = queries::packed_message<yaaf::network_actor_message>(nd);
+  EXPECT_EQ(repacked.msg.name, lg.msg.name);
+  EXPECT_EQ(repacked.msg.data.size(), lg.msg.data.size());
+  EXPECT_TRUE(std::equal(repacked.msg.data.begin(), repacked.msg.data.end(),
+                         lg.msg.data.begin()));
+}
+#endif

@@ -19,18 +19,21 @@ TEST_CASE("context. network", "[network][context]") {
     }
     void on_stop() override { yaaf::base_actor::on_stop(); }
     void action_handle(const yaaf::envelope &e) override {
-      auto v = e.payload.cast<yaaf::listener_message>();
-      sum_ = std::accumulate(v.msg.data.begin(), v.msg.data.end(), sum_);
+      auto v = e.payload.cast<yaaf::listener_actor_message>();
+      sum_ = std::accumulate(v.data.begin(), v.data.end(), sum_);
 
       auto ctx = get_context();
       if (ctx != nullptr) {
-        v.msg.name = "/root/usr/testable_con_listener";
-        ctx->send(e.sender, v);
+        yaaf::listener_actor_message nam;
+        nam.sender_id = v.sender_id;
+        nam.name = "/root/usr/testable_con_listener";
+        nam.data = v.data;
+        ctx->send(e.sender, nam);
       }
     }
 
     bool started = false;
-    uint8_t sum_ = 0;
+    unsigned char sum_ = 0;
   };
 
   class testable_con_actor : public yaaf::base_actor {
@@ -54,7 +57,7 @@ TEST_CASE("context. network", "[network][context]") {
     }
 
     bool started = false;
-    uint8_t sum_ = 0;
+    unsigned char sum_ = 0;
   };
 
   auto cp_listener = yaaf::context::params_t::defparams();
