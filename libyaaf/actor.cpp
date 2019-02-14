@@ -21,6 +21,7 @@ void base_actor::on_child_status(const actor_address &addr, actor_status_kinds k
 }
 
 actor_action_when_error base_actor::on_child_error(const actor_address &addr) {
+  UNUSED(addr);
   return actor_action_when_error::RESUME;
 }
 

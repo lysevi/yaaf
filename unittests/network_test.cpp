@@ -33,7 +33,7 @@ TEST_CASE("context. network", "[network][context]") {
     }
 
     bool started = false;
-    unsigned char sum_ = 0;
+    unsigned char sum_ = (unsigned char)0;
   };
 
   class testable_con_actor : public yaaf::base_actor {
