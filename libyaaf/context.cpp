@@ -83,6 +83,14 @@ public:
     return result;
   }
 
+  actor_address get_address(const std::string &name) const override {
+    actor_address result;
+    if (auto c = _ctx.lock()) {
+      result = c->get_address(name);
+    }
+    return result;
+  }
+
   std::string name() const override { return _name; }
 
 private:
@@ -312,6 +320,20 @@ actor_weak context::get_actor(const std::string &name) const {
     auto it = _actors.find(id_it->second);
     if (it != _actors.end()) {
       result = it->second->actor;
+    }
+  }
+  return result;
+}
+
+actor_address context::get_address(const std::string &name) const {
+  std::shared_lock<std::shared_mutex> lg(_locker);
+  logger_info("context: get actor address by name '", name, "'");
+  actor_address result;
+  auto id_it = _id_by_name.find(name);
+  if (id_it != _id_by_name.end()) { // actor may be stopped
+    auto it = _actors.find(id_it->second);
+    if (it != _actors.end()) {
+      result = it->second->address;
     }
   }
   return result;

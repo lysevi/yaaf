@@ -247,6 +247,8 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
+  auto root_weak_addr = ctx->get_address("/root/usr/core_a/root_a");
+  EXPECT_FALSE(root_weak_addr.empty());
   auto root_weak = ctx->get_actor("/root/usr/core_a/root_a");
   auto sp = root_weak.lock();
   EXPECT_TRUE(sp != nullptr);
@@ -272,6 +274,8 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
       EXPECT_TRUE(ac->status().kind == yaaf::actor_status_kinds::STOPED);
     }
 
+    root_weak_addr = ctx->get_address("/root/usr/core_a/root_a");
+    EXPECT_TRUE(root_weak_addr.empty());
     root_weak = ctx->get_actor("/root/usr/core_a/root_a");
     sp = root_weak.lock();
     EXPECT_FALSE(sp != nullptr);

@@ -45,7 +45,7 @@ public:
 
   void reset_busy() { _busy.store(false); }
 
-  EXPORT actor_address self_addr();
+  EXPORT actor_address address();
   EXPORT void set_self_addr(const actor_address &sa);
 
   std::shared_ptr<abstract_context> get_context() const { return _ctx.lock(); }

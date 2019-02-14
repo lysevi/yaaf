@@ -1,8 +1,8 @@
 #pragma once
 
-#include <libyaaf/context_network.h>
 #include <libyaaf/abstract_context.h>
 #include <libyaaf/actor.h>
+#include <libyaaf/context_network.h>
 #include <libyaaf/exports.h>
 #include <libyaaf/types.h>
 #include <libyaaf/utils/async/thread_manager.h>
@@ -65,6 +65,7 @@ public:
   EXPORT void stop_actor(const actor_address &addr) override;
   EXPORT actor_weak get_actor(const actor_address &addr) const override;
   EXPORT actor_weak get_actor(const std::string &name) const override;
+  EXPORT actor_address get_address(const std::string &name) const override;
   EXPORT std::string name() const override;
 
   bool is_stopping_begin() const { return _stopping_begin; }

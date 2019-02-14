@@ -39,13 +39,13 @@ public:
       network::queries::packed_message<network_actor_message> nm(d);
       auto ctx = get_context();
       if (ctx != nullptr) {
-        auto actor_ = ctx->get_actor(nm.msg.name);
-        if (auto sp = actor_.lock()) {
+        auto addr = ctx->get_address(nm.msg.name);
+        if (!addr.empty()) {
           listener_actor_message lm;
           lm.name = nm.msg.name;
           lm.data = nm.msg.data;
           lm.sender_id = i->get_id().value;
-          ctx->send(sp->self_addr(), lm);
+          ctx->send(addr, lm);
         } else {
           logger_fatal("context: listener - cannot get actor ", nm.msg.name);
         }
@@ -75,9 +75,9 @@ public:
       network::queries::packed_message<network_actor_message> nm(d);
       auto ctx = get_context();
       if (ctx != nullptr) {
-        auto target_actor = ctx->get_actor(nm.msg.name);
-        if (auto sp = target_actor.lock()) {
-          ctx->send(sp->self_addr(), nm.msg);
+        auto target_addr = ctx->get_address(nm.msg.name);
+        if (!target_addr.empty()) {
+          ctx->send(target_addr, nm.msg);
         } else {
           logger_fatal("context: connection - cannot get actor ", nm.msg.name);
         }

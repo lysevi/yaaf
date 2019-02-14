@@ -101,8 +101,8 @@ TEST_CASE("context. network", "[network][context]") {
 
   for (unsigned short i = 0; i < listeners_count; ++i) {
     auto port_str = std::to_string(started_port + i);
-    auto con_actor = ctx_con->get_actor("/root/net/localhost:" + port_str);
-    EXPECT_FALSE(con_actor.expired());
+    auto con_actor_addr = ctx_con->get_address("/root/net/localhost:" + port_str);
+    EXPECT_FALSE(con_actor_addr.empty());
 
     auto lst_actor = ctx_lst->get_actor("/root/net/listen_" + port_str);
     EXPECT_FALSE(lst_actor.expired());
@@ -110,7 +110,7 @@ TEST_CASE("context. network", "[network][context]") {
     yaaf::network_actor_message nmessage;
     nmessage.data = std::vector<uint8_t>({0, 1, 2, 3, 4, 5, 6});
     nmessage.name = "/root/usr/testable_listener";
-    ctx_con->send(con_actor.lock()->self_addr(), nmessage);
+    ctx_con->send(con_actor_addr, nmessage);
 
     auto target_summ =
         std::accumulate(nmessage.data.begin(), nmessage.data.end(), nmessage.data[0]);

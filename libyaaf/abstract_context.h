@@ -32,6 +32,7 @@ public:
   virtual void stop_actor(const actor_address &addr) = 0;
   virtual actor_weak get_actor(const actor_address &addr) const = 0;
   virtual actor_weak get_actor(const std::string &name) const = 0;
+  virtual actor_address get_address(const std::string&name)const =0;
   virtual std::string name() const = 0;
 };
 } // namespace yaaf

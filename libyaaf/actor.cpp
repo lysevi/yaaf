@@ -66,7 +66,7 @@ bool base_actor::try_lock() {
   return true;
 }
 
-actor_address base_actor::self_addr() {
+actor_address base_actor::address() {
   return _sa;
 }
 
