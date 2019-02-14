@@ -93,6 +93,31 @@ public:
 
   std::string name() const override { return _name; }
 
+  void create_exchange(const std::string &name) override {
+    if (auto c = _ctx.lock()) {
+      c->create_exchange(_addr, name);
+    }
+  }
+
+  void subscribe_to_exchange(const std::string &name) override {
+    if (auto c = _ctx.lock()) {
+      c->subscribe_to_exchange(_addr, name);
+    }
+  }
+
+  void publish_to_exchange(const std::string &exchange, const envelope &e) override {
+    if (auto c = _ctx.lock()) {
+      envelope cp{e.payload, _addr};
+      c->publish_to_exchange(exchange, std::move(cp));
+    }
+  }
+  void publish_to_exchange(const std::string &exchange, const envelope &&e) override {
+    if (auto c = _ctx.lock()) {
+      envelope cp{std::move(e.payload), _addr};
+      c->publish_to_exchange(exchange, std::move(cp));
+    }
+  }
+
 private:
   std::weak_ptr<context> _ctx;
   actor_address _addr;
@@ -300,6 +325,56 @@ actor_address context::add_actor(const std::string &actor_name,
   return result;
 }
 
+void context::create_exchange(const actor_address &owner, const std::string &name) {
+  std::lock_guard<std::shared_mutex> lg(_locker);
+  logger_info("context: add exchange #", name);
+
+  inner::exchange_t e;
+  e.owner = owner;
+  e.pub = std::make_shared<mailbox>();
+
+  _exchanges[name] = e;
+}
+
+void context::subscribe_to_exchange(const actor_address &target,
+                                    const std::string &name) {
+  std::lock_guard<std::shared_mutex> lg(_locker);
+  logger_info("context: subscribe to exchange ", target, " <= ", name);
+  auto eit = _exchanges.find(name);
+  if (eit != _exchanges.end()) {
+    auto ait = _actors.find(target.get_id());
+    if (ait != _actors.end()) {
+      eit->second.subscribes.push_back(target.get_id());
+    }
+  } else {
+    logger_info("context: subscribe to exchange ", target, " <= ", name,
+                " - exchange not found");
+  }
+}
+
+// TODO make one implementation
+void context::publish_to_exchange(const std::string &exchange, const envelope &e) {
+  std::shared_lock<std::shared_mutex> lg(_locker);
+  logger_info("context: publish to #", exchange);
+  auto eit = _exchanges.find(exchange);
+  if (eit != _exchanges.end()) {
+    eit->second.pub->push(e);
+  } else {
+    logger_info("context: exchange not found", exchange);
+  }
+}
+
+void context::publish_to_exchange(const std::string &exchange, const envelope &&e) {
+  std::shared_lock<std::shared_mutex> lg(_locker);
+  logger_info("context: publish to #", exchange);
+  auto eit = _exchanges.find(exchange);
+  if (eit != _exchanges.end()) {
+    eit->second.pub->push(e);
+  } else {
+    logger_info("context: exchange not found", exchange);
+  }
+};
+
 actor_weak context::get_actor(const actor_address &addr) const {
   std::shared_lock<std::shared_mutex> lg(_locker);
   logger_info("context: get actor #", addr);
@@ -458,6 +533,18 @@ void context::mailbox_worker() {
     return;
   }
   std::unordered_set<id_t> to_remove;
+
+  for (auto kv : _exchanges) {
+    yaaf::envelope e;
+    while (kv.second.pub->try_pop(e)) {
+      for (auto id : kv.second.subscribes) {
+        auto mb = _mboxes.find(id);
+        if (mb != _mboxes.end()) {
+          mb->second->push(e);
+        }
+      }
+    }
+  }
 
   for (auto kv : _mboxes) {
     auto mb = kv.second;

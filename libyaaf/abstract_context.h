@@ -26,13 +26,23 @@ public:
     send_envelope(target, e);
   }
 
+  template <class T> void publish(const std::string &exchange_name, T &&t) {
+    envelope e;
+    e.payload = std::forward<T>(t);
+    publish_to_exchange(exchange_name, e);
+  }
+
   virtual actor_address add_actor(const std::string &actor_name, const actor_ptr a) = 0;
   virtual void send_envelope(const actor_address &target, const envelope &e) = 0;
   virtual void send_envelope(const actor_address &target, const envelope &&e) = 0;
   virtual void stop_actor(const actor_address &addr) = 0;
   virtual actor_weak get_actor(const actor_address &addr) const = 0;
   virtual actor_weak get_actor(const std::string &name) const = 0;
-  virtual actor_address get_address(const std::string&name)const =0;
+  virtual actor_address get_address(const std::string &name) const = 0;
+  virtual void create_exchange(const std::string &name) = 0;
+  virtual void subscribe_to_exchange(const std::string &name) = 0;
+  virtual void publish_to_exchange(const std::string &exchange, const envelope &e) = 0;
+  virtual void publish_to_exchange(const std::string &exchange, const envelope &&e) = 0;
   virtual std::string name() const = 0;
 };
 } // namespace yaaf

@@ -530,3 +530,159 @@ TEST_CASE("context. ping-pong", "[context]") {
   ctx->stop();
   ctx = nullptr;
 }
+
+namespace {
+const std::string PP_ENAME = "ping pong exchange";
+}
+
+TEST_CASE("context. ping-pong over exhange", "[context]") {
+
+  class pong_actor : public base_actor {
+  public:
+    void on_start() override {
+      auto ctx = get_context();
+      if (ctx != nullptr) {
+        ctx->subscribe_to_exchange(PP_ENAME);
+      }
+      started = true;
+    }
+
+    void action_handle(const envelope &e) override {
+      auto v = e.payload.cast<int>();
+      UNUSED(v);
+      pongs++;
+      EXPECT_EQ(e.sender.get_pathname(), "/root/usr/ping");
+    }
+
+    std::atomic_size_t pongs = 0;
+    bool started = false;
+  };
+
+  class ping_actor : public base_actor {
+    size_t _pongs_count;
+
+  public:
+    ping_actor() {}
+
+    void on_start() override {
+      auto ctx = get_context();
+      if (ctx != nullptr) {
+        ctx->create_exchange(PP_ENAME);
+      }
+    }
+
+    void action_handle(const envelope &e) override {
+      auto v = e.payload.cast<int>();
+      UNUSED(v);
+      pings++;
+      ping();
+    }
+
+    void ping() {
+      auto ctx = get_context();
+      if (ctx != nullptr) {
+        ctx->publish(PP_ENAME, int(1));
+      }
+    }
+    std::atomic_size_t pings = 0;
+  };
+
+  yaaf::context::params_t ctx_params = yaaf::context::params_t::defparams();
+  size_t pongers_count = 1;
+
+  SECTION("context. exhange with default settings") {
+    ctx_params = yaaf::context::params_t::defparams();
+
+    SECTION("context: exhange 1") { pongers_count = 1; }
+    /* SECTION("context: exhange 2") { pongers_count = 2; }
+     SECTION("context: exhange 5") { pongers_count = 5; }*/
+  }
+
+  /* SECTION("context. exhange with custom settings") {
+     ctx_params = yaaf::context::params_t::defparams();
+     ctx_params.user_threads = 10;
+     ctx_params.sys_threads = 2;
+
+     SECTION("context: exhange 1") { pongers_count = 1; }
+     SECTION("context: exhange 5") { pongers_count = 5; }
+     SECTION("context: exhange 10") { pongers_count = 10; }
+   }*/
+
+  auto ctx = yaaf::context::make_context(ctx_params);
+
+  yaaf::actor_address pinger_addr = ctx->make_actor<ping_actor>("ping");
+  std::vector<yaaf::actor_address> pongers(pongers_count);
+  for (size_t i = 0; i < pongers_count; ++i) {
+    pongers[i] = ctx->make_actor<pong_actor>("pong_" + std::to_string(i));
+  }
+
+  auto addr_to_pointer = [ctx](const yaaf::actor_address &addr) {
+    auto a_ptr = ctx->get_actor(addr);
+    pong_actor *raw_ptr = nullptr;
+    if (auto p = a_ptr.lock()) {
+      raw_ptr = dynamic_cast<pong_actor *>(p.get());
+    } else {
+      EXPECT_FALSE(true);
+    }
+    return raw_ptr;
+  };
+
+  std::vector<pong_actor *> pongers_raw_ptrs;
+  pongers_raw_ptrs.reserve(pongers.size());
+  std::transform(pongers.cbegin(), pongers.cend(), std::back_inserter(pongers_raw_ptrs),
+                 addr_to_pointer);
+  auto f_is_started = [](const pong_actor *v) { return v->started; };
+  while (true) {
+    auto is_started =
+        std::all_of(pongers_raw_ptrs.begin(), pongers_raw_ptrs.end(), f_is_started);
+    if (is_started) {
+      break;
+    }
+    logger_info("whait pingers");
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+  }
+  std::vector<size_t> pongs_count;
+  pongs_count.reserve(pongers_count);
+
+  for (int i = 0; i < 100; ++i) {
+    ctx->send(pinger_addr, int(i));
+  }
+
+  while (true) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+
+    std::vector<size_t> pongs_count_cur;
+    pongs_count_cur.reserve(pongers_count);
+
+    std::transform(pongers_raw_ptrs.cbegin(), pongers_raw_ptrs.cend(),
+                   std::back_inserter(pongs_count_cur),
+                   [](auto a) { return a->pongs.load(); });
+
+    if (!pongs_count.empty()) {
+      int eq_cnt = 0;
+      for (size_t i = 0; i < pongs_count.size(); ++i) {
+        if (pongs_count.at(i) == pongs_count_cur.at(i)) {
+          eq_cnt++;
+        }
+      }
+      EXPECT_NE(eq_cnt, pongs_count.size());
+    }
+    pongs_count = std::move(pongs_count_cur);
+    auto all_more_than_100 = std::all_of(pongs_count.cbegin(), pongs_count.cend(),
+                                         [](size_t p) { return p >= 100; });
+    if (all_more_than_100) {
+      break;
+    } else {
+      std::stringstream ss;
+      ss << "[";
+      for (auto &v : pongs_count) {
+        ss << v << " ";
+      }
+      ss << "]";
+      logger_info("pings count < 100: ", ss.str());
+    }
+  }
+
+  ctx->stop();
+  ctx = nullptr;
+}

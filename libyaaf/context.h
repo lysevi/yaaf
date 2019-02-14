@@ -23,6 +23,13 @@ struct description {
   id_t parent;
   std::unordered_set<id_t> children;
 };
+
+struct exchange_t {
+  std::vector<id_t> subscribes;
+  actor_address owner;
+
+  std::shared_ptr<mailbox> pub;
+};
 } // namespace inner
 
 using yaaf::utils::async::CONTINUATION_STRATEGY;
@@ -66,11 +73,19 @@ public:
   EXPORT actor_weak get_actor(const actor_address &addr) const override;
   EXPORT actor_weak get_actor(const std::string &name) const override;
   EXPORT actor_address get_address(const std::string &name) const override;
+
   EXPORT std::string name() const override;
 
   bool is_stopping_begin() const { return _stopping_begin; }
 
+  EXPORT void create_exchange(const actor_address &owner, const std::string &name);
+  EXPORT void subscribe_to_exchange(const actor_address &target, const std::string &name);
+  EXPORT void publish_to_exchange(const std::string &exchange, const envelope &e) override;
+  EXPORT void publish_to_exchange(const std::string &exchange, const envelope &&e) override;
+
 private:
+  void create_exchange(const std::string &) override {}
+  void subscribe_to_exchange(const std::string &) override{};
   void mailbox_worker();
   void stop_actor_impl_safety(const actor_address &addr, actor_stopping_reason reason);
   void stop_actor_impl(const actor_address &addr, actor_stopping_reason reason);
@@ -104,6 +119,8 @@ private:
   std::unordered_map<id_t, std::shared_ptr<inner::description>> _actors;
   std::unordered_map<std::string, id_t> _id_by_name;
   std::unordered_map<id_t, std::shared_ptr<mailbox>> _mboxes;
+
+  std::unordered_map<std::string, inner::exchange_t> _exchanges;
 
   static std::atomic_size_t _ctx_id;
   bool _stopping_begin = false;
