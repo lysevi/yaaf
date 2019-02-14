@@ -120,6 +120,7 @@ private:
   std::unordered_map<std::string, id_t> _id_by_name;
   std::unordered_map<id_t, std::shared_ptr<mailbox>> _mboxes;
 
+  mutable std::shared_mutex _exchange_locker;
   std::unordered_map<std::string, inner::exchange_t> _exchanges;
 
   static std::atomic_size_t _ctx_id;

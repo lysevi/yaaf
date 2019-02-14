@@ -15,3 +15,4 @@ endfunction(ADD_BENCHARK)
 
 
 ADD_BENCHARK(pingpong pingpong_b.cpp)
+ADD_BENCHARK(exchange exchange_b.cpp)

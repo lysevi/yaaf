@@ -403,8 +403,7 @@ TEST_CASE("context. ping-pong", "[context]") {
   class pong_actor : public base_actor {
   public:
     void action_handle(const envelope &e) override {
-      auto v = e.payload.cast<int>();
-      UNUSED(v);
+      EXPECT_TRUE(e.payload.is<int>());
       pongs++;
       auto ctx = get_context();
       if (ctx != nullptr) {
@@ -432,8 +431,7 @@ TEST_CASE("context. ping-pong", "[context]") {
     }
 
     void action_handle(const envelope &e) override {
-      auto v = e.payload.cast<int>();
-      UNUSED(v);
+      EXPECT_TRUE(e.payload.is<int>());
       pings++;
       ping(e.sender);
     }
@@ -548,10 +546,14 @@ TEST_CASE("context. ping-pong over exhange", "[context]") {
     }
 
     void action_handle(const envelope &e) override {
-      auto v = e.payload.cast<int>();
-      UNUSED(v);
+      if (!e.payload.is<int>()) {
+        EXPECT_FALSE(true);
+      }
       pongs++;
-      EXPECT_EQ(e.sender.get_pathname(), "/root/usr/ping");
+      auto sender_name = e.sender.get_pathname();
+      if (sender_name != "/root/usr/ping") {
+        EXPECT_FALSE(true);
+      }
     }
 
     std::atomic_size_t pongs = 0;
@@ -573,15 +575,14 @@ TEST_CASE("context. ping-pong over exhange", "[context]") {
 
     void action_handle(const envelope &e) override {
       auto v = e.payload.cast<int>();
-      UNUSED(v);
       pings++;
-      ping();
+      ping(v);
     }
 
-    void ping() {
+    void ping(int v) {
       auto ctx = get_context();
       if (ctx != nullptr) {
-        ctx->publish(PP_ENAME, int(1));
+        ctx->publish(PP_ENAME, v);
       }
     }
     std::atomic_size_t pings = 0;
@@ -594,19 +595,19 @@ TEST_CASE("context. ping-pong over exhange", "[context]") {
     ctx_params = yaaf::context::params_t::defparams();
 
     SECTION("context: exhange 1") { pongers_count = 1; }
-    /* SECTION("context: exhange 2") { pongers_count = 2; }
-     SECTION("context: exhange 5") { pongers_count = 5; }*/
+    SECTION("context: exhange 2") { pongers_count = 2; }
+    SECTION("context: exhange 5") { pongers_count = 5; }
   }
 
-  /* SECTION("context. exhange with custom settings") {
-     ctx_params = yaaf::context::params_t::defparams();
-     ctx_params.user_threads = 10;
-     ctx_params.sys_threads = 2;
+  SECTION("context. exhange with custom settings") {
+    ctx_params = yaaf::context::params_t::defparams();
+    ctx_params.user_threads = 10;
+    ctx_params.sys_threads = 1;
 
-     SECTION("context: exhange 1") { pongers_count = 1; }
-     SECTION("context: exhange 5") { pongers_count = 5; }
-     SECTION("context: exhange 10") { pongers_count = 10; }
-   }*/
+    SECTION("context: exhange 1") { pongers_count = 1; }
+    SECTION("context: exhange 5") { pongers_count = 5; }
+    SECTION("context: exhange 10") { pongers_count = 10; }
+  }
 
   auto ctx = yaaf::context::make_context(ctx_params);
 
@@ -638,7 +639,7 @@ TEST_CASE("context. ping-pong over exhange", "[context]") {
     if (is_started) {
       break;
     }
-    logger_info("whait pingers");
+    logger_info("wait pingers");
     std::this_thread::sleep_for(std::chrono::milliseconds(200));
   }
   std::vector<size_t> pongs_count;
@@ -679,6 +680,7 @@ TEST_CASE("context. ping-pong over exhange", "[context]") {
         ss << v << " ";
       }
       ss << "]";
+      std::cout << "pings count < 100: " << ss.str();
       logger_info("pings count < 100: ", ss.str());
     }
   }

@@ -2,6 +2,7 @@
 
 #include <libyaaf/exports.h>
 #include <libyaaf/types.h>
+#include <libyaaf/utils/utils.h>
 
 namespace yaaf {
 
@@ -25,7 +26,7 @@ private:
 
 public:
   template <typename T> payload_t(const T &t) : _holder(std::make_unique<holder<T>>(t)) {}
-  payload_t() : _holder() {}
+  payload_t() : _holder(nullptr) {}
   payload_t(const payload_t &other) : _holder(other._holder->clone()) {}
   payload_t(payload_t &&other) : _holder(std::move(other._holder)) {
     other._holder = nullptr;
@@ -41,7 +42,10 @@ public:
 
   bool empty() const { return _holder == nullptr; }
 
-  template <typename U> bool is() const { return typeid(U) == _holder->type_info(); }
+  template <typename U> bool is() const {
+    ENSURE(_holder != nullptr);
+    return typeid(U) == _holder->type_info();
+  }
 
   friend void swap(payload_t &left, payload_t &right);
 
