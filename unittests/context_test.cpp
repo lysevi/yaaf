@@ -100,7 +100,7 @@ TEST_CASE("context. actor_start_stop", "[context]") {
 
   auto testable_a_ptr = dynamic_cast<testable_actor *>(aptr.get());
 
-  while (!testable_a_ptr->is_on_init_called && testable_a_ptr->is_on_start_called) {
+  while (!testable_a_ptr->is_on_init_called || !testable_a_ptr->is_on_start_called) {
     logger_info("wait while the testable_actor was not started...");
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
@@ -399,11 +399,12 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
 }
 
 TEST_CASE("context. ping-pong", "[context]") {
+  using namespace yaaf::utils;
 
   class pong_actor : public base_actor {
   public:
     void action_handle(const envelope &e) override {
-      EXPECT_TRUE(e.payload.is<int>());
+      ENSURE(e.payload.is<int>());
       pongs++;
       auto ctx = get_context();
       if (ctx != nullptr) {
@@ -431,7 +432,7 @@ TEST_CASE("context. ping-pong", "[context]") {
     }
 
     void action_handle(const envelope &e) override {
-      EXPECT_TRUE(e.payload.is<int>());
+      ENSURE(e.payload.is<int>());
       pings++;
       ping(e.sender);
     }

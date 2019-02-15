@@ -17,6 +17,12 @@ struct listener_actor_message {
   std::vector<unsigned char> data;
 };
 
+struct connection_status_message {
+  std::string host;
+  std::string errormsg;
+  bool is_connected = false;
+};
+
 template <> struct serialization::object_packer<network_actor_message> {
   using Scheme = yaaf::serialization::binary_io<std::string, std::vector<unsigned char>>;
 

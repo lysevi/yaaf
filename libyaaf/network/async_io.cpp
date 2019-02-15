@@ -6,14 +6,15 @@ using namespace boost::asio;
 using namespace yaaf::utils::logging;
 using namespace yaaf::network;
 
-async_io::async_io(boost::asio::io_service *service) : _sock(*service), next_message_size(0) {
+async_io::async_io(boost::asio::io_service *service)
+    : _sock(*service), next_message_size(0) {
   _messages_to_send = 0;
   _is_stoped = true;
   ENSURE(service != nullptr);
   _service = service;
 }
 
-async_io::~async_io() noexcept{
+async_io::~async_io() noexcept {
   fullStop();
 }
 
@@ -37,19 +38,22 @@ void async_io::fullStop(bool waitAllmessages) {
         auto self = this->shared_from_this();
         _service->post([self]() { self->fullStop(); });
       } else {
-
         boost::system::error_code ec;
         _sock.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
         if (ec) {
           auto message = ec.message();
+#ifdef DOUBLE_CHECKS
           logger_fatal("AsyncIO::full_stop: _sock.shutdown() => code=", ec.value(),
                        " msg:", message);
+#endif
         } else {
           _sock.close(ec);
           if (ec) {
             auto message = ec.message();
+#ifdef DOUBLE_CHECKS
             logger_fatal("AsyncIO::full_stop: _sock.close(ec)  => code=", ec.value(),
                          " msg:", message);
+#endif
           }
         }
         _service = nullptr;
@@ -87,7 +91,8 @@ void async_io::readNextAsync() {
 
   auto self = shared_from_this();
 
-  auto on_read_message = [self](auto err, auto read_bytes, auto data_left, message_ptr d) {
+  auto on_read_message = [self](auto err, auto read_bytes, auto data_left,
+                                message_ptr d) {
     UNUSED(read_bytes);
     UNUSED(data_left);
     if (err) {
@@ -131,6 +136,7 @@ void async_io::readNextAsync() {
       async_read(self->_sock, buf, callback);
     };
   };
-  auto buf = boost::asio::buffer(static_cast<void *>(&self->next_message_size), message::SIZE_OF_SIZE);
+  auto buf = boost::asio::buffer(static_cast<void *>(&self->next_message_size),
+                                 message::SIZE_OF_SIZE);
   async_read(_sock, buf, on_read_size);
 }

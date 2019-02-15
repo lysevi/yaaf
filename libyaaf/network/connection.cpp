@@ -38,7 +38,7 @@ void connection::disconnect() {
 }
 
 void connection::reconnecton_error(const message_ptr &d,
-                                  const boost::system::error_code &err) {
+                                   const boost::system::error_code &err) {
 
   {
     if (_consumers != nullptr) {
@@ -52,7 +52,9 @@ void connection::reconnecton_error(const message_ptr &d,
 }
 
 void connection::start_async_connection() {
-  initialisation_begin();
+  if (!is_initialisation_begin()) {
+    initialisation_begin();
+  }
 
   using namespace boost::asio::ip;
   tcp::resolver resolver(*_service);

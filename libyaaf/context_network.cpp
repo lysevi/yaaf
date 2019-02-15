@@ -59,7 +59,11 @@ public:
 class network_con_actor : public base_actor,
                           public yaaf::network::abstract_connection_consumer {
 public:
-  network_con_actor(std::shared_ptr<yaaf::network::connection> con_) { _con = con_; }
+  std::string target_host;
+  network_con_actor(std::shared_ptr<yaaf::network::connection> con_, std::string host) {
+    _con = con_;
+    target_host = host;
+  }
 
   void action_handle(const envelope &e) {
     network_actor_message nm = e.payload.cast<network_actor_message>();
@@ -68,7 +72,8 @@ public:
     _con->send_async(pm.get_message());
   }
 
-  void on_connect() override{};
+  void on_connect() override { send_status_success(); };
+
   void on_new_message(yaaf::network::message_ptr &&d, bool &quet) override {
     UNUSED(quet);
     if (d->get_header()->kind == (network::message::kind_t)network::messagekinds::MSG) {
@@ -86,12 +91,21 @@ public:
   }
   void on_network_error(const yaaf::network::message_ptr &,
                         const boost::system::error_code &err) override {
-    bool isError = err == boost::asio::error::operation_aborted ||
-                   err == boost::asio::error::connection_reset ||
-                   err == boost::asio::error::eof;
-    if (isError && !is_stoped()) {
-      auto msg = err.message();
-      yaaf::utils::logging::logger_fatal(msg);
+    send_status_error(err.message());
+  }
+
+  void send_status_error(const std::string &err) {
+    send_status(connection_status_message{target_host, err, false});
+  }
+
+  void send_status_success() {
+    send_status(connection_status_message{target_host, {}, true});
+  }
+
+  void send_status(const connection_status_message &sm) {
+    auto ctx = get_context();
+    if (ctx != nullptr) {
+      ctx->publish("/root/net/" + target_host, sm);
     }
   }
 
@@ -131,15 +145,17 @@ void context::network_init() {
   }
 
   for (auto lp : _params.connection_params) {
-    logger_info("context: connecting to ", lp.host, ':', lp.port);
+    auto target_host = utils::strings::args_to_string(lp.host, ":", lp.port);
+    logger_info("context: connecting to ", target_host);
+    create_exchange(_net_root, "/root/net/" + target_host);
+
     auto l = std::make_shared<network::connection>(&this->_net_service, lp);
     auto actor_name = lp.host + ':' + std::to_string(lp.port);
-    auto saptr = std::make_shared<network_con_actor>(l);
+    auto saptr = std::make_shared<network_con_actor>(l, target_host);
     auto lactor = this->add_actor(actor_name, _net_root, saptr);
 
     l->add_consumer(saptr.get());
     l->start_async_connection();
-    l->wait_starting();
     _network_connections.emplace_back(l);
   }
 }
