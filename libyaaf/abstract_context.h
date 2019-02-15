@@ -14,6 +14,14 @@ class abstract_context {
 public:
   EXPORT virtual ~abstract_context();
 
+  template <class T> std::shared_ptr<T> actor_cast(const std::string &name) {
+    return std::dynamic_pointer_cast<T>(get_actor(name).lock());
+  }
+
+  template <class T> std::shared_ptr<T> actor_cast(const actor_address &addr) {
+    return std::dynamic_pointer_cast<T>(get_actor(addr).lock());
+  }
+
   template <class ACTOR_T, class... ARGS>
   actor_address make_actor(const std::string &actor_name, ARGS &&... a) {
     auto new_a = std::make_shared<ACTOR_T>(std::forward<ARGS>(a)...);

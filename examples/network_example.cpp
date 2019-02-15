@@ -26,7 +26,7 @@ public:
     if (ctx != nullptr) {
       yaaf::listener_actor_message nam;
       nam.sender_id = v.sender_id;
-      nam.name = "/root/usr/testable_con_listener";
+      nam.name = "/root/usr/connection_actor";
       nam.data = v.data;
       ctx->send(e.sender, nam);
     }
@@ -74,7 +74,7 @@ public:
 
         yaaf::network_actor_message nmessage;
         nmessage.data = tst_net_data;
-        nmessage.name = "/root/usr/testable_listener";
+        nmessage.name = "/root/usr/listener_actor";
         ctx->send(con_actor_addr, nmessage);
       }
     }
@@ -94,22 +94,18 @@ void init_connection(std::shared_ptr<yaaf::context> &ctx_con) {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
-  auto testable_con_actor_addr_a =
-      ctx_con->make_actor<connection_actor>("testable_con_listener");
-  auto testable_con_actor_ptr = dynamic_cast<connection_actor *>(
-      ctx_con->get_actor(testable_con_actor_addr_a).lock().get());
+  auto con_actor_addr_a = ctx_con->make_actor<connection_actor>("connection_actor");
+  auto con_actor_ptr = ctx_con->actor_cast<connection_actor>(con_actor_addr_a);
 
-  while (!testable_con_actor_ptr->started) {
+  while (!con_actor_ptr->started) {
     yaaf::utils::logging::logger_info("test: wait !testable_con_actor_ptr->started");
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 }
 
 void init_listener(std::shared_ptr<yaaf::context> &ctx_lst) {
-
-  auto testable_actor_addr_a = ctx_lst->make_actor<listener_actor>("testable_listener");
-  auto testable_actor_ptr = dynamic_cast<listener_actor *>(
-      ctx_lst->get_actor(testable_actor_addr_a).lock().get());
+  auto testable_actor_addr_a = ctx_lst->make_actor<listener_actor>("listener_actor");
+  auto testable_actor_ptr = ctx_lst->actor_cast<listener_actor>(testable_actor_addr_a);
 
   while (!testable_actor_ptr->started) {
     yaaf::utils::logging::logger_info("test: wait !lst_actor_ptr->started");
@@ -143,7 +139,7 @@ int main(int, char **) {
   auto target_summ =
       std::accumulate(tst_net_data.begin(), tst_net_data.end(), uint8_t(0));
 
-  auto con_a = ctx_con->get_actor("/root/usr/testable_con_listener").lock();
+  auto con_a = ctx_con->get_actor("/root/usr/connection_actor").lock();
   auto testable_con_actor_ptr = dynamic_cast<connection_actor *>(con_a.get());
 
   while (testable_con_actor_ptr->sum_ != target_summ) {

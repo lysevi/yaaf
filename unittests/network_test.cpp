@@ -107,8 +107,7 @@ TEST_CASE("context. network", "[network][context]") {
   /// connection
   auto ctx_con = yaaf::context::make_context(cp_connection, "con_context");
   auto init_addr = ctx_con->make_actor<test_initiator_actor>("test_initiator_actor");
-  auto init_actor_ptr =
-      dynamic_cast<test_initiator_actor *>(ctx_con->get_actor(init_addr).lock().get());
+  auto init_actor_ptr = ctx_con->actor_cast<test_initiator_actor>(init_addr);
 
   while (!init_actor_ptr->started) {
     yaaf::utils::logging::logger_info("test: wait !init_actor_ptr->started");
@@ -117,8 +116,8 @@ TEST_CASE("context. network", "[network][context]") {
 
   auto testable_con_actor_addr_a =
       ctx_con->make_actor<testable_con_actor>("testable_con_listener");
-  auto testable_con_actor_ptr = dynamic_cast<testable_con_actor *>(
-      ctx_con->get_actor(testable_con_actor_addr_a).lock().get());
+  auto testable_con_actor_ptr =
+      ctx_con->actor_cast<testable_con_actor>(testable_con_actor_addr_a);
 
   while (!testable_con_actor_ptr->started) {
     yaaf::utils::logging::logger_info("test: wait !testable_con_actor_ptr->started");
@@ -128,8 +127,7 @@ TEST_CASE("context. network", "[network][context]") {
   /// listener
   auto ctx_lst = yaaf::context::make_context(cp_listener, "listen_context");
   auto testable_actor_addr_a = ctx_lst->make_actor<testable_actor>("testable_listener");
-  auto testable_actor_ptr = dynamic_cast<testable_actor *>(
-      ctx_lst->get_actor(testable_actor_addr_a).lock().get());
+  auto testable_actor_ptr = ctx_lst->actor_cast<testable_actor>(testable_actor_addr_a);
 
   while (!testable_actor_ptr->started) {
     yaaf::utils::logging::logger_info("test: wait !lst_actor_ptr->started");

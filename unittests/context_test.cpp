@@ -76,10 +76,12 @@ TEST_CASE("context. actor_start_stop", "[context]") {
       is_on_init_called = true;
       return yaaf::base_actor::on_init(bs);
     }
+
     void on_start() override {
       is_on_start_called = true;
       yaaf::base_actor::on_start();
     }
+
     void on_stop() override {
       is_on_stop_called = true;
       yaaf::base_actor::on_stop();
@@ -96,9 +98,7 @@ TEST_CASE("context. actor_start_stop", "[context]") {
   auto ctx = yaaf::context::make_context();
 
   auto aptr_addr = ctx->make_actor<testable_actor>("testable", int(1));
-  yaaf::actor_ptr aptr = ctx->get_actor(aptr_addr).lock();
-
-  auto testable_a_ptr = dynamic_cast<testable_actor *>(aptr.get());
+  auto testable_a_ptr = ctx->actor_cast<testable_actor>(aptr_addr);
 
   while (!testable_a_ptr->is_on_init_called || !testable_a_ptr->is_on_start_called) {
     logger_info("wait while the testable_actor was not started...");
@@ -112,7 +112,8 @@ TEST_CASE("context. actor_start_stop", "[context]") {
   EXPECT_TRUE(testable_a_ptr->is_on_init_called);
   EXPECT_TRUE(testable_a_ptr->is_on_start_called);
   EXPECT_TRUE(testable_a_ptr->is_on_stop_called);
-  EXPECT_TRUE(testable_a_ptr->status().kind == yaaf::actor_status_kinds::STOPED);
+  auto k = testable_a_ptr->status().kind;
+  EXPECT_TRUE(k == yaaf::actor_status_kinds::STOPED);
 
   ctx = nullptr;
 }
@@ -230,8 +231,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
 
   auto ctx = yaaf::context::make_context();
   auto core_addr = ctx->make_actor<core_a>("core_a");
-  auto core_aptr = ctx->get_actor(core_addr).lock();
-  auto core_raw_ptr = dynamic_cast<core_a *>(core_aptr.get());
+  auto core_raw_ptr = ctx->actor_cast<core_a>(core_addr);
 
   while (core_raw_ptr->root_addr.empty()) {
     logger_info("wait while the core was not started...");
@@ -240,8 +240,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
 
   auto root_address = core_raw_ptr->root_addr;
 
-  auto root_ptr = ctx->get_actor(root_address).lock();
-  auto root_ptr_raw = dynamic_cast<root_a *>(root_ptr.get());
+  auto root_ptr_raw = ctx->actor_cast<root_a>(root_address);
   while (!root_ptr_raw->is_on_start_called) {
     logger_info("wait while the root was not started...");
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -294,9 +293,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
   }
 
   SECTION("context. child stoping with exception") {
-    root_weak = ctx->get_actor("/root/usr/core_a/root_a");
-    sp = root_weak.lock();
-    auto raw_ptr = dynamic_cast<root_a *>(sp.get());
+    std::shared_ptr<root_a> raw_ptr = ctx->actor_cast<root_a>("/root/usr/core_a/root_a");
 
     SECTION("context. actor_action_when_error::STOP") {
       raw_ptr->on_error_flag = yaaf::actor_action_when_error::STOP;
@@ -394,7 +391,6 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
     }
   }
 
-  root_ptr = nullptr;
   children_actors.clear();
 }
 
@@ -475,17 +471,12 @@ TEST_CASE("context. ping-pong", "[context]") {
   }
 
   auto addr_to_pointer = [ctx](const yaaf::actor_address &addr) {
-    auto ping_ptr = ctx->get_actor(addr);
-    ping_actor *raw_ptr = nullptr;
-    if (auto p = ping_ptr.lock()) {
-      raw_ptr = dynamic_cast<ping_actor *>(p.get());
-    } else {
-      EXPECT_FALSE(true);
-    }
-    return raw_ptr;
+    auto ping_ptr = ctx->actor_cast<ping_actor>(addr);
+    EXPECT_NE(ping_ptr, nullptr);
+    return ping_ptr;
   };
 
-  std::vector<ping_actor *> pingers_raw_ptrs;
+  std::vector<std::shared_ptr<ping_actor>> pingers_raw_ptrs;
   pingers_raw_ptrs.reserve(pingers.size());
   std::transform(pingers.cbegin(), pingers.cend(), std::back_inserter(pingers_raw_ptrs),
                  addr_to_pointer);
@@ -619,21 +610,16 @@ TEST_CASE("context. ping-pong over exhange", "[context]") {
   }
 
   auto addr_to_pointer = [ctx](const yaaf::actor_address &addr) {
-    auto a_ptr = ctx->get_actor(addr);
-    pong_actor *raw_ptr = nullptr;
-    if (auto p = a_ptr.lock()) {
-      raw_ptr = dynamic_cast<pong_actor *>(p.get());
-    } else {
-      EXPECT_FALSE(true);
-    }
+    auto raw_ptr = ctx->actor_cast<pong_actor>(addr);
+    EXPECT_NE(raw_ptr, nullptr);
     return raw_ptr;
   };
 
-  std::vector<pong_actor *> pongers_raw_ptrs;
+  std::vector<std::shared_ptr<pong_actor>> pongers_raw_ptrs;
   pongers_raw_ptrs.reserve(pongers.size());
   std::transform(pongers.cbegin(), pongers.cend(), std::back_inserter(pongers_raw_ptrs),
                  addr_to_pointer);
-  auto f_is_started = [](const pong_actor *v) { return v->started; };
+  auto f_is_started = [](const std::shared_ptr<pong_actor>&v) { return v->started; };
   while (true) {
     auto is_started =
         std::all_of(pongers_raw_ptrs.begin(), pongers_raw_ptrs.end(), f_is_started);
