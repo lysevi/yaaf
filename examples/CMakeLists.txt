@@ -15,4 +15,7 @@ endfunction(ADD_EXAMPLE)
 
 
 ADD_EXAMPLE(pingpong ping_pong_example.cpp)
+if(yaaf_ENABLE_NETWORK)
+ADD_EXAMPLE(network network_example.cpp)
+endif(yaaf_ENABLE_NETWORK)
 

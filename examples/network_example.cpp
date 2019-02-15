@@ -1,16 +1,14 @@
 #include <libyaaf/context.h>
+#include <libyaaf/utils/logger.h>
+#include <iostream>
+#include <numeric>
 
-#include "helpers.h"
-#include <catch.hpp>
-
-#if YAAF_NETWORK_ENABLED
-
-namespace {
 const std::vector<uint8_t> tst_net_data = {0, 1, 2, 3, 4, 5, 6};
+const unsigned short port_number = 9080;
 
-class testable_actor : public yaaf::base_actor {
+class listener_actor : public yaaf::base_actor {
 public:
-  testable_actor() {}
+  listener_actor() {}
 
   yaaf::actor_settings on_init(const yaaf::actor_settings &bs) override {
     return yaaf::base_actor::on_init(bs);
@@ -38,9 +36,9 @@ public:
   unsigned char sum_ = (unsigned char)0;
 };
 
-class testable_con_actor : public yaaf::base_actor {
+class connection_actor : public yaaf::base_actor {
 public:
-  testable_con_actor() {}
+  connection_actor() {}
 
   void on_start() override {
     started = true;
@@ -56,7 +54,7 @@ public:
   unsigned char sum_ = 0;
 };
 
-class test_initiator_actor : public yaaf::base_actor {
+class connection_started_actor : public yaaf::base_actor {
 public:
   void on_start() override {
     auto ctx = get_context();
@@ -73,7 +71,6 @@ public:
       auto ctx = get_context();
       if (ctx != nullptr) {
         auto con_actor_addr = ctx->get_address("/root/net/localhost:9080");
-        EXPECT_FALSE(con_actor_addr.empty());
 
         yaaf::network_actor_message nmessage;
         nmessage.data = tst_net_data;
@@ -85,30 +82,12 @@ public:
 
   bool started = false;
 };
-} // namespace
 
-TEST_CASE("context. network", "[network][context]") {
+void init_connection(std::shared_ptr<yaaf::context> &ctx_con) {
 
-  auto cp_listener = yaaf::context::params_t::defparams();
-  auto cp_connection = yaaf::context::params_t::defparams();
-
-  unsigned short listeners_count = 1;
-
-  SECTION("context. network. 1 listener") { listeners_count = 1; }
-
-  unsigned short started_port = 9080;
-  for (unsigned short i = 0; i < listeners_count; ++i) {
-    cp_listener.listeners_params.emplace_back(
-        yaaf::network::listener::params_t{static_cast<unsigned short>(started_port + i)});
-
-    cp_connection.connection_params.emplace_back(
-        yaaf::network::connection::params_t("localhost", started_port + i));
-  }
-  /// connection
-  auto ctx_con = yaaf::context::make_context(cp_connection, "con_context");
-  auto init_addr = ctx_con->make_actor<test_initiator_actor>("test_initiator_actor");
-  auto init_actor_ptr =
-      dynamic_cast<test_initiator_actor *>(ctx_con->get_actor(init_addr).lock().get());
+  auto init_addr = ctx_con->make_actor<connection_started_actor>("test_initiator_actor");
+  auto init_actor_ptr = dynamic_cast<connection_started_actor *>(
+      ctx_con->get_actor(init_addr).lock().get());
 
   while (!init_actor_ptr->started) {
     yaaf::utils::logging::logger_info("test: wait !init_actor_ptr->started");
@@ -116,44 +95,58 @@ TEST_CASE("context. network", "[network][context]") {
   }
 
   auto testable_con_actor_addr_a =
-      ctx_con->make_actor<testable_con_actor>("testable_con_listener");
-  auto testable_con_actor_ptr = dynamic_cast<testable_con_actor *>(
+      ctx_con->make_actor<connection_actor>("testable_con_listener");
+  auto testable_con_actor_ptr = dynamic_cast<connection_actor *>(
       ctx_con->get_actor(testable_con_actor_addr_a).lock().get());
 
   while (!testable_con_actor_ptr->started) {
     yaaf::utils::logging::logger_info("test: wait !testable_con_actor_ptr->started");
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
+}
 
-  /// listener
-  auto ctx_lst = yaaf::context::make_context(cp_listener, "listen_context");
-  auto testable_actor_addr_a = ctx_lst->make_actor<testable_actor>("testable_listener");
-  auto testable_actor_ptr = dynamic_cast<testable_actor *>(
+void init_listener(std::shared_ptr<yaaf::context> &ctx_lst) {
+
+  auto testable_actor_addr_a = ctx_lst->make_actor<listener_actor>("testable_listener");
+  auto testable_actor_ptr = dynamic_cast<listener_actor *>(
       ctx_lst->get_actor(testable_actor_addr_a).lock().get());
 
   while (!testable_actor_ptr->started) {
     yaaf::utils::logging::logger_info("test: wait !lst_actor_ptr->started");
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
+}
 
-  for (unsigned short i = 0; i < listeners_count; ++i) {
-    auto port_str = std::to_string(started_port + i);
-    auto con_actor_addr = ctx_con->get_address("/root/net/localhost:" + port_str);
-    EXPECT_FALSE(con_actor_addr.empty());
+int main(int, char **) {
 
-    auto lst_actor = ctx_lst->get_actor("/root/net/listen_" + port_str);
-    EXPECT_FALSE(lst_actor.expired());
+  auto _raw_logger_ptr = new yaaf::utils::logging::quiet_logger();
+  auto _logger = yaaf::utils::logging::abstract_logger_ptr{_raw_logger_ptr};
+  yaaf::utils::logging::logger_manager::start(_logger);
 
-    auto target_summ =
-        std::accumulate(tst_net_data.begin(), tst_net_data.end(), uint8_t(0));
+  auto listener_params = yaaf::context::params_t::defparams();
+  auto connection_params = yaaf::context::params_t::defparams();
 
-    while (testable_actor_ptr->sum_ != target_summ) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
+  listener_params.listeners_params.emplace_back(
+      yaaf::network::listener::params_t{static_cast<unsigned short>(port_number)});
 
-    while (testable_con_actor_ptr->sum_ != target_summ) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
+  connection_params.connection_params.emplace_back(
+      yaaf::network::connection::params_t("localhost", port_number));
+
+  auto ctx_con = yaaf::context::make_context(connection_params, "con_context");
+  auto ctx_lst = yaaf::context::make_context(listener_params, "listen_context");
+
+  /// connection
+  init_connection(ctx_con);
+  /// listener
+  init_listener(ctx_lst);
+
+  auto target_summ =
+      std::accumulate(tst_net_data.begin(), tst_net_data.end(), uint8_t(0));
+
+  auto con_a = ctx_con->get_actor("/root/usr/testable_con_listener").lock();
+  auto testable_con_actor_ptr = dynamic_cast<connection_actor *>(con_a.get());
+
+  while (testable_con_actor_ptr->sum_ != target_summ) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 }
-#endif
