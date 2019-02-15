@@ -1,9 +1,3 @@
-# Yaaf - yet another actor framework.
-
-
-## example
-
-```C++
 #include <libyaaf/context.h>
 #include <libyaaf/utils/logger.h>
 #include <iostream>
@@ -50,7 +44,7 @@ public:
   yaaf::actor_address pong_addr;
 };
 
-int main(int , char **) {
+int main(int, char **) {
 
   auto _raw_logger_ptr = new yaaf::utils::logging::quiet_logger();
   auto _logger = yaaf::utils::logging::abstract_logger_ptr{_raw_logger_ptr};
@@ -73,4 +67,3 @@ int main(int , char **) {
     std::cout << " ping-pong speed: " << diff << " per.sec." << std::endl;
   }
 }
-```

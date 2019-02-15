@@ -98,7 +98,8 @@ endif(yaaf_ENABLE_TESTS)
 
 SET(yaaf_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_BINARY_DIR} CACHE STRING "yaaf include dir.")
 
-add_subdirectory (libyaaf)
+add_subdirectory(libyaaf)
+add_subdirectory(examples)
 
 if (yaaf_ENABLE_TESTS)
   enable_testing()
