@@ -327,6 +327,11 @@ actor_address context::add_actor(const std::string &actor_name,
 
 void context::create_exchange(const actor_address &owner, const std::string &name) {
   std::lock_guard<std::shared_mutex> lg(_exchange_locker);
+  create_exchange_unsafe(owner, name);
+}
+
+void context::create_exchange_unsafe(const actor_address &owner,
+                                     const std::string &name) {
   logger_info("context: add exchange #", name);
   if (_exchanges.find(name) != _exchanges.end()) {
     logger_info("context: add exchange #", name, " - already created");
@@ -348,14 +353,14 @@ void context::subscribe_to_exchange(const actor_address &target,
 
   logger_info("context: subscribe to exchange ", target, " <= ", name);
   auto eit = _exchanges.find(name);
-  if (eit != _exchanges.end()) {
-    auto ait = _actors.find(target.get_id());
-    if (ait != _actors.end()) {
-      eit->second.subscribes.push_back(target.get_id());
-    }
-  } else {
-    logger_info("context: subscribe to exchange ", target, " <= ", name,
-                " - exchange not found");
+  if (eit == _exchanges.end()) {
+    create_exchange_unsafe(target, name);
+    eit = _exchanges.find(name);
+  }
+
+  auto ait = _actors.find(target.get_id());
+  if (ait != _actors.end()) {
+    eit->second.subscribes.push_back(target.get_id());
   }
 }
 

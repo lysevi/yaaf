@@ -9,10 +9,6 @@ using namespace yaaf;
 using namespace yaaf::utils::logging;
 
 namespace {
-class network_actor : public base_actor {
-public:
-  void action_handle(const envelope &e) { UNUSED(e); }
-};
 
 class network_lst_actor : public base_actor,
                           public yaaf::network::abstract_listener_consumer {
@@ -113,16 +109,31 @@ private:
   std::shared_ptr<yaaf::network::connection> _con;
 };
 
+class network_supervisor_actor : public base_actor {
+public:
+  network_supervisor_actor(context *root_ctx_) : root_ctx(root_ctx_) {}
+
+  void action_handle(const envelope &e) {
+    if (e.payload.is<network::listener::params_t>()) {
+      root_ctx->add_listener_on(e.payload.cast<network::listener::params_t>());
+    }
+
+	 if (e.payload.is<network::connection::params_t>()) {
+      root_ctx->add_connection_to(e.payload.cast<network::connection::params_t>());
+    }
+  }
+  context *root_ctx;
+};
 } // namespace
 void context::network_init() {
   logger_info("context: network init...");
 
-  _net_root = this->add_actor("net", _root, std::make_shared<network_actor>());
+  _net_root = this->add_actor("net", _root, std::make_shared<network_supervisor_actor>(this));
 
-  if (_params.listeners_params.empty() && _params.connection_params.empty()) {
+ /* if (_params.listeners_params.empty() && _params.connection_params.empty()) {
     logger_info("context: network params is empty.");
     return;
-  }
+  }*/
 
   for (int i = 0; i < _params.network_threads; ++i) {
     _net_threads.emplace_back([this]() {
@@ -132,19 +143,11 @@ void context::network_init() {
     });
   }
 
-  for (auto lp : _params.listeners_params) {
-    logger_info("context: start listener on ", lp.port);
-    auto l = std::make_shared<network::listener>(&this->_net_service, lp);
-    auto saptr = std::make_shared<network_lst_actor>();
-    auto lactor = this->add_actor("listen_" + std::to_string(lp.port), _net_root, saptr);
+  /*for (auto lp : _params.listeners_params) {
+    add_listener_on(lp);
+  }*/
 
-    l->add_consumer(saptr.get());
-    l->start();
-    l->wait_starting();
-    _network_listeners.emplace_back(l);
-  }
-
-  for (auto lp : _params.connection_params) {
+  /*for (auto lp : _params.connection_params) {
     auto target_host = utils::strings::args_to_string(lp.host, ":", lp.port);
     logger_info("context: connecting to ", target_host);
     create_exchange(_net_root, "/root/net/" + target_host);
@@ -157,7 +160,33 @@ void context::network_init() {
     l->add_consumer(saptr.get());
     l->start_async_connection();
     _network_connections.emplace_back(l);
-  }
+  }*/
 }
 
+void context::add_listener_on(network::listener::params_t &lp) {
+  logger_info("context: start listener on ", lp.port);
+  auto l = std::make_shared<network::listener>(&this->_net_service, lp);
+  auto saptr = std::make_shared<network_lst_actor>();
+  auto lactor = this->add_actor("listen_" + std::to_string(lp.port), _net_root, saptr);
+
+  l->add_consumer(saptr.get());
+  l->start();
+  l->wait_starting();
+  _network_listeners.emplace_back(l);
+}
+
+void context::add_connection_to(network::connection::params_t &cp) {
+  auto target_host = utils::strings::args_to_string(cp.host, ":", cp.port);
+  logger_info("context: connecting to ", target_host);
+  create_exchange(_net_root, "/root/net/" + target_host);
+
+  auto l = std::make_shared<network::connection>(&this->_net_service, cp);
+  auto actor_name = cp.host + ':' + std::to_string(cp.port);
+  auto saptr = std::make_shared<network_con_actor>(l, target_host);
+  auto lactor = this->add_actor(actor_name, _net_root, saptr);
+
+  l->add_consumer(saptr.get());
+  l->start_async_connection();
+  _network_connections.emplace_back(l);
+}
 #endif

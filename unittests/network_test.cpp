@@ -97,11 +97,14 @@ TEST_CASE("context. network", "[network][context]") {
   SECTION("context. network. 1 listener") { listeners_count = 1; }
 
   unsigned short started_port = 9080;
+  std::vector<yaaf::network::listener::params_t> listeners_params;
+  std::vector<yaaf::network::connection::params_t> connection_params;
+
   for (unsigned short i = 0; i < listeners_count; ++i) {
-    cp_listener.listeners_params.emplace_back(
+    listeners_params.emplace_back(
         yaaf::network::listener::params_t{static_cast<unsigned short>(started_port + i)});
 
-    cp_connection.connection_params.emplace_back(
+    connection_params.emplace_back(
         yaaf::network::connection::params_t("localhost", started_port + i));
   }
   /// connection
@@ -124,6 +127,11 @@ TEST_CASE("context. network", "[network][context]") {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
+  for (auto lp : connection_params) {
+    auto np = ctx_con->get_address("/root/net");
+    ctx_con->send(np, lp);
+  }
+
   /// listener
   auto ctx_lst = yaaf::context::make_context(cp_listener, "listen_context");
   auto testable_actor_addr_a = ctx_lst->make_actor<testable_actor>("testable_listener");
@@ -134,14 +142,12 @@ TEST_CASE("context. network", "[network][context]") {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 
+  for (auto lp : listeners_params) {
+    auto np = ctx_lst->get_address("/root/net");
+    ctx_lst->send(np, lp);
+  }
+
   for (unsigned short i = 0; i < listeners_count; ++i) {
-    auto port_str = std::to_string(started_port + i);
-    auto con_actor_addr = ctx_con->get_address("/root/net/localhost:" + port_str);
-    EXPECT_FALSE(con_actor_addr.empty());
-
-    auto lst_actor = ctx_lst->get_actor("/root/net/listen_" + port_str);
-    EXPECT_FALSE(lst_actor.expired());
-
     auto target_summ =
         std::accumulate(tst_net_data.begin(), tst_net_data.end(), uint8_t(0));
 

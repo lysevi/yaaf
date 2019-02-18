@@ -49,8 +49,6 @@ public:
 
 #if YAAF_NETWORK_ENABLED
     size_t network_threads;
-    std::vector<yaaf::network::listener::params_t> listeners_params;
-    std::vector<yaaf::network::connection::params_t> connection_params;
 #endif
   };
 
@@ -80,15 +78,23 @@ public:
 
   EXPORT void create_exchange(const actor_address &owner, const std::string &name);
   EXPORT void subscribe_to_exchange(const actor_address &target, const std::string &name);
-  EXPORT void publish_to_exchange(const std::string &exchange, const envelope &e) override;
-  EXPORT void publish_to_exchange(const std::string &exchange, const envelope &&e) override;
+  EXPORT void publish_to_exchange(const std::string &exchange,
+                                  const envelope &e) override;
+  EXPORT void publish_to_exchange(const std::string &exchange,
+                                  const envelope &&e) override;
 
+#if YAAF_NETWORK_ENABLED
+  void add_listener_on(network::listener::params_t &p);
+  void add_connection_to(network::connection::params_t &cp);
+#endif
 private:
   void create_exchange(const std::string &) override {}
   void subscribe_to_exchange(const std::string &) override{};
   void mailbox_worker();
   void stop_actor_impl_safety(const actor_address &addr, actor_stopping_reason reason);
   void stop_actor_impl(const actor_address &addr, actor_stopping_reason reason);
+
+  void create_exchange_unsafe(const actor_address &owner, const std::string &name);
 
   task_result_ptr
   user_post(const std::function<void()> &f,
