@@ -115,11 +115,13 @@ public:
 
   void action_handle(const envelope &e) {
     if (e.payload.is<network::listener::params_t>()) {
-      root_ctx->add_listener_on(e.payload.cast<network::listener::params_t>());
+      auto l = e.payload.cast<network::listener::params_t>();
+      root_ctx->add_listener_on(l);
     }
 
-	 if (e.payload.is<network::connection::params_t>()) {
-      root_ctx->add_connection_to(e.payload.cast<network::connection::params_t>());
+    if (e.payload.is<network::connection::params_t>()) {
+      auto c = e.payload.cast<network::connection::params_t>();
+      root_ctx->add_connection_to(c);
     }
   }
   context *root_ctx;
@@ -128,12 +130,8 @@ public:
 void context::network_init() {
   logger_info("context: network init...");
 
-  _net_root = this->add_actor("net", _root, std::make_shared<network_supervisor_actor>(this));
-
- /* if (_params.listeners_params.empty() && _params.connection_params.empty()) {
-    logger_info("context: network params is empty.");
-    return;
-  }*/
+  _net_root =
+      this->add_actor("net", _root, std::make_shared<network_supervisor_actor>(this));
 
   for (int i = 0; i < _params.network_threads; ++i) {
     _net_threads.emplace_back([this]() {
@@ -142,25 +140,6 @@ void context::network_init() {
       }
     });
   }
-
-  /*for (auto lp : _params.listeners_params) {
-    add_listener_on(lp);
-  }*/
-
-  /*for (auto lp : _params.connection_params) {
-    auto target_host = utils::strings::args_to_string(lp.host, ":", lp.port);
-    logger_info("context: connecting to ", target_host);
-    create_exchange(_net_root, "/root/net/" + target_host);
-
-    auto l = std::make_shared<network::connection>(&this->_net_service, lp);
-    auto actor_name = lp.host + ':' + std::to_string(lp.port);
-    auto saptr = std::make_shared<network_con_actor>(l, target_host);
-    auto lactor = this->add_actor(actor_name, _net_root, saptr);
-
-    l->add_consumer(saptr.get());
-    l->start_async_connection();
-    _network_connections.emplace_back(l);
-  }*/
 }
 
 void context::add_listener_on(network::listener::params_t &lp) {
