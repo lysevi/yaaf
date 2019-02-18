@@ -118,6 +118,12 @@ public:
     }
   }
 
+  bool exchange_exists(const std::string &name) const {
+    if (auto c = _ctx.lock()) {
+      return c->exchange_exists(name);
+    }
+  }
+
 private:
   std::weak_ptr<context> _ctx;
   actor_address _addr;
@@ -379,6 +385,11 @@ void context::publish_to_exchange(const std::string &exchange, const envelope &&
   }
 };
 
+bool context::exchange_exists(const std::string &name) const {
+  std::shared_lock<std::shared_mutex> lg(_exchange_locker);
+  return _exchanges.find(name) != _exchanges.end();
+}
+
 actor_weak context::get_actor(const actor_address &addr) const {
   std::shared_lock<std::shared_mutex> lg(_locker);
   logger_info("context: get actor #", addr);
@@ -588,7 +599,25 @@ void context::mailbox_worker() {
       }
     }
   }
+  if (_exchange_locker.try_lock()) {
+    std::list<std::string> ex_to_remove;
+    for (auto &kv : _exchanges) {
+      auto owner_exists = _actors.find(kv.second.owner.get_id()) != _actors.end();
+      auto subsribers = std::any_of(
+          kv.second.subscribes.begin(), kv.second.subscribes.end(),
+          [this](const id_t id) { return _actors.find(id) != _actors.end(); });
 
+      if (!owner_exists && !subsribers) {
+        ex_to_remove.push_back(kv.first);
+      }
+    }
+
+    for (auto &n : ex_to_remove) {
+      _exchanges.erase(n);
+    }
+
+    _exchange_locker.unlock();
+  }
   _locker.unlock_shared();
 
   if (!to_remove.empty()) {

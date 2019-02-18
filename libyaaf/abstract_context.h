@@ -51,6 +51,7 @@ public:
   virtual void subscribe_to_exchange(const std::string &name) = 0;
   virtual void publish_to_exchange(const std::string &exchange, const envelope &e) = 0;
   virtual void publish_to_exchange(const std::string &exchange, const envelope &&e) = 0;
+  virtual bool exchange_exists(const std::string&name)const=0;
   virtual std::string name() const = 0;
 };
 } // namespace yaaf

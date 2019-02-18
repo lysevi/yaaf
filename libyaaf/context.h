@@ -82,7 +82,7 @@ public:
                                   const envelope &e) override;
   EXPORT void publish_to_exchange(const std::string &exchange,
                                   const envelope &&e) override;
-
+  EXPORT bool exchange_exists(const std::string &name) const ;
 #if YAAF_NETWORK_ENABLED
   void add_listener_on(network::listener::params_t &p);
   void add_connection_to(network::connection::params_t &cp);

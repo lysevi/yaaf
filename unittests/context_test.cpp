@@ -525,13 +525,14 @@ namespace {
 const std::string PP_ENAME = "ping pong exchange";
 }
 
-TEST_CASE("context. ping-pong over exhange", "[context]") {
+TEST_CASE("context. ping-pong over exchange", "[context]") {
 
   class pong_actor : public base_actor {
   public:
     void on_start() override {
       auto ctx = get_context();
       if (ctx != nullptr) {
+        ENSURE(ctx->exchange_exists(PP_ENAME));
         ctx->subscribe_to_exchange(PP_ENAME);
       }
       started = true;
@@ -619,7 +620,7 @@ TEST_CASE("context. ping-pong over exhange", "[context]") {
   pongers_raw_ptrs.reserve(pongers.size());
   std::transform(pongers.cbegin(), pongers.cend(), std::back_inserter(pongers_raw_ptrs),
                  addr_to_pointer);
-  auto f_is_started = [](const std::shared_ptr<pong_actor>&v) { return v->started; };
+  auto f_is_started = [](const std::shared_ptr<pong_actor> &v) { return v->started; };
   while (true) {
     auto is_started =
         std::all_of(pongers_raw_ptrs.begin(), pongers_raw_ptrs.end(), f_is_started);
@@ -670,6 +671,14 @@ TEST_CASE("context. ping-pong over exhange", "[context]") {
       std::cout << "pings count < 100: " << ss.str();
       logger_info("pings count < 100: ", ss.str());
     }
+  }
+  ctx->stop_actor(pinger_addr);
+  for (auto &p : pongers) {
+    ctx->stop_actor(p);
+  }
+  while (ctx->exchange_exists(PP_ENAME)) {
+    logger_info("wait exchange cleanup");
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
   }
 
   ctx->stop();

@@ -127,6 +127,7 @@ public:
   context *root_ctx;
 };
 } // namespace
+
 void context::network_init() {
   logger_info("context: network init...");
 
