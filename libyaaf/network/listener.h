@@ -27,7 +27,7 @@ public:
   EXPORT void set_listener(const std::shared_ptr<listener> &lstnr);
   EXPORT bool is_listener_exists() const { return _lstnr != nullptr; }
   EXPORT void send_to(id_t id, network::message_ptr &d);
-
+  EXPORT void stop();
 private:
   std::shared_ptr<listener> _lstnr;
 };

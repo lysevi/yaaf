@@ -13,6 +13,8 @@ namespace {
 class network_lst_actor : public base_actor,
                           public yaaf::network::abstract_listener_consumer {
 public:
+  network_lst_actor(context *ctx_, unsigned short port) : _ctx(ctx_), _port(port) {}
+
   void action_handle(const envelope &e) {
     auto lm = e.payload.cast<listener_actor_message>();
     network_actor_message nam;
@@ -21,6 +23,11 @@ public:
     yaaf::network::queries::packed_message<yaaf::network_actor_message> pm(nam);
     auto msg_ptr = pm.get_message();
     send_to(lm.sender_id, msg_ptr);
+  }
+
+  void on_stop() override {
+    _ctx->erase_listener_on(_port);
+    base_actor::on_stop();
   }
 
   bool on_new_connection(yaaf::network::listener_client_ptr c) override { return true; }
@@ -50,15 +57,26 @@ public:
   }
 
   void on_disconnect(const yaaf::network::listener_client_ptr & /*i*/) override {}
+
+private:
+  context *_ctx;
+  unsigned short _port;
 };
 
 class network_con_actor : public base_actor,
                           public yaaf::network::abstract_connection_consumer {
 public:
-  std::string target_host;
-  network_con_actor(std::shared_ptr<yaaf::network::connection> con_, std::string host) {
+  network_con_actor(std::shared_ptr<yaaf::network::connection> con_, context *ctx_,
+                    yaaf::network::connection::params_t &cp)
+      : _cp(cp) {
+    _ctx = ctx_;
     _con = con_;
-    target_host = host;
+    target_host = utils::strings::args_to_string(cp.host, ":", cp.port);
+  }
+
+  void on_stop() override {
+    _ctx->erase_connections(_cp);
+    base_actor::on_stop();
   }
 
   void action_handle(const envelope &e) {
@@ -107,6 +125,9 @@ public:
 
 private:
   std::shared_ptr<yaaf::network::connection> _con;
+  yaaf::network::connection::params_t _cp;
+  context *_ctx;
+  std::string target_host;
 };
 
 class network_supervisor_actor : public base_actor {
@@ -146,13 +167,26 @@ void context::network_init() {
 void context::add_listener_on(network::listener::params_t &lp) {
   logger_info("context: start listener on ", lp.port);
   auto l = std::make_shared<network::listener>(&this->_net_service, lp);
-  auto saptr = std::make_shared<network_lst_actor>();
+  auto saptr = std::make_shared<network_lst_actor>(this, lp.port);
   auto lactor = this->add_actor("listen_" + std::to_string(lp.port), _net_root, saptr);
 
   l->add_consumer(saptr.get());
   l->start();
   l->wait_starting();
-  _network_listeners.emplace_back(l);
+  _network_listeners.insert(std::make_pair(lp.port, l));
+}
+
+void context::erase_listener_on(unsigned short port) {
+  logger_info("context: erase listener on ", port);
+  std::lock_guard<std::shared_mutex> lg(_exchange_locker);
+
+  auto it = _network_listeners.find(port);
+  if (it != _network_listeners.end()) {
+    it->second->stop();
+    _network_listeners.erase(it);
+  } else {
+    logger_info("context: erase listener on ", port, " - not found!!!");
+  }
 }
 
 void context::add_connection_to(network::connection::params_t &cp) {
@@ -162,11 +196,26 @@ void context::add_connection_to(network::connection::params_t &cp) {
 
   auto l = std::make_shared<network::connection>(&this->_net_service, cp);
   auto actor_name = cp.host + ':' + std::to_string(cp.port);
-  auto saptr = std::make_shared<network_con_actor>(l, target_host);
+  auto saptr = std::make_shared<network_con_actor>(l, this, cp);
   auto lactor = this->add_actor(actor_name, _net_root, saptr);
 
   l->add_consumer(saptr.get());
   l->start_async_connection();
-  _network_connections.emplace_back(l);
+  _network_connections.insert(std::make_pair(cp, l));
 }
+
+void context::erase_connections(network::connection::params_t &cp) {
+  logger_info("context: erase connection to ", cp.host, ":", cp.port);
+  std::lock_guard<std::shared_mutex> lg(_exchange_locker);
+
+  auto it = _network_connections.find(cp);
+  if (it != _network_connections.end()) {
+    it->second->disconnect();
+    _network_connections.erase(it);
+  } else {
+    logger_info("context: erase connection to ", cp.host, ":", cp.port,
+                " - not found!!!");
+  }
+}
+
 #endif

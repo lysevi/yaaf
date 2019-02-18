@@ -69,6 +69,8 @@ public:
   void action_handle(const yaaf::envelope &e) override {
     auto status = e.payload.cast<yaaf::connection_status_message>();
 
+    connected = status.is_connected;
+
     if (status.is_connected) {
       auto ctx = get_context();
       if (ctx != nullptr) {
@@ -84,6 +86,7 @@ public:
   }
 
   bool started = false;
+  bool connected = false;
 };
 } // namespace
 
@@ -158,6 +161,20 @@ TEST_CASE("context. network", "[network][context]") {
     while (testable_con_actor_ptr->sum_ != target_summ) {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
+  }
+  // stop connections;
+  auto la = ctx_lst->get_address("/root/net/listen_" + std::to_string(started_port));
+  ctx_lst->stop_actor(la);
+  while (init_actor_ptr->connected) {
+    yaaf::utils::logging::logger_info("test: wait init_actor_ptr->connected");
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+
+  la = ctx_con->get_address("/root/net/localhost:" + std::to_string(started_port));
+  ctx_con->stop_actor(la);
+  while (ctx_con->get_actor(la).lock()) {
+    yaaf::utils::logging::logger_info("test: wait ctx_con->exchange_exists");
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 }
 #endif

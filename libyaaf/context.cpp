@@ -121,6 +121,8 @@ public:
   bool exchange_exists(const std::string &name) const {
     if (auto c = _ctx.lock()) {
       return c->exchange_exists(name);
+    } else {
+      return false;
     }
   }
 
@@ -212,13 +214,13 @@ void context::stop() {
 #ifdef YAAF_NETWORK_ENABLED
   logger_info("context: network stopping");
   for (auto l : _network_connections) {
-    l->disconnect();
-    l->wait_stoping();
+    l.second->disconnect();
+    l.second->wait_stoping();
   }
 
   for (auto l : _network_listeners) {
-    l->stop();
-    l->wait_stoping();
+    l.second->stop();
+    l.second->wait_stoping();
   }
 
   _stopping_begin = true;

@@ -39,6 +39,11 @@ public:
     std::string host;
     unsigned short port;
     bool auto_reconnection = true;
+
+    bool operator==(const params_t &other) const {
+      return host == other.host && port == other.port &&
+             auto_reconnection == other.auto_reconnection;
+    }
   };
   connection() = delete;
   params_t get_params() const { return _params; }
@@ -65,3 +70,15 @@ protected:
 
 } // namespace network
 } // namespace yaaf
+
+namespace std {
+template <> class hash<yaaf::network::connection::params_t> {
+public:
+  size_t operator()(const yaaf::network::connection::params_t &s) const {
+    size_t h = std::hash<std::string>()(s.host);
+    size_t h2 = std::hash<unsigned short>()(s.port);
+    size_t h3 = std::hash<bool>()(s.auto_reconnection);
+    return h ^ h2 ^ h3;
+  }
+};
+} // namespace std

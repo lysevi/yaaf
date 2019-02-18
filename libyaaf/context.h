@@ -82,10 +82,12 @@ public:
                                   const envelope &e) override;
   EXPORT void publish_to_exchange(const std::string &exchange,
                                   const envelope &&e) override;
-  EXPORT bool exchange_exists(const std::string &name) const ;
+  EXPORT bool exchange_exists(const std::string &name) const;
 #if YAAF_NETWORK_ENABLED
   void add_listener_on(network::listener::params_t &p);
+  void erase_listener_on(unsigned short port);
   void add_connection_to(network::connection::params_t &cp);
+  void erase_connections(network::connection::params_t&cp);
 #endif
 private:
   void create_exchange(const std::string &) override {}
@@ -142,9 +144,10 @@ private:
   boost::asio::io_service _net_service;
 
   std::vector<std::thread> _net_threads;
-  std::vector<std::shared_ptr<network::connection>> _network_connections;
+  std::unordered_map<network::connection::params_t, std::shared_ptr<network::connection>> _network_connections;
 
-  std::vector<std::shared_ptr<network::listener>> _network_listeners;
+  std::unordered_map<unsigned short, std::shared_ptr<network::listener>>
+      _network_listeners;
 #endif
 };
 
