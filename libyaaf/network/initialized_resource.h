@@ -1,13 +1,12 @@
 #pragma once
 
-#include <libyaaf/utils/logger.h>
-#include <libyaaf/utils/utils.h>
-
 #include <atomic>
+#include <cassert>
 #include <exception>
+#include <iostream>
 
 namespace yaaf {
-namespace utils {
+namespace network {
 class long_process {
 public:
   long_process() = delete;
@@ -20,7 +19,7 @@ public:
 
   ~long_process() {
     if (checkOnDtor && !is_complete()) {
-      logging::logger_fatal(_name + " Process was not _completed correctly");
+      std::cerr << _name + " Process was not _completed correctly" << std::endl;
       std::abort();
     }
   }
@@ -53,7 +52,7 @@ public:
   }
 
   void wait() {
-    ENSURE(_started);
+    assert(_started);
     while (!_complete.load()) {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
@@ -71,7 +70,7 @@ struct initialized_resource {
 
   ~initialized_resource() {
     if (!is_stoped()) {
-      logging::logger_fatal("Process was not stopped correctly");
+      std::cerr << " Process was not _completed correctly" << std::endl;
       std::abort();
     }
   }
@@ -112,5 +111,5 @@ struct initialized_resource {
   long_process starting;
   long_process stoping;
 };
-} // namespace utils
+} // namespace network
 } // namespace yaaf

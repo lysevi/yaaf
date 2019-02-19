@@ -3,7 +3,6 @@
 #include <libyaaf/network/dialler.h>
 
 using namespace yaaf;
-using namespace yaaf::utils::logging;
 using namespace yaaf::network;
 
 abstract_dialler ::~abstract_dialler() {
@@ -38,7 +37,7 @@ void dialler::disconnect() {
 }
 
 void dialler::reconnecton_error(const message_ptr &d,
-                                   const boost::system::error_code &err) {
+                                const boost::system::error_code &err) {
 
   {
     if (_consumers != nullptr) {
@@ -70,13 +69,11 @@ void dialler::start_async_connection() {
   }
 
   if (iter == tcp::resolver::iterator()) {
-    THROW_EXCEPTION("hostname not found.");
+    throw std::logic_error("hostname not found.");
   }
 
   tcp::endpoint ep = *iter;
-  logger_info("client: start async connection to ", _params.host, ":", _params.port,
-              " - ", ep.address().to_string());
-
+  
   auto self = this->shared_from_this();
   self->_async_io = std::make_shared<async_io>(self->_service);
   self->_async_io->socket().async_connect(ep, [self](auto ec) {
@@ -87,7 +84,6 @@ void dialler::start_async_connection() {
     } else {
 
       if (self->_async_io->socket().is_open()) {
-        logger_info("client: connected.");
         async_io::data_handler_t on_d = [self](auto d, auto cancel) {
           self->on_data_receive(std::move(d), cancel);
         };

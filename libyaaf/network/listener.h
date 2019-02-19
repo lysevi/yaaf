@@ -3,7 +3,7 @@
 #include <libyaaf/exports.h>
 #include <libyaaf/network/async_io.h>
 #include <libyaaf/network/listener_client.h>
-#include <libyaaf/utils/initialized_resource.h>
+#include <libyaaf/network/initialized_resource.h>
 
 #include <atomic>
 #include <mutex>
@@ -13,7 +13,7 @@ namespace yaaf {
 namespace network {
 class listener;
 
-class abstract_listener_consumer : public utils::initialized_resource {
+class abstract_listener_consumer : public initialized_resource {
 public:
   EXPORT virtual ~abstract_listener_consumer();
 
@@ -26,7 +26,7 @@ public:
 
   EXPORT void set_listener(const std::shared_ptr<listener> &lstnr);
   EXPORT bool is_listener_exists() const { return _lstnr != nullptr; }
-  EXPORT void send_to(id_t id, network::message_ptr &d);
+  EXPORT void send_to(uint64_t id, network::message_ptr &d);
   EXPORT void stop();
 private:
   std::shared_ptr<listener> _lstnr;
@@ -35,7 +35,7 @@ private:
 using abstract_listener_consumer_ptr = abstract_listener_consumer *;
 
 class listener : public std::enable_shared_from_this<listener>,
-                 public utils::initialized_resource {
+                 public initialized_resource {
 public:
   struct params_t {
     unsigned short port;
@@ -49,7 +49,7 @@ public:
   EXPORT void stop();
 
   EXPORT void send_to(listener_client_ptr i, network::message_ptr &d);
-  EXPORT void send_to(id_t id, network::message_ptr &d);
+  EXPORT void send_to(uint64_t id, network::message_ptr &d);
 
   EXPORT boost::asio::io_service *service() const { return _service; }
 

@@ -1,9 +1,6 @@
 #pragma once
 
 #include <libyaaf/network/message.h>
-#include <libyaaf/utils/async/locker.h>
-#include <libyaaf/utils/exception.h>
-
 #include <boost/asio.hpp>
 
 #include <atomic>

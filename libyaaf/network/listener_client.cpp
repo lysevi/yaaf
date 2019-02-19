@@ -1,6 +1,5 @@
 #include <libyaaf/network/listener.h>
 #include <libyaaf/network/listener_client.h>
-#include <libyaaf/utils/utils.h>
 #include <boost/asio.hpp>
 #include <functional>
 #include <string>
@@ -11,7 +10,7 @@ using namespace boost::asio::ip;
 using namespace yaaf;
 using namespace yaaf::network;
 
-listener_client::listener_client(id_t id_, network::async_io_ptr async_io,
+listener_client::listener_client(uint64_t id_, network::async_io_ptr async_io,
                                std::shared_ptr<listener> s)
     : id(id_), _listener(s) {
   _async_connection = async_io;

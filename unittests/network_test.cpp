@@ -5,6 +5,8 @@
 
 #if YAAF_NETWORK_ENABLED
 
+#include <libyaaf/network/initialized_resource.h>
+
 namespace {
 const std::vector<uint8_t> tst_net_data = {0, 1, 2, 3, 4, 5, 6};
 
@@ -177,4 +179,71 @@ TEST_CASE("context. network", "[network][context]") {
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
   }
 }
+
+
+TEST_CASE("utils.long_process") {
+  yaaf::network::long_process run(std::string("run"), true);
+  EXPECT_FALSE(run.is_started());
+  EXPECT_FALSE(run.is_complete());
+
+  REQUIRE_THROWS(run.complete());
+
+  run.start();
+  EXPECT_TRUE(run.is_started());
+  EXPECT_FALSE(run.is_complete());
+
+  run.complete();
+  EXPECT_TRUE(run.is_started());
+  EXPECT_TRUE(run.is_complete());
+
+  REQUIRE_THROWS(run.complete(true));
+}
+
+TEST_CASE("utils.initialized_resource") {
+  yaaf::network::initialized_resource child_w, parent_w;
+  {
+    EXPECT_FALSE(child_w.is_initialisation_begin());
+
+    parent_w.initialisation_begin();
+    child_w.initialisation_begin();
+
+    REQUIRE_THROWS(child_w.initialisation_begin());
+    REQUIRE_THROWS(parent_w.initialisation_begin());
+
+    EXPECT_TRUE(child_w.is_initialisation_begin());
+
+    auto chld = [&child_w, &parent_w]() {
+      parent_w.wait_starting();
+      EXPECT_TRUE(parent_w.is_started());
+      child_w.initialisation_complete();
+    };
+
+    std::thread chldT(chld);
+
+    parent_w.initialisation_complete();
+    child_w.wait_starting();
+    EXPECT_TRUE(child_w.is_started());
+
+    chldT.join();
+  }
+
+  child_w.stopping_started();
+  parent_w.stopping_started();
+  auto chld_stoper = [&parent_w, &child_w]() {
+    child_w.stopping_completed();
+    EXPECT_TRUE(child_w.is_stoped());
+    EXPECT_FALSE(child_w.is_started());
+    parent_w.wait_stoping();
+    EXPECT_TRUE(parent_w.is_stoped());
+    EXPECT_FALSE(parent_w.is_started());
+  };
+
+  std::thread chldStoper(chld_stoper);
+
+  child_w.wait_stoping();
+
+  parent_w.stopping_completed();
+  chldStoper.join();
+}
+
 #endif

@@ -4,7 +4,6 @@
 #include <libyaaf/network/message.h>
 #include <libyaaf/serialization/serialization.h>
 #include <libyaaf/types.h>
-#include <libyaaf/utils/utils.h>
 #include <cstdint>
 #include <cstring>
 

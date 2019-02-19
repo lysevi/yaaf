@@ -2,8 +2,7 @@
 
 #include <libyaaf/exports.h>
 #include <libyaaf/network/async_io.h>
-#include <libyaaf/types.h>
-#include <libyaaf/utils/initialized_resource.h>
+#include <libyaaf/network/initialized_resource.h>
 #include <atomic>
 #include <mutex>
 
@@ -12,9 +11,9 @@ namespace network {
 
 class listener;
 class listener_client : public std::enable_shared_from_this<listener_client>,
-                       public utils::initialized_resource {
+                       public initialized_resource {
 public:
-  listener_client(id_t id_, network::async_io_ptr async_io, std::shared_ptr<listener> s);
+  listener_client(uint64_t id_, network::async_io_ptr async_io, std::shared_ptr<listener> s);
   ~listener_client();
   EXPORT void start();
   EXPORT void close();
@@ -22,10 +21,10 @@ public:
                                const boost::system::error_code &err);
   EXPORT void on_data_recv(message_ptr &&d, bool &cancel);
   EXPORT void send_data(const message_ptr &d);
-  EXPORT id_t get_id() const { return id; }
+  EXPORT uint64_t get_id() const { return id; }
 
 private:
-  id_t id;
+  uint64_t id;
   network::async_io_ptr _async_connection = nullptr;
   std::shared_ptr<listener> _listener = nullptr;
 };

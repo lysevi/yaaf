@@ -1,9 +1,9 @@
 #pragma once
 
 #include <libyaaf/exports.h>
-#include <libyaaf/utils/utils.h>
 #include <array>
 #include <cstdint>
+#include <cassert>
 
 namespace yaaf {
 namespace network {
@@ -35,7 +35,7 @@ public:
   }
 
   message(size_t sz) {
-    ENSURE((sz + SIZE_OF_SIZE + SIZE_OF_HEADER) < MAX_MESSAGE_SIZE);
+    assert((sz + SIZE_OF_SIZE + SIZE_OF_HEADER) < MAX_MESSAGE_SIZE);
     auto realSize = static_cast<size_t>(sz + SIZE_OF_SIZE);
     std::fill(std::begin(data), std::end(data), uint8_t(0));
     size = (size_t *)data.data();

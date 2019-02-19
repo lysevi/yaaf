@@ -47,7 +47,7 @@ public:
           listener_actor_message lm;
           lm.name = nm.msg.name;
           lm.data = nm.msg.data;
-          lm.sender_id = i->get_id().value;
+          lm.sender_id = i->get_id();
           ctx->send(addr, lm);
         } else {
           logger_fatal("context: listener - cannot get actor ", nm.msg.name);

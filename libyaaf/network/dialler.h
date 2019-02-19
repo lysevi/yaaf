@@ -2,8 +2,7 @@
 
 #include <libyaaf/exports.h>
 #include <libyaaf/network/async_io.h>
-#include <libyaaf/types.h>
-#include <libyaaf/utils/initialized_resource.h>
+#include <libyaaf/network/initialized_resource.h>
 
 #include <unordered_map>
 
@@ -31,7 +30,7 @@ private:
 using abstract_connection_consumer_ptr = abstract_dialler *;
 
 class dialler : public std::enable_shared_from_this<dialler>,
-                   public utils::initialized_resource {
+                   public initialized_resource {
 public:
   struct params_t {
     params_t(std::string host_, unsigned short port_, bool auto_reconnection_ = true)

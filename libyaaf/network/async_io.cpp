@@ -1,16 +1,15 @@
 #include <libyaaf/network/async_io.h>
-#include <libyaaf/utils/exception.h>
-#include <libyaaf/utils/utils.h>
+#include <cassert>
+#include <exception>
 
 using namespace boost::asio;
-using namespace yaaf::utils::logging;
 using namespace yaaf::network;
 
 async_io::async_io(boost::asio::io_service *service)
     : _sock(*service), next_message_size(0) {
   _messages_to_send = 0;
   _is_stoped = true;
-  ENSURE(service != nullptr);
+  assert(service != nullptr);
   _service = service;
 }
 
@@ -41,19 +40,23 @@ void async_io::fullStop(bool waitAllmessages) {
         boost::system::error_code ec;
         _sock.shutdown(boost::asio::ip::tcp::socket::shutdown_both, ec);
         if (ec) {
-          auto message = ec.message();
-#ifdef DOUBLE_CHECKS
-          logger_fatal("AsyncIO::full_stop: _sock.shutdown() => code=", ec.value(),
-                       " msg:", message);
-#endif
+          //#ifdef DOUBLE_CHECKS
+          //          auto message = ec.message();
+          //
+          //          logger_fatal("AsyncIO::full_stop: _sock.shutdown() => code=",
+          //          ec.value(),
+          //                       " msg:", message);
+          //#endif
         } else {
           _sock.close(ec);
           if (ec) {
-            auto message = ec.message();
-#ifdef DOUBLE_CHECKS
-            logger_fatal("AsyncIO::full_stop: _sock.close(ec)  => code=", ec.value(),
-                         " msg:", message);
-#endif
+            //#ifdef DOUBLE_CHECKS
+            //            auto message = ec.message();
+            //
+            //            logger_fatal("AsyncIO::full_stop: _sock.close(ec)  => code=",
+            //            ec.value(),
+            //                         " msg:", message);
+            //#endif
           }
         }
         _service = nullptr;
@@ -87,27 +90,20 @@ void async_io::send(const message_ptr d) {
 }
 
 void async_io::readNextAsync() {
-  using utils::strings::args_to_string;
-
   auto self = shared_from_this();
 
   auto on_read_message = [self](auto err, auto read_bytes, auto data_left,
                                 message_ptr d) {
-    UNUSED(read_bytes);
-    UNUSED(data_left);
     if (err) {
       self->_on_error_handler(d, err);
     } else {
-      ENSURE_MSG(read_bytes == data_left,
-                 args_to_string("exception on readNextAsync::async on_read_message ",
-                                " - wrong size: expected ", data_left, " readed ",
-                                read_bytes))
+      assert(read_bytes == data_left);
       bool cancel_flag = false;
       try {
         self->_on_recv_hadler(std::move(d), cancel_flag);
       } catch (std::exception &ex) {
-        THROW_EXCEPTION("exception on async readNextAsync::on_read_message. - ",
-                        ex.what());
+        throw std::logic_error(std::string("exception on async readNextAsync::on_read_message. - ") +
+                               ex.what());
       }
       if (!cancel_flag) {
         self->readNextAsync();
@@ -116,14 +112,10 @@ void async_io::readNextAsync() {
   };
 
   auto on_read_size = [this, self, on_read_message](auto err, auto read_bytes) {
-    UNUSED(read_bytes);
     if (err) {
       self->_on_error_handler(nullptr, err);
     } else {
-      ENSURE_MSG(read_bytes == message::SIZE_OF_SIZE,
-                 args_to_string("exception on async readNextAsync::on_read_size. ",
-                                " - wrong size: expected ", message::SIZE_OF_SIZE,
-                                " readed ", read_bytes));
+      assert(read_bytes == message::SIZE_OF_SIZE);
 
       auto data_left = self->next_message_size - message::SIZE_OF_SIZE;
       message_ptr d = std::make_shared<message>(data_left);

@@ -1,7 +1,6 @@
 #include <libyaaf/network/listener.h>
 #include <libyaaf/network/listener_client.h>
 #include <libyaaf/network/queries.h>
-#include <libyaaf/utils/utils.h>
 #include <boost/asio.hpp>
 #include <functional>
 #include <string>
@@ -21,7 +20,7 @@ void abstract_listener_consumer::set_listener(const std::shared_ptr<listener> &l
   _lstnr = lstnr;
 }
 
-void abstract_listener_consumer::send_to(id_t id, network::message_ptr &d) {
+void abstract_listener_consumer::send_to(uint64_t id, network::message_ptr &d) {
   if (!_lstnr->is_stopping_started()) {
     _lstnr->send_to(id, d);
   }
@@ -163,7 +162,7 @@ void listener::send_to(listener_client_ptr i, message_ptr &d) {
   i->send_data(d);
 }
 
-void listener::send_to(id_t id, message_ptr &d) {
+void listener::send_to(uint64_t id, message_ptr &d) {
   std::lock_guard<std::mutex> lg(this->_locker_connections);
   for (const auto &c : _connections) {
     if (c->get_id() == id) {
