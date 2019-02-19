@@ -4,7 +4,7 @@
 
 #include <boost/asio.hpp>
 
-#include <libyaaf/network/connection.h>
+#include <libyaaf/network/dialler.h>
 #include <libyaaf/network/listener.h>
 #include <libyaaf/utils/logger.h>
 
@@ -40,7 +40,7 @@ struct Listener : public yaaf::network::abstract_listener_consumer {
   std::atomic_int16_t connections = 0;
 };
 
-struct Connection : public yaaf::network::abstract_connection_consumer {
+struct Connection : public yaaf::network::abstract_dialler {
   void on_connect() override { mock_is_connected = true; };
   void on_new_message(yaaf::network::message_ptr &&, bool &) override {}
   void on_network_error(const yaaf::network::message_ptr &,
@@ -90,7 +90,7 @@ void server_thread() {
 
 TEST_CASE("listener.client", "[network]") {
   size_t clients_count = 0;
-  network::connection::params_t p("localhost", 4040);
+  network::dialler::params_t p("localhost", 4040);
 
   SECTION("listener.client: 1") { clients_count = 1; }
   SECTION("listener.client: 10") { clients_count = 10; }
@@ -102,10 +102,10 @@ TEST_CASE("listener.client", "[network]") {
            server == nullptr);
   }
 
-  std::vector<std::shared_ptr<network::connection>> clients(clients_count);
+  std::vector<std::shared_ptr<network::dialler>> clients(clients_count);
   std::vector<std::shared_ptr<Connection>> consumers(clients_count);
   for (size_t i = 0; i < clients_count; i++) {
-    clients[i] = std::make_shared<network::connection>(service, p);
+    clients[i] = std::make_shared<network::dialler>(service, p);
     consumers[i] = std::make_shared<Connection>();
     clients[i]->add_consumer(consumers[i].get());
     clients[i]->start_async_connection();

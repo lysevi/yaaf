@@ -101,14 +101,14 @@ TEST_CASE("context. network", "[network][context]") {
 
   unsigned short started_port = 9080;
   std::vector<yaaf::network::listener::params_t> listeners_params;
-  std::vector<yaaf::network::connection::params_t> connection_params;
+  std::vector<yaaf::network::dialler::params_t> connection_params;
 
   for (unsigned short i = 0; i < listeners_count; ++i) {
     listeners_params.emplace_back(
         yaaf::network::listener::params_t{static_cast<unsigned short>(started_port + i)});
 
     connection_params.emplace_back(
-        yaaf::network::connection::params_t("localhost", started_port + i));
+        yaaf::network::dialler::params_t("localhost", started_port + i));
   }
   /// connection
   auto ctx_con = yaaf::context::make_context(cp_connection, "con_context");

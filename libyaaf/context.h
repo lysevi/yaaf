@@ -86,8 +86,8 @@ public:
 #if YAAF_NETWORK_ENABLED
   void add_listener_on(network::listener::params_t &p);
   void erase_listener_on(unsigned short port);
-  void add_connection_to(network::connection::params_t &cp);
-  void erase_connections(network::connection::params_t&cp);
+  void add_connection_to(network::dialler::params_t &cp);
+  void erase_connections(network::dialler::params_t&cp);
 #endif
 private:
   void create_exchange(const std::string &) override {}
@@ -144,7 +144,7 @@ private:
   boost::asio::io_service _net_service;
 
   std::vector<std::thread> _net_threads;
-  std::unordered_map<network::connection::params_t, std::shared_ptr<network::connection>> _network_connections;
+  std::unordered_map<network::dialler::params_t, std::shared_ptr<network::dialler>> _network_connections;
 
   std::unordered_map<unsigned short, std::shared_ptr<network::listener>>
       _network_listeners;

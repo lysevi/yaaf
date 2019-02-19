@@ -10,10 +10,10 @@
 namespace yaaf {
 namespace network {
 
-class connection;
-class abstract_connection_consumer {
+class dialler;
+class abstract_dialler {
 public:
-  EXPORT virtual ~abstract_connection_consumer();
+  EXPORT virtual ~abstract_dialler();
   virtual void on_connect() = 0;
   virtual void on_new_message(message_ptr &&d, bool &cancel) = 0;
   virtual void on_network_error(const message_ptr &d,
@@ -22,15 +22,15 @@ public:
   EXPORT bool is_connected() const;
   EXPORT bool is_stoped() const;
 
-  EXPORT void add_connection(std::shared_ptr<connection> c);
+  EXPORT void add_connection(std::shared_ptr<dialler> c);
   EXPORT bool is_connection_exists() const { return _connection != nullptr; }
 
 private:
-  std::shared_ptr<connection> _connection;
+  std::shared_ptr<dialler> _connection;
 };
-using abstract_connection_consumer_ptr = abstract_connection_consumer *;
+using abstract_connection_consumer_ptr = abstract_dialler *;
 
-class connection : public std::enable_shared_from_this<connection>,
+class dialler : public std::enable_shared_from_this<dialler>,
                    public utils::initialized_resource {
 public:
   struct params_t {
@@ -45,11 +45,11 @@ public:
              auto_reconnection == other.auto_reconnection;
     }
   };
-  connection() = delete;
+  dialler() = delete;
   params_t get_params() const { return _params; }
 
-  EXPORT connection(boost::asio::io_service *service, const params_t &_parms);
-  EXPORT virtual ~connection();
+  EXPORT dialler(boost::asio::io_service *service, const params_t &_parms);
+  EXPORT virtual ~dialler();
   EXPORT void disconnect();
   EXPORT void start_async_connection();
   EXPORT void reconnecton_error(const message_ptr &d,
@@ -72,9 +72,9 @@ protected:
 } // namespace yaaf
 
 namespace std {
-template <> class hash<yaaf::network::connection::params_t> {
+template <> class hash<yaaf::network::dialler::params_t> {
 public:
-  size_t operator()(const yaaf::network::connection::params_t &s) const {
+  size_t operator()(const yaaf::network::dialler::params_t &s) const {
     size_t h = std::hash<std::string>()(s.host);
     size_t h2 = std::hash<unsigned short>()(s.port);
     size_t h3 = std::hash<bool>()(s.auto_reconnection);

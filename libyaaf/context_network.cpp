@@ -64,10 +64,10 @@ private:
 };
 
 class network_con_actor : public base_actor,
-                          public yaaf::network::abstract_connection_consumer {
+                          public yaaf::network::abstract_dialler {
 public:
-  network_con_actor(std::shared_ptr<yaaf::network::connection> con_, context *ctx_,
-                    yaaf::network::connection::params_t &cp)
+  network_con_actor(std::shared_ptr<yaaf::network::dialler> con_, context *ctx_,
+                    yaaf::network::dialler::params_t &cp)
       : _cp(cp) {
     _ctx = ctx_;
     _con = con_;
@@ -124,8 +124,8 @@ public:
   }
 
 private:
-  std::shared_ptr<yaaf::network::connection> _con;
-  yaaf::network::connection::params_t _cp;
+  std::shared_ptr<yaaf::network::dialler> _con;
+  yaaf::network::dialler::params_t _cp;
   context *_ctx;
   std::string target_host;
 };
@@ -140,8 +140,8 @@ public:
       root_ctx->add_listener_on(l);
     }
 
-    if (e.payload.is<network::connection::params_t>()) {
-      auto c = e.payload.cast<network::connection::params_t>();
+    if (e.payload.is<network::dialler::params_t>()) {
+      auto c = e.payload.cast<network::dialler::params_t>();
       root_ctx->add_connection_to(c);
     }
   }
@@ -189,12 +189,12 @@ void context::erase_listener_on(unsigned short port) {
   }
 }
 
-void context::add_connection_to(network::connection::params_t &cp) {
+void context::add_connection_to(network::dialler::params_t &cp) {
   auto target_host = utils::strings::args_to_string(cp.host, ":", cp.port);
   logger_info("context: connecting to ", target_host);
   create_exchange(_net_root, "/root/net/" + target_host);
 
-  auto l = std::make_shared<network::connection>(&this->_net_service, cp);
+  auto l = std::make_shared<network::dialler>(&this->_net_service, cp);
   auto actor_name = cp.host + ':' + std::to_string(cp.port);
   auto saptr = std::make_shared<network_con_actor>(l, this, cp);
   auto lactor = this->add_actor(actor_name, _net_root, saptr);
@@ -204,7 +204,7 @@ void context::add_connection_to(network::connection::params_t &cp) {
   _network_connections.insert(std::make_pair(cp, l));
 }
 
-void context::erase_connections(network::connection::params_t &cp) {
+void context::erase_connections(network::dialler::params_t &cp) {
   logger_info("context: erase connection to ", cp.host, ":", cp.port);
   std::lock_guard<std::shared_mutex> lg(_exchange_locker);
 

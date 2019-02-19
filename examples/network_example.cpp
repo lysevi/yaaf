@@ -124,7 +124,7 @@ int main(int, char **) {
   
   auto ctx_con = yaaf::context::make_context("con_context");
   ctx_con->send(ctx_con->get_address("/root/net"),
-                yaaf::network::connection::params_t("localhost", port_number));
+                yaaf::network::dialler::params_t("localhost", port_number));
 
   auto ctx_lst = yaaf::context::make_context(listener_params, "listen_context");
   ctx_lst->send(

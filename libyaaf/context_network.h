@@ -1,6 +1,6 @@
 #pragma once
 #if YAAF_NETWORK_ENABLED
-#include <libyaaf/network/connection.h>
+#include <libyaaf/network/dialler.h>
 #include <libyaaf/network/listener.h>
 #include <libyaaf/serialization/serialization.h>
 

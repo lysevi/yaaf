@@ -1,35 +1,35 @@
 #include <boost/asio.hpp>
 
-#include <libyaaf/network/connection.h>
+#include <libyaaf/network/dialler.h>
 
 using namespace yaaf;
 using namespace yaaf::utils::logging;
 using namespace yaaf::network;
 
-abstract_connection_consumer ::~abstract_connection_consumer() {
+abstract_dialler ::~abstract_dialler() {
   _connection->erase_consumer();
 }
 
-bool abstract_connection_consumer::is_connected() const {
+bool abstract_dialler::is_connected() const {
   return _connection->is_started();
 }
 
-bool abstract_connection_consumer::is_stoped() const {
+bool abstract_dialler::is_stoped() const {
   return _connection->is_stopping_started();
 }
 
-void abstract_connection_consumer::add_connection(std::shared_ptr<connection> c) {
+void abstract_dialler::add_connection(std::shared_ptr<dialler> c) {
   _connection = c;
 }
 
-connection::connection(boost::asio::io_service *service, const params_t &params)
+dialler::dialler(boost::asio::io_service *service, const params_t &params)
     : _service(service), _params(params), _consumers() {}
 
-connection::~connection() {
+dialler::~dialler() {
   disconnect();
 }
 
-void connection::disconnect() {
+void dialler::disconnect() {
   if (!is_stoped()) {
     stopping_started();
     _async_io->fullStop();
@@ -37,7 +37,7 @@ void connection::disconnect() {
   }
 }
 
-void connection::reconnecton_error(const message_ptr &d,
+void dialler::reconnecton_error(const message_ptr &d,
                                    const boost::system::error_code &err) {
 
   {
@@ -51,7 +51,7 @@ void connection::reconnecton_error(const message_ptr &d,
   }
 }
 
-void connection::start_async_connection() {
+void dialler::start_async_connection() {
   if (!is_initialisation_begin()) {
     initialisation_begin();
   }
@@ -106,7 +106,7 @@ void connection::start_async_connection() {
   });
 }
 
-void connection::on_data_receive(message_ptr &&d, bool &cancel) {
+void dialler::on_data_receive(message_ptr &&d, bool &cancel) {
   {
     if (_consumers != nullptr) {
       _consumers->on_new_message(std::move(d), cancel);
@@ -114,17 +114,17 @@ void connection::on_data_receive(message_ptr &&d, bool &cancel) {
   }
 }
 
-void connection::send_async(const message_ptr &d) {
+void dialler::send_async(const message_ptr &d) {
   if (_async_io) {
     _async_io->send(d);
   }
 }
 
-void connection::add_consumer(const abstract_connection_consumer_ptr &c) {
+void dialler::add_consumer(const abstract_connection_consumer_ptr &c) {
   _consumers = c;
   c->add_connection(shared_from_this());
 }
 
-void connection::erase_consumer() {
+void dialler::erase_consumer() {
   _consumers = nullptr;
 }
