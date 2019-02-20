@@ -7,8 +7,12 @@ function(ADD_BENCHARK name src)
 
 		SET(trgt benchmark_${name})
         add_executable(${trgt} ${src})
-        target_link_libraries(${trgt} ${YAAF_LIBS})
+        TARGET_LINK_LIBRARIES(${trgt} ${YAAF_LIBRARIES})
+		TARGET_LINK_DIRECTORIES(${trgt} PUBLIC ${YAAF_LIBRARY_DIR})
+		target_include_directories(${trgt} PUBLIC ${YAAF_INCLUDE_DIR})
+
         set_target_properties(${trgt} PROPERTIES FOLDER Benchmarks)
+
 		add_test(${name} ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${trgt}) 
 		cotire(${trgt})
 endfunction(ADD_BENCHARK)

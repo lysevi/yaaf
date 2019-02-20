@@ -58,32 +58,9 @@ ENDIF()
 ########## BOOST
 if(yaaf_ENABLE_NETWORK)
 add_definitions(-DYAAF_NETWORK_ENABLED)
-set(BOOST_DEP system date_time)
 
-set(Boost_USE_STATIC_LIBS OFF)
-set(Boost_USE_MULTITHREADED ON)  
-set(Boost_USE_STATIC_RUNTIME OFF) 
-
-IF(WIN32 AND MSVC)
-  find_package(Boost 1.60.0 COMPONENTS ${BOOST_DEP} REQUIRED)
-else()
-  set(BOOST_DEP ${BOOST_DEP})
-  find_package(Boost  REQUIRED ${BOOST_DEP})
-ENDIF()
-
-
-IF(Boost_FOUND)
-  INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIRS})
-  LINK_DIRECTORIES(${Boost_LIBRARY_DIRS})
-  SET(yaaf_LIB_PATH ${Boost_LIBRARY_DIRS}
-              CACHE STRING "yaaf libs path.")
-else()	
-  MESSAGE(FATAL_ERROR "boost not found")
-  EXIT()
-ENDIF()
-
+add_subdirectory(extern/dialler)
 endif(yaaf_ENABLE_NETWORK)
-
 ##### THREADS
 find_package (Threads)
 
@@ -96,7 +73,16 @@ endif(yaaf_ENABLE_TESTS)
 
 #########
 
-SET(yaaf_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_BINARY_DIR} CACHE STRING "yaaf include dir.")
+
+if(yaaf_ENABLE_NETWORK)
+	SET(YAAF_LIBRARY_DIR ${DIALLER_LIBRARY_DIR}  )
+	SET(YAAF_INCLUDE_DIR ${DIALLER_INCLUDE_DIR}  ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_BINARY_DIR} )
+	SET(YAAF_PRIVATE_LIBRARIES ${DIALLER_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+else()
+	SET(YAAF_LIBRARY_DIR)
+	SET(YAAF_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_BINARY_DIR} )
+	SET(YAAF_PRIVATE_LIBRARIES  ${CMAKE_THREAD_LIBS_INIT})	
+endif(yaaf_ENABLE_NETWORK)
 
 add_subdirectory(libyaaf)
 add_subdirectory(examples)

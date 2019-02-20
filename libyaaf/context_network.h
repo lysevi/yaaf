@@ -1,7 +1,7 @@
 #pragma once
 #if YAAF_NETWORK_ENABLED
-#include <libyaaf/network/dialler.h>
-#include <libyaaf/network/listener.h>
+#include <libdialler/dialler.h>
+#include <libdialler/listener.h>
 #include <libyaaf/serialization/serialization.h>
 
 namespace yaaf {

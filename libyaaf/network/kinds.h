@@ -1,12 +1,12 @@
 #pragma once
 
-#include <libyaaf/network/message.h>
+#include <libdialler/message.h>
 #include <type_traits>
 
 namespace yaaf {
 namespace network {
 
-enum class messagekinds : network::message::kind_t {
+enum class messagekinds : dialler::message::kind_t {
   OK,
   LOGIN,
   LOGIN_CONFIRM,

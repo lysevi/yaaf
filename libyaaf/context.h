@@ -10,7 +10,10 @@
 #include <memory>
 #include <shared_mutex>
 #include <unordered_set>
-
+#if YAAF_NETWORK_ENABLED
+#include <libdialler/listener.h>
+#include <libdialler/dialler.h>
+#endif
 namespace yaaf {
 namespace inner {
 
@@ -84,10 +87,10 @@ public:
                                   const envelope &&e) override;
   EXPORT bool exchange_exists(const std::string &name) const;
 #if YAAF_NETWORK_ENABLED
-  void add_listener_on(network::listener::params_t &p);
+  void add_listener_on(dialler::listener::params_t &p);
   void erase_listener_on(unsigned short port);
-  void add_connection_to(network::dialler::params_t &cp);
-  void erase_connections(network::dialler::params_t&cp);
+  void add_connection_to(dialler::dial::params_t &cp);
+  void erase_connections(dialler::dial::params_t &cp);
 #endif
 private:
   void create_exchange(const std::string &) override {}
@@ -144,9 +147,10 @@ private:
   boost::asio::io_service _net_service;
 
   std::vector<std::thread> _net_threads;
-  std::unordered_map<network::dialler::params_t, std::shared_ptr<network::dialler>> _network_connections;
+  std::unordered_map<dialler::dial::params_t, std::shared_ptr<dialler::dial>>
+      _network_connections;
 
-  std::unordered_map<unsigned short, std::shared_ptr<network::listener>>
+  std::unordered_map<unsigned short, std::shared_ptr<dialler::listener>>
       _network_listeners;
 #endif
 };

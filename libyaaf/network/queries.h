@@ -1,7 +1,7 @@
 #pragma once
 
 #include <libyaaf/network/kinds.h>
-#include <libyaaf/network/message.h>
+#include <libdialler/message.h>
 #include <libyaaf/serialization/serialization.h>
 #include <libyaaf/types.h>
 #include <cstdint>
@@ -18,16 +18,16 @@ struct ok {
 
   ok(uint64_t id_) { id = id_; }
 
-  ok(const network::message_ptr &nd) { BinaryRW::read(nd->value(), id); }
+  ok(const dialler::message_ptr &nd) { BinaryRW::read(nd->value(), id); }
 
-  ok(network::message_ptr &&nd) { BinaryRW::read(nd->value(), id); }
+  ok(dialler::message_ptr &&nd) { BinaryRW::read(nd->value(), id); }
 
-  network::message_ptr get_message() const {
-    network::message::size_t neededSize =
-        static_cast<network::message::size_t>(BinaryRW::capacity(id));
+  dialler::message_ptr get_message() const {
+    dialler::message::size_t neededSize =
+        static_cast<dialler::message::size_t>(BinaryRW::capacity(id));
 
-    auto nd = std::make_shared<network::message>(
-        neededSize, (network::message::kind_t)messagekinds::OK);
+    auto nd = std::make_shared<dialler::message>(
+        neededSize, (dialler::message::kind_t)messagekinds::OK);
 
     BinaryRW::write(nd->value(), id);
     return nd;
@@ -41,14 +41,14 @@ struct login {
 
   login(const std::string &login_) { login_str = login_; }
 
-  login(const network::message_ptr &nd) { BinaryRW::read(nd->value(), login_str); }
+  login(const dialler::message_ptr &nd) { BinaryRW::read(nd->value(), login_str); }
 
-  network::message_ptr get_message() const {
-    network::message::size_t neededSize =
-        static_cast<network::message::size_t>(BinaryRW::capacity(login_str));
+  dialler::message_ptr get_message() const {
+    dialler::message::size_t neededSize =
+        static_cast<dialler::message::size_t>(BinaryRW::capacity(login_str));
 
-    auto nd = std::make_shared<network::message>(
-        neededSize, (network::message::kind_t)messagekinds::LOGIN);
+    auto nd = std::make_shared<dialler::message>(
+        neededSize, (dialler::message::kind_t)messagekinds::LOGIN);
 
     BinaryRW::write(nd->value(), login_str);
     return nd;
@@ -62,14 +62,14 @@ struct login_confirm {
 
   login_confirm(uint64_t id_) { id = id_; }
 
-  login_confirm(const network::message_ptr &nd) { BinaryRW::read(nd->value(), id); }
+  login_confirm(const dialler::message_ptr &nd) { BinaryRW::read(nd->value(), id); }
 
-  network::message_ptr get_message() const {
-    network::message::size_t neededSize =
-        static_cast<network::message::size_t>(BinaryRW::capacity(id));
+  dialler::message_ptr get_message() const {
+    dialler::message::size_t neededSize =
+        static_cast<dialler::message::size_t>(BinaryRW::capacity(id));
 
-    auto nd = std::make_shared<network::message>(
-        neededSize, (network::message::kind_t)messagekinds::LOGIN_CONFIRM);
+    auto nd = std::make_shared<dialler::message>(
+        neededSize, (dialler::message::kind_t)messagekinds::LOGIN_CONFIRM);
 
     BinaryRW::write(nd->value(), id);
     return nd;
@@ -83,14 +83,14 @@ struct login_failed {
 
   login_failed(uint64_t id_) { id = id_; }
 
-  login_failed(const network::message_ptr &nd) { BinaryRW::read(nd->value(), id); }
+  login_failed(const dialler::message_ptr &nd) { BinaryRW::read(nd->value(), id); }
 
-  network::message_ptr get_message() const {
-    network::message::size_t neededSize =
-        static_cast<network::message::size_t>(BinaryRW::capacity(id));
+  dialler::message_ptr get_message() const {
+    dialler::message::size_t neededSize =
+        static_cast<dialler::message::size_t>(BinaryRW::capacity(id));
 
-    auto nd = std::make_shared<network::message>(
-        neededSize, (network::message::kind_t)messagekinds::LOGIN_FAILED);
+    auto nd = std::make_shared<dialler::message>(
+        neededSize, (dialler::message::kind_t)messagekinds::LOGIN_FAILED);
 
     BinaryRW::write(nd->value(), id);
     return nd;
@@ -104,22 +104,22 @@ template <typename T> struct packed_message {
 
   packed_message(T &&msg_) : msg(std::move(msg_)) {}
 
-  packed_message(const network::message_ptr &nd) {
+  packed_message(const dialler::message_ptr &nd) {
     auto iterator = nd->value();
     msg = serialization::object_packer<T>::unpack(iterator);
   }
 
-  packed_message(network::message_ptr &&nd) {
+  packed_message(dialler::message_ptr &&nd) {
     auto iterator = nd->value();
     msg = serialization::object_packer<T>::unpack(iterator);
   }
 
-  network::message_ptr get_message() const {
-    network::message::size_t neededSize = static_cast<network::message::size_t>(
+  dialler::message_ptr get_message() const {
+    dialler::message::size_t neededSize = static_cast<dialler::message::size_t>(
         serialization::object_packer<T>::capacity(msg));
 
-    auto nd = std::make_shared<network::message>(
-        neededSize, (network::message::kind_t)messagekinds::MSG);
+    auto nd = std::make_shared<dialler::message>(
+        neededSize, (dialler::message::kind_t)messagekinds::MSG);
 
     serialization::object_packer<T>::pack(nd->value(), msg);
     return nd;

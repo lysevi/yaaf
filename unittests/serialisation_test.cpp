@@ -1,10 +1,11 @@
 #include "helpers.h"
+#include <libdialler/message.h>
 #include <libyaaf/context.h>
 #include <libyaaf/network/queries.h>
 #include <libyaaf/serialization/serialization.h>
 #include <libyaaf/utils/utils.h>
+#include <numeric>
 #include <algorithm>
-
 #include <catch.hpp>
 
 using namespace yaaf;
@@ -34,7 +35,7 @@ TEST_CASE("serialization.vector", "[serialization]") {
 TEST_CASE("serialization.ok", "[serialization]") {
   ok qok{std::numeric_limits<uint64_t>::max()};
   auto nd = qok.get_message();
-  EXPECT_EQ(nd->get_header()->kind, (network::message::kind_t)messagekinds::OK);
+  EXPECT_EQ(nd->get_header()->kind, (dialler::message::kind_t)messagekinds::OK);
 
   auto repacked = ok(nd);
   EXPECT_EQ(repacked.id, qok.id);
@@ -43,7 +44,7 @@ TEST_CASE("serialization.ok", "[serialization]") {
 TEST_CASE("serialization.login", "[serialization]") {
   login lg{"login"};
   auto nd = lg.get_message();
-  EXPECT_EQ(nd->get_header()->kind, (network::message::kind_t)messagekinds::LOGIN);
+  EXPECT_EQ(nd->get_header()->kind, (dialler::message::kind_t)messagekinds::LOGIN);
 
   auto repacked = login(nd);
   EXPECT_EQ(repacked.login_str, lg.login_str);
@@ -53,7 +54,7 @@ TEST_CASE("serialization.login_confirm", "[serialization]") {
   login_confirm lg{uint64_t(1)};
   auto nd = lg.get_message();
   EXPECT_EQ(nd->get_header()->kind,
-            (network::message::kind_t)messagekinds::LOGIN_CONFIRM);
+            (dialler::message::kind_t)messagekinds::LOGIN_CONFIRM);
 
   auto repacked = login_confirm(nd);
   EXPECT_EQ(repacked.id, lg.id);
@@ -124,11 +125,11 @@ template <> struct object_packer<SchemeTestObject> {
 TEST_CASE("serialization.objectscheme", "[serialization]") {
   SchemeTestObject ok{std::numeric_limits<uint64_t>::max(), std::string("test_login")};
 
-  network::message::size_t neededSize = static_cast<network::message::size_t>(
+  dialler::message::size_t neededSize = static_cast<dialler::message::size_t>(
       yaaf::serialization::object_packer<SchemeTestObject>::capacity(ok));
 
-  auto nd = std::make_shared<network::message>(
-      neededSize, (network::message::kind_t)messagekinds::LOGIN);
+  auto nd = std::make_shared<dialler::message>(
+      neededSize, (dialler::message::kind_t)messagekinds::LOGIN);
 
   yaaf::serialization::object_packer<SchemeTestObject>::pack(nd->value(), ok);
 
@@ -144,7 +145,7 @@ TEST_CASE("serialization.message", "[serialization]") {
 
   queries::packed_message<SchemeTestObject> lg{msg_inner};
   auto nd = lg.get_message();
-  EXPECT_EQ(nd->get_header()->kind, (network::message::kind_t)messagekinds::MSG);
+  EXPECT_EQ(nd->get_header()->kind, (dialler::message::kind_t)messagekinds::MSG);
 
   auto repacked = queries::packed_message<SchemeTestObject>(nd);
   EXPECT_EQ(repacked.msg.id, msg_inner.id);
@@ -160,7 +161,7 @@ TEST_CASE("serialization.message.network", "[serialization]") {
 
   queries::packed_message<yaaf::network_actor_message> lg{nam};
   auto nd = lg.get_message();
-  EXPECT_EQ(nd->get_header()->kind, (network::message::kind_t)messagekinds::MSG);
+  EXPECT_EQ(nd->get_header()->kind, (dialler::message::kind_t)messagekinds::MSG);
 
   auto repacked = queries::packed_message<yaaf::network_actor_message>(nd);
   EXPECT_EQ(repacked.msg.name, lg.msg.name);

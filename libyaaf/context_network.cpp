@@ -11,7 +11,7 @@ using namespace yaaf::utils::logging;
 namespace {
 
 class network_lst_actor : public base_actor,
-                          public yaaf::network::abstract_listener_consumer {
+                          public dialler::abstract_listener_consumer {
 public:
   network_lst_actor(context *ctx_, unsigned short port) : _ctx(ctx_), _port(port) {}
 
@@ -20,7 +20,7 @@ public:
     network_actor_message nam;
     nam.data = lm.data;
     nam.name = lm.name;
-    yaaf::network::queries::packed_message<yaaf::network_actor_message> pm(nam);
+    network::queries::packed_message<yaaf::network_actor_message> pm(nam);
     auto msg_ptr = pm.get_message();
     send_to(lm.sender_id, msg_ptr);
   }
@@ -30,15 +30,15 @@ public:
     base_actor::on_stop();
   }
 
-  bool on_new_connection(yaaf::network::listener_client_ptr c) override { return true; }
+  bool on_new_connection(dialler::listener_client_ptr c) override { return true; }
 
-  void on_network_error(yaaf::network::listener_client_ptr i,
-                        const network::message_ptr & /*d*/,
+  void on_network_error(dialler::listener_client_ptr i,
+                        const dialler::message_ptr & /*d*/,
                         const boost::system::error_code & /*err*/) override {}
 
-  void on_new_message(yaaf::network::listener_client_ptr i, network::message_ptr &&d,
+  void on_new_message(dialler::listener_client_ptr i, dialler::message_ptr &&d,
                       bool & /*cancel*/) override {
-    if (d->get_header()->kind == (network::message::kind_t)network::messagekinds::MSG) {
+    if (d->get_header()->kind == (dialler::message::kind_t)network::messagekinds::MSG) {
       network::queries::packed_message<network_actor_message> nm(d);
       auto ctx = get_context();
       if (ctx != nullptr) {
@@ -56,7 +56,7 @@ public:
     }
   }
 
-  void on_disconnect(const yaaf::network::listener_client_ptr & /*i*/) override {}
+  void on_disconnect(const dialler::listener_client_ptr & /*i*/) override {}
 
 private:
   context *_ctx;
@@ -64,10 +64,10 @@ private:
 };
 
 class network_con_actor : public base_actor,
-                          public yaaf::network::abstract_dialler {
+                          public dialler::abstract_dial {
 public:
-  network_con_actor(std::shared_ptr<yaaf::network::dialler> con_, context *ctx_,
-                    yaaf::network::dialler::params_t &cp)
+  network_con_actor(std::shared_ptr<dialler::dial> con_, context *ctx_,
+                    dialler::dial::params_t &cp)
       : _cp(cp) {
     _ctx = ctx_;
     _con = con_;
@@ -81,16 +81,16 @@ public:
 
   void action_handle(const envelope &e) {
     network_actor_message nm = e.payload.cast<network_actor_message>();
-    yaaf::network::queries::packed_message<yaaf::network_actor_message> pm(nm);
+    network::queries::packed_message<yaaf::network_actor_message> pm(nm);
 
     _con->send_async(pm.get_message());
   }
 
   void on_connect() override { send_status_success(); };
 
-  void on_new_message(yaaf::network::message_ptr &&d, bool &quet) override {
+  void on_new_message(dialler::message_ptr &&d, bool &quet) override {
     UNUSED(quet);
-    if (d->get_header()->kind == (network::message::kind_t)network::messagekinds::MSG) {
+    if (d->get_header()->kind == (dialler::message::kind_t)network::messagekinds::MSG) {
       network::queries::packed_message<network_actor_message> nm(d);
       auto ctx = get_context();
       if (ctx != nullptr) {
@@ -103,7 +103,7 @@ public:
       }
     }
   }
-  void on_network_error(const yaaf::network::message_ptr &,
+  void on_network_error(const dialler::message_ptr &,
                         const boost::system::error_code &err) override {
     send_status_error(err.message());
   }
@@ -124,8 +124,8 @@ public:
   }
 
 private:
-  std::shared_ptr<yaaf::network::dialler> _con;
-  yaaf::network::dialler::params_t _cp;
+  std::shared_ptr<dialler::dial> _con;
+  dialler::dial::params_t _cp;
   context *_ctx;
   std::string target_host;
 };
@@ -135,13 +135,13 @@ public:
   network_supervisor_actor(context *root_ctx_) : root_ctx(root_ctx_) {}
 
   void action_handle(const envelope &e) {
-    if (e.payload.is<network::listener::params_t>()) {
-      auto l = e.payload.cast<network::listener::params_t>();
+    if (e.payload.is<dialler::listener::params_t>()) {
+      auto l = e.payload.cast<dialler::listener::params_t>();
       root_ctx->add_listener_on(l);
     }
 
-    if (e.payload.is<network::dialler::params_t>()) {
-      auto c = e.payload.cast<network::dialler::params_t>();
+    if (e.payload.is<dialler::dial::params_t>()) {
+      auto c = e.payload.cast<dialler::dial::params_t>();
       root_ctx->add_connection_to(c);
     }
   }
@@ -164,9 +164,9 @@ void context::network_init() {
   }
 }
 
-void context::add_listener_on(network::listener::params_t &lp) {
+void context::add_listener_on(dialler::listener::params_t &lp) {
   logger_info("context: start listener on ", lp.port);
-  auto l = std::make_shared<network::listener>(&this->_net_service, lp);
+  auto l = std::make_shared<dialler::listener>(&this->_net_service, lp);
   auto saptr = std::make_shared<network_lst_actor>(this, lp.port);
   auto lactor = this->add_actor("listen_" + std::to_string(lp.port), _net_root, saptr);
 
@@ -189,12 +189,12 @@ void context::erase_listener_on(unsigned short port) {
   }
 }
 
-void context::add_connection_to(network::dialler::params_t &cp) {
+void context::add_connection_to(dialler::dial::params_t &cp) {
   auto target_host = utils::strings::args_to_string(cp.host, ":", cp.port);
   logger_info("context: connecting to ", target_host);
   create_exchange(_net_root, "/root/net/" + target_host);
 
-  auto l = std::make_shared<network::dialler>(&this->_net_service, cp);
+  auto l = std::make_shared<dialler::dial>(&this->_net_service, cp);
   auto actor_name = cp.host + ':' + std::to_string(cp.port);
   auto saptr = std::make_shared<network_con_actor>(l, this, cp);
   auto lactor = this->add_actor(actor_name, _net_root, saptr);
@@ -204,7 +204,7 @@ void context::add_connection_to(network::dialler::params_t &cp) {
   _network_connections.insert(std::make_pair(cp, l));
 }
 
-void context::erase_connections(network::dialler::params_t &cp) {
+void context::erase_connections(dialler::dial::params_t &cp) {
   logger_info("context: erase connection to ", cp.host, ":", cp.port);
   std::lock_guard<std::shared_mutex> lg(_exchange_locker);
 

@@ -121,15 +121,14 @@ int main(int, char **) {
 
   auto listener_params = yaaf::context::params_t::defparams();
   auto connection_params = yaaf::context::params_t::defparams();
-  
+
   auto ctx_con = yaaf::context::make_context("con_context");
   ctx_con->send(ctx_con->get_address("/root/net"),
-                yaaf::network::dialler::params_t("localhost", port_number));
+                dialler::dial::params_t("localhost", port_number));
 
   auto ctx_lst = yaaf::context::make_context(listener_params, "listen_context");
-  ctx_lst->send(
-      ctx_con->get_address("/root/net"),
-      yaaf::network::listener::params_t{static_cast<unsigned short>(port_number)});
+  ctx_lst->send(ctx_con->get_address("/root/net"),
+                dialler::listener::params_t{static_cast<unsigned short>(port_number)});
 
   /// connection
   init_connection(ctx_con);
