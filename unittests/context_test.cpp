@@ -61,7 +61,7 @@ TEST_CASE("context. sending", "[context]") {
 }
 
 TEST_CASE("context. actor_start_stop", "[context]") {
-  class testable_actor : public yaaf::base_actor {
+  class testable_actor final : public yaaf::base_actor {
   public:
     testable_actor(int ctor_arg_) : ctor_arg(ctor_arg_) {}
 
@@ -120,7 +120,7 @@ TEST_CASE("context. actor_start_stop", "[context]") {
 
 TEST_CASE("context. hierarchy initialize", "[context]") {
 
-  class child1_a : public yaaf::base_actor {
+  class child1_a final : public yaaf::base_actor {
   public:
     child1_a() {}
 
@@ -143,7 +143,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
     bool is_on_start_called = false;
   };
 
-  class root_a : public yaaf::base_actor {
+  class root_a final : public yaaf::base_actor {
 
   public:
     root_a() {}
@@ -208,7 +208,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
     yaaf::actor_action_when_error on_error_flag;
   };
 
-  class core_a : public yaaf::base_actor {
+  class core_a final : public yaaf::base_actor {
   public:
     void on_start() override {
       auto ctx = get_context();
@@ -397,7 +397,7 @@ TEST_CASE("context. hierarchy initialize", "[context]") {
 TEST_CASE("context. ping-pong", "[context]") {
   using namespace yaaf::utils;
 
-  class pong_actor : public base_actor {
+  class pong_actor final : public base_actor {
   public:
     void action_handle(const envelope &e) override {
       ENSURE(e.payload.is<int>());
@@ -411,7 +411,7 @@ TEST_CASE("context. ping-pong", "[context]") {
     std::atomic_size_t pongs = 0;
   };
 
-  class ping_actor : public base_actor {
+  class ping_actor final : public base_actor {
     size_t _pongs_count;
 
   public:
@@ -527,7 +527,7 @@ const std::string PP_ENAME = "ping pong exchange";
 
 TEST_CASE("context. ping-pong over exchange", "[context]") {
 
-  class pong_actor : public base_actor {
+  class pong_actor final : public base_actor {
   public:
     void on_start() override {
       auto ctx = get_context();
@@ -553,7 +553,7 @@ TEST_CASE("context. ping-pong over exchange", "[context]") {
     bool started = false;
   };
 
-  class ping_actor : public base_actor {
+  class ping_actor final : public base_actor {
     size_t _pongs_count;
 
   public:

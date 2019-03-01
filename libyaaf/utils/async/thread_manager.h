@@ -10,7 +10,7 @@ namespace yaaf {
 namespace utils {
 namespace async {
 
-class thread_manager : public utils::non_copy {
+class thread_manager final : public utils::non_copy {
 
 public:
   struct params_t {

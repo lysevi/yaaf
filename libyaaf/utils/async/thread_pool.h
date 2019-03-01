@@ -15,7 +15,7 @@ namespace async {
 
 using task_queue_t = std::deque<task_wrapper_ptr>;
 
-class threads_pool : public utils::non_copy {
+class threads_pool final : public utils::non_copy {
 public:
   struct params_t {
     size_t threads_count;

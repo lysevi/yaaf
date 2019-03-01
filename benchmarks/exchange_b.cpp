@@ -11,7 +11,7 @@ std::atomic_size_t pongs = 0;
 
 const std::string PP_ENAME = "ping pong exchange";
 
-class pong_actor : public base_actor {
+class pong_actor final : public base_actor {
 public:
   void on_start() override {
     auto ctx = get_context();
@@ -29,7 +29,7 @@ public:
   }
 };
 
-class ping_actor : public base_actor {
+class ping_actor final : public base_actor {
   size_t _pongs_count;
 
 public:

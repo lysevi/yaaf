@@ -6,7 +6,7 @@
 #include <list>
 #include <sstream>
 
-class UnitTestLogger : public yaaf::utils::logging::abstract_logger {
+class UnitTestLogger final : public yaaf::utils::logging::abstract_logger {
 public:
   static bool verbose;
   UnitTestLogger() {}

@@ -9,7 +9,7 @@ using namespace yaaf::utils::async;
 const thread_kind_t tk = 1;
 const size_t threads_count = 2;
 
-class ThreadPool_b : public benchmark::Fixture {
+class ThreadPool_b  : public benchmark::Fixture {
   virtual void SetUp(const ::benchmark::State &) {
     tr_pool = new threads_pool(threads_pool::params_t(threads_count, tk));
   }

@@ -45,7 +45,7 @@ struct codepos {
   codepos &operator=(const codepos &) = delete;
 };
 
-class exception : public std::exception {
+class exception final : public std::exception {
 public:
   template <typename... T>
   static exception create_and_log(const codepos &pos, T... message) {

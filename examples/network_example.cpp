@@ -6,7 +6,7 @@
 const std::vector<uint8_t> tst_net_data = {0, 1, 2, 3, 4, 5, 6};
 const unsigned short port_number = 9080;
 
-class listener_actor : public yaaf::base_actor {
+class listener_actor final : public yaaf::base_actor {
 public:
   listener_actor() {}
 
@@ -36,7 +36,7 @@ public:
   unsigned char sum_ = (unsigned char)0;
 };
 
-class connection_actor : public yaaf::base_actor {
+class connection_actor final : public yaaf::base_actor {
 public:
   connection_actor() {}
 
@@ -54,7 +54,7 @@ public:
   unsigned char sum_ = 0;
 };
 
-class connection_started_actor : public yaaf::base_actor {
+class connection_started_actor final : public yaaf::base_actor {
 public:
   void on_start() override {
     auto ctx = get_context();

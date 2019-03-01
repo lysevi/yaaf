@@ -10,7 +10,7 @@ using namespace yaaf::utils::logging;
 
 namespace {
 
-class network_lst_actor : public base_actor,
+class network_lst_actor final : public base_actor,
                           public dialler::abstract_listener_consumer {
 public:
   network_lst_actor(context *ctx_, unsigned short port) : _ctx(ctx_), _port(port) {}
@@ -63,7 +63,7 @@ private:
   unsigned short _port;
 };
 
-class network_con_actor : public base_actor,
+class network_con_actor final : public base_actor,
                           public dialler::abstract_dial {
 public:
   network_con_actor(std::shared_ptr<dialler::dial> con_, context *ctx_,
@@ -130,7 +130,7 @@ private:
   std::string target_host;
 };
 
-class network_supervisor_actor : public base_actor {
+class network_supervisor_actor final : public base_actor {
 public:
   network_supervisor_actor(context *root_ctx_) : root_ctx(root_ctx_) {}
 

@@ -4,7 +4,7 @@
 
 std::atomic_size_t pings;
 
-class pong_actor : public yaaf::base_actor {
+class pong_actor final : public yaaf::base_actor {
 public:
   void action_handle(const yaaf::envelope &e) override {
     auto v = e.payload.cast<int>();
@@ -16,7 +16,7 @@ public:
   }
 };
 
-class ping_actor : public yaaf::base_actor {
+class ping_actor final : public yaaf::base_actor {
 public:
   ping_actor() {}
 

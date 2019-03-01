@@ -9,7 +9,7 @@ using namespace yaaf;
 std::atomic_size_t pings = 0;
 std::atomic_size_t pongs = 0;
 
-class pong_actor : public base_actor {
+class pong_actor final : public base_actor {
 public:
   void action_handle(const envelope &e) override {
     auto v = e.payload.cast<int>();
@@ -22,7 +22,7 @@ public:
   }
 };
 
-class ping_actor : public base_actor {
+class ping_actor final : public base_actor {
 public:
   ping_actor(size_t pongs_count_) { pongs_count = pongs_count_; }
   void on_start() override {

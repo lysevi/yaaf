@@ -69,7 +69,7 @@ private:
   std::weak_ptr<abstract_context> _ctx;
 };
 
-class actor_for_delegate : public base_actor {
+class actor_for_delegate final : public base_actor {
 public:
   using delegate_t = std::function<void(const envelope &)>;
 

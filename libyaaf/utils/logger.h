@@ -23,12 +23,12 @@ public:
 
 using abstract_logger_ptr = std::shared_ptr<abstract_logger>;
 
-class console_logger : public abstract_logger {
+class console_logger final : public abstract_logger {
 public:
   EXPORT void message(message_kind kind, const std::string &msg) noexcept override;
 };
 
-class quiet_logger : public abstract_logger {
+class quiet_logger final : public abstract_logger {
 public:
   EXPORT void message(message_kind kind, const std::string &msg) noexcept override;
 };

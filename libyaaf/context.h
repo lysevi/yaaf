@@ -38,7 +38,8 @@ struct exchange_t {
 using yaaf::utils::async::CONTINUATION_STRATEGY;
 using yaaf::utils::async::task_result_ptr;
 
-class context : public abstract_context, public std::enable_shared_from_this<context> {
+class context final : public abstract_context,
+                      public std::enable_shared_from_this<context> {
 public:
   using abstract_context::add_actor;
   using abstract_context::get_actor;

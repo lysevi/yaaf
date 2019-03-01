@@ -14,7 +14,7 @@ const thread_kind_t USER = 1;
 const thread_kind_t SYSTEM = 2;
 const thread_kind_t NETWORK = 3;
 
-class user_context : public abstract_context {
+class user_context final : public abstract_context {
 public:
   user_context(std::weak_ptr<context> ctx, const actor_address &addr, std::string name)
       : _ctx(ctx), _addr(addr), _name(name) {
@@ -132,17 +132,17 @@ private:
   std::string _name;
 };
 
-class usr_actor : public base_actor {
+class usr_actor final : public base_actor {
 public:
   void action_handle(const envelope &e) { UNUSED(e); }
 };
 
-class sys_actor : public base_actor {
+class sys_actor final : public base_actor {
 public:
   void action_handle(const envelope &e) { UNUSED(e); }
 };
 
-class root_actor : public base_actor {
+class root_actor final : public base_actor {
 public:
   void action_handle(const envelope &e) { UNUSED(e); }
 };

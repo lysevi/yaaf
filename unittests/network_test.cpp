@@ -9,7 +9,7 @@
 namespace {
 const std::vector<uint8_t> tst_net_data = {0, 1, 2, 3, 4, 5, 6};
 
-class testable_actor : public yaaf::base_actor {
+class testable_actor final : public yaaf::base_actor {
 public:
   testable_actor() {}
 
@@ -39,7 +39,7 @@ public:
   unsigned char sum_ = (unsigned char)0;
 };
 
-class testable_con_actor : public yaaf::base_actor {
+class testable_con_actor final : public yaaf::base_actor {
 public:
   testable_con_actor() {}
 
@@ -57,7 +57,7 @@ public:
   unsigned char sum_ = 0;
 };
 
-class test_initiator_actor : public yaaf::base_actor {
+class test_initiator_actor final : public yaaf::base_actor {
 public:
   void on_start() override {
     auto ctx = get_context();
