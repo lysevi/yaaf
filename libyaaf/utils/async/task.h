@@ -1,8 +1,10 @@
 #pragma once
 
 #include <libyaaf/exports.h>
-#include <libyaaf/utils/async/locker.h>
 #include <libyaaf/utils/utils.h>
+
+#include <condition_variable>
+#include <mutex>
 
 namespace yaaf {
 namespace utils {
@@ -33,21 +35,27 @@ struct thread_info {
 
 struct task_result {
   bool runned;
-  locker
-      m; // dont use mutex. mutex::lock() requires that the calling thread owns the mutex.
-  task_result() noexcept {
-    runned = true;
-    m.lock();
-  }
+
+  std::condition_variable _condition;
+  std::mutex _mutex;
+
+  task_result() noexcept { runned = true; }
+
   ~task_result() {}
+
   void wait() {
-    m.lock();
-    m.unlock();
+    std::unique_lock<std::mutex> ul(_mutex);
+    while (true) {
+      _condition.wait(ul, [this] { return !runned; });
+      if (!runned) {
+        break;
+      }
+    }
   }
 
   void unlock() {
     runned = false;
-    m.unlock();
+    _condition.notify_all();
   }
 };
 

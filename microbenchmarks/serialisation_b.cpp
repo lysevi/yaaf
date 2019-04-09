@@ -1,3 +1,4 @@
+#ifdef YAAF_NETWORK_ENABLED
 #include <libyaaf/network/queries.h>
 #include <libyaaf/serialization/serialization.h>
 #include <benchmark/benchmark.h>
@@ -79,3 +80,4 @@ BENCHMARK_DEFINE_F(Serialisation, login_confirm)(benchmark::State &state) {
   }
 }
 BENCHMARK_REGISTER_F(Serialisation, login_confirm);
+#endif

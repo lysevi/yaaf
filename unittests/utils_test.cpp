@@ -8,7 +8,7 @@
 #include <catch.hpp>
 
 #include <numeric>
-
+#include <array>
 TEST_CASE("utils.split") {
 
   std::array<int, 8> tst_a;

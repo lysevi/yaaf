@@ -1,4 +1,5 @@
 #include "helpers.h"
+#ifdef YAAF_NETWORK_ENABLED
 #include <libdialler/message.h>
 #include <libyaaf/context.h>
 #include <libyaaf/network/queries.h>
@@ -152,7 +153,7 @@ TEST_CASE("serialization.message", "[serialization]") {
   EXPECT_EQ(repacked.msg.login, msg_inner.login);
 }
 
-#ifdef YAAF_NETWORK_ENABLED
+
 TEST_CASE("serialization.message.network", "[serialization]") {
   yaaf::network_actor_message nam;
   nam.name = "/1/2/3/4/5/1/2/3/4/5/1/2/3/4/5";
